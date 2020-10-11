@@ -1,0 +1,8 @@
+[MASTER]
+load-plugins=pylint_django
+
+[MESSAGES CONTROL]
+# Warn about unused imports
+enable=W0614
+# Disable missing docstring warning
+disable=C0111

@@ -1,0 +1,15 @@
+{
+    "recommendations": [
+        // VSCode support for Python with various features
+        // (including IntelliSense)
+        "ms-python.python",
+        // For maintaining a consistent coding style
+        "editorconfig.editorconfig",
+        // For collaborative development
+        "ms-vsliveshare.vsliveshare",
+        // Easily find TODOs
+        "gruntfuggly.todo-tree",
+        // Easily query sqlite databases during development
+        "alexcvzz.vscode-sqlite"
+    ]
+}

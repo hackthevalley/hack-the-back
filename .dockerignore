@@ -1,0 +1,49 @@
+# Markdown files
+*.md
+
+# Git
+.git/
+.gitignore
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# Docker
+docker-compose*
+Dockerfile*
+.dockerignore
+*.dockerfile
+
+# EditorConfig
+.editorconfig
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytestdebug.log
+
+# Pylint Config
+.pylintrc
