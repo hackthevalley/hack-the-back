@@ -20,7 +20,7 @@
     // --- Linting (pylint) ---
     "python.linting.enabled": true,
     "python.linting.lintOnSave": true,
-    // --- Testing ---
+    // --- Testing (pytest) ---
     "python.testing.autoTestDiscoverOnSaveEnabled": true,
     "python.testing.pytestArgs": [
         "hacktheback"
