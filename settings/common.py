@@ -29,11 +29,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Local apps
-    "hacktheback.apps",
+    "hacktheback.account",
     "hacktheback.core",
+    "hacktheback.forms",
     "hacktheback.graphql",
+    "hacktheback.hackathon",
     # External apps
     "graphene_django",
+    "phonenumber_field",
 ]
 
 MIDDLEWARE = [
@@ -127,3 +130,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = "/static/"
+
+
+# User
+AUTH_USER_MODEL = "account.User"
