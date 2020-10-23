@@ -16,7 +16,9 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = utils.get_bool_environ("DEBUG", False)
 
-ALLOWED_HOSTS = utils.get_list_environ("ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = utils.get_list_environ(
+    "ALLOWED_HOSTS", ["localhost", "127.0.0.1"]
+)
 
 
 # Application definition
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
     # External apps
     "graphene_django",
     "phonenumber_field",
+    "social_django",
 ]
 
 MIDDLEWARE = [
@@ -130,7 +133,3 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = "/static/"
-
-
-# User
-AUTH_USER_MODEL = "account.User"

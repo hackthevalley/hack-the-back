@@ -5,7 +5,7 @@ from typing import List, Optional
 
 def get_list_environ(
     name: str, default: Optional[List[str]] = None, separator: str = ","
-) -> List[str]:
+) -> Optional[List[str]]:
     """
     Return a list separated by "separator" in the value of the environment
     variable "name" if it exists, or simply "default" if it doesn't. "default"
@@ -17,7 +17,9 @@ def get_list_environ(
     return default
 
 
-def get_bool_environ(name: str, default: Optional[bool] = None) -> bool:
+def get_bool_environ(
+    name: str, default: Optional[bool] = None
+) -> Optional[bool]:
     """
     Return the boolean value of the environment variable "name" if it exists,
     or simply "default" if it doesn't. "default" defaults to None.
@@ -26,6 +28,20 @@ def get_bool_environ(name: str, default: Optional[bool] = None) -> bool:
         value = os.environ.get(name)
         try:
             return bool(ast.literal_eval(value))
+        except ValueError as e:
+            raise ValueError(f"{value} is an invalid value for {name}") from e
+    return default
+
+
+def get_int_environ(name: str, default: Optional[int] = None) -> Optional[int]:
+    """
+    Return the integer value of the environment variable "name" if it exists,
+    or simply "default" if it doesn't. "default" defaults to None.
+    """
+    if name in os.environ:
+        value = os.environ.get(name)
+        try:
+            return int(value)
         except ValueError as e:
             raise ValueError(f"{value} is an invalid value for {name}") from e
     return default
