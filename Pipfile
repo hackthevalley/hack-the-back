@@ -11,10 +11,17 @@ pytest = "*"
 pytest-django = "*"
 pylint-django = "*"
 rope = "*"
+freezegun = "*"
+faker = "*"
 
 [packages]
 graphene-django = "*"
 django = "*"
+django-ordered-model = "*"
+django-phonenumber-field = {extras = ["phonenumbers"], version = "*"}
+django-graphql-jwt = "*"
+django-graphql-social-auth = "*"
+social-auth-app-django = "*"
 
 [requires]
 python_version = "3.8"
