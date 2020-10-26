@@ -6,7 +6,7 @@ from .graphql.views import GraphQLView
 
 urlpatterns = [
     path(
-        "api/v1/graphql",
+        "api/graphql",
         csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema)),
     ),
     path("social/", include("social_django.urls", namespace="social")),

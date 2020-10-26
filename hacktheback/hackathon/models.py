@@ -1,6 +1,7 @@
+from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
-from ..account.models import User
 from ..core.models import CreateTimestampMixin, GenericModel, IntervalMixin
 
 
@@ -22,23 +23,15 @@ class HackathonApplicant(GenericModel, CreateTimestampMixin):
     related :model: `hackathon.Hackathon`.
     """
 
-    APPLIED = "AP"
-    UNDER_REVIEW = "UR"
-    ACCEPTED = "AC"
-    STATUS_TYPE_CHOICES = [
-        (APPLIED, "Applied"),
-        (UNDER_REVIEW, "Under Review"),
-        (ACCEPTED, "Accepted"),
-    ]
+    class Status(models.TextChoices):
+        APPLIED = "AP", _("Applied")
+        UNDER_REVIEW = "UR", _("Under Review")
+        ACCEPTED = "AC", _("Accepted")
 
-    MALE = "MA"
-    FEMALE = "FM"
-    PREFER_NOT_TO_SAY = "PS"
-    GENDER_TYPE_CHOICES = [
-        (MALE, "Male"),
-        (FEMALE, "Female"),
-        (PREFER_NOT_TO_SAY, "Prefer not to say"),
-    ]
+    class Gender(models.TextChoices):
+        MALE = "MA", _("Male")
+        FEMAILE = "FM", _("Female")
+        PREFER_NOT_TO_SAY = "PS", _("Prefer not to say")
 
     hackathon = models.ForeignKey(
         Hackathon,
@@ -46,14 +39,14 @@ class HackathonApplicant(GenericModel, CreateTimestampMixin):
         related_name="applicants",
     )
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
     status = models.CharField(
-        max_length=2, choices=STATUS_TYPE_CHOICES, default=APPLIED
+        max_length=2, choices=Status.choices, default=Status.APPLIED
     )
     gender = models.CharField(
-        max_length=2, choices=GENDER_TYPE_CHOICES, default=PREFER_NOT_TO_SAY
+        max_length=2, choices=Gender.choices, default=Gender.PREFER_NOT_TO_SAY
     )
     school = models.CharField(max_length=256)
     year_of_graduation = models.CharField(max_length=4)

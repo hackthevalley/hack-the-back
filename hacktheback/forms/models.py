@@ -1,13 +1,10 @@
+from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 from ordered_model.models import OrderedModel
 
-from ..account.models import User
-from ..core.models import (
-    CreateTimestampMixin,
-    GenericModel,
-    IntervalMixin,
-    TimestampMixin,
-)
+from ..core.models import (CreateTimestampMixin, GenericModel, IntervalMixin,
+                           TimestampMixin)
 from ..hackathon.models import Hackathon
 
 
@@ -20,12 +17,9 @@ class Form(GenericModel, CreateTimestampMixin, IntervalMixin):
     `forms.Response` is a response to a specific form.
     """
 
-    HACKER_APPLICANT = "HA"
-    MISCELLANEOUS = "MI"
-    TYPE_CHOICES = [
-        (HACKER_APPLICANT, "Hacker Applicant"),
-        (MISCELLANEOUS, "Miscellaneous"),
-    ]
+    class FormType(models.TextChoices):
+        HACKER_APPLICANT = "HA", _("Hacker Applicant")
+        MISCELLANEOUS = "MI", _("Miscellaneous")
 
     title = models.CharField(max_length=128)
     hackathon = models.ForeignKey(
@@ -33,7 +27,7 @@ class Form(GenericModel, CreateTimestampMixin, IntervalMixin):
     )
     description = models.TextField()
     type = models.CharField(
-        max_length=2, choices=TYPE_CHOICES, default=MISCELLANEOUS
+        max_length=2, choices=FormType.choices, default=FormType.MISCELLANEOUS
     )
     is_draft = models.BooleanField(default=True)
 
@@ -46,36 +40,35 @@ class Question(GenericModel, OrderedModel):
     `forms.Form` is an :model: `forms.Answer`.
     """
 
-    SHORT_TEXT = "ST"
-    LONG_TEXT = "LT"
-    SELECT = "SL"
-    MULTISELECT = "MS"
-    HYPERLINK = "HL"
-    PHONE = "PH"
-    EMAIL = "EM"
-    RADIO = "RD"
-    FILE = "FL"
-    TYPE_CHOICES = [
-        (SHORT_TEXT, "Short Text"),
-        (LONG_TEXT, "Long Text"),
-        (SELECT, "Select"),
-        (HYPERLINK, "Hyperlink"),
-        (PHONE, "Phone"),
-        (EMAIL, "Email"),
-        (MULTISELECT, "Multiselect"),
-        (RADIO, "Radio"),
-        (FILE, "File"),
-    ]
+    class QuestionType(models.TextChoices):
+        SHORT_TEXT = "ST", _("Short Text")
+        LONG_TEXT = "LT", _("Long Text")
+        SELECT = "SL", _("Select")
+        MULTISELECT = "MS", _("Multiselect")
+        HYPERLINK = "HL", _("Hyperlink")
+        PHONE = "PH", _("Phone")
+        EMAIL = "EM", _("Email")
+        RADIO = "RD", _("Radio")
+        FILE = "FL", _("File")
 
-    OPTION_TYPES = [SELECT, MULTISELECT, RADIO]
-    SOLO_OPTION_TYPES = [SELECT, RADIO]
+    OPTION_TYPES = [
+        QuestionType.SELECT,
+        QuestionType.MULTISELECT,
+        QuestionType.RADIO,
+    ]
+    SOLO_OPTION_TYPES = [
+        QuestionType.SELECT,
+        QuestionType.RADIO
+    ]
 
     form = models.ForeignKey(
         Form, on_delete=models.CASCADE, related_name="questions"
     )
     label = models.CharField(max_length=128)
     type = models.CharField(
-        max_length=2, choices=TYPE_CHOICES, default=SHORT_TEXT
+        max_length=2,
+        choices=QuestionType.choices,
+        default=QuestionType.SHORT_TEXT,
     )
     description = models.TextField(
         null=True, help_text="A question's help text."
@@ -126,7 +119,9 @@ class Response(GenericModel, TimestampMixin):
     """
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="form_responses"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="form_responses",
     )
     form = models.ForeignKey(
         Form, on_delete=models.CASCADE, related_name="responses"
