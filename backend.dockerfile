@@ -1,23 +1,27 @@
 FROM python:3.8
 
-WORKDIR /app
-
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# --- Install dependencies (not including dev dependencies) ---
-RUN pip install pipenv
-COPY Pipfile .
-COPY Pipfile.lock .
-RUN pipenv lock -r > requirements.txt
-RUN pip install -r requirements.txt
-# PostgreSQL database adapter
+# Install system dependencies
+RUN pip install poetry
+
+# Install PostgreSQL database adapter
 RUN pip install psycopg2-binary
-# HTTP server for production
+
+# Install HTTP server for production
 RUN pip install gunicorn
 
+# Copy only requirements
+WORKDIR /app
+COPY pyproject.toml poetry.lock* /app/
+
+# Initialize project
+RUN poetry config virtualenvs.create false \
+  && poetry install --no-dev --no-interaction --no-ansi
+
 # Copy code into working directory
-COPY . .
+COPY . /app
 
 # Hack the Back HTTP server instance should be running on port 8000
 EXPOSE 8000

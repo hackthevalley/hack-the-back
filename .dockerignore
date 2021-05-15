@@ -44,6 +44,19 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 pytestdebug.log
+pytest.ini
 
 # Pylint Config
 .pylintrc
+
+# mypy Config
+mypy.ini
+
+# Pyenv
+.python-version
+
+# SQLite
+db.sqlite3
+
+# License
+LICENSE

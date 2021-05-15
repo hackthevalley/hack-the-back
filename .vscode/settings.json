@@ -1,8 +1,8 @@
 {
     // PEP8: "Limit all lines to a maximum of 79 characters."
-    "editor.rulers": [79],
-    // .venv should be in the workspace folder
-    "python.pythonPath": "${workspaceFolder}/.venv",
+    "editor.rulers": [
+        79
+    ],
     // --- Formatting (black) ---
     "editor.formatOnSave": true,
     "editor.formatOnPaste": false,
@@ -25,4 +25,5 @@
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestEnabled": true,
+    "python.linting.pylintEnabled": true,
 }

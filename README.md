@@ -19,6 +19,9 @@
     <a href="https://github.com/psf/black">
         <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black" />
     </a>
+    <a href="https://www.python.org/downloads/release/python-380/">
+        <img src="https://img.shields.io/badge/python-3.8-blue.svg" alt="Python 3.8" />
+    </a>
 </div>
 
 ## Table of Contents
@@ -35,7 +38,7 @@ Please view production installation instructions on the [Wiki page](https://gith
 
 ## Contributing
 
-Hack the Back requires contributors to install [Python 3.8](https://www.python.org/downloads/release/python-386/) and [Pipenv](https://pipenv-fork.readthedocs.io/en/latest/install.html) at minimum, to run in a development environment. The database in the development environment uses the SQLite engine, which stores data in an SQLite file in the root directory.
+Hack the Back requires contributors to install [Python 3.8](https://www.python.org/downloads/release/python-386/) and [Poetry](https://python-poetry.org/) at minimum, to run in a development environment. The database in the development environment uses the SQLite engine, which stores data in an SQLite file in the root directory.
 
 Please view the [Contributing Wiki pages](https://github.com/hackthevalley/hack-the-back/wiki/How-to-Contribute) for more details on installation and best practices.
 
