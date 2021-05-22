@@ -50,8 +50,10 @@ This project uses [Graphene](https://graphene-python.org/) with [Django Rest Fra
 #### Download the Schema via the CLI
 
 ```bash
-./manage.py graphql_schema --schema tutorial.quickstart.schema --out schema.json
+./manage.py graphql_schema --schema hacktheback.graphql.schema.schema --out graphql-schema.json
 ```
+
+_Make sure to load environment variables `SECRET_KEY` and `DEBUG` before running the command above._
 
 ### REST Documentation
 
@@ -65,8 +67,10 @@ This project uses [drf-spectacular](https://github.com/tfranzel/drf-spectacular)
 #### Download the Schema via the CLI
 
 ```
-./manage.py spectacular --file schema.yml
+./manage.py spectacular --file openapi-schema.yml
 ```
+
+_Make sure to load environment variables `SECRET_KEY` and `DEBUG` before running the command above._
 
 _**Fun fact:** You can take advantage of this project's OpenAPI 3.0 Schema to do [automatic code generation](https://openapi-generator.tech/) for the client or server. In other words, you can generate SDKs for a client library or framework — such as Angular. Alternatively, you can generate some starter code in another back-end web framework with the same REST endpoints._ :thinking:
 
