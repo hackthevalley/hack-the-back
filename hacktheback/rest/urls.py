@@ -7,7 +7,7 @@ from drf_spectacular.views import (
 )
 
 urlpatterns = [
-    path("auth/", include("hacktheback.rest.account.urls")),
+    path("account/", include("hacktheback.rest.account.urls")),
     path("schema", SpectacularAPIView.as_view(), name="schema"),
     path("schema.json", SpectacularJSONAPIView.as_view(), name="schema-json"),
     path("schema.yaml", SpectacularYAMLAPIView.as_view(), name="schema-yaml"),

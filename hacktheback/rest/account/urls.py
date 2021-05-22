@@ -8,8 +8,8 @@ from hacktheback.rest.account.views import (
 )
 
 urlpatterns = [
-    path("token/create/basic", JSONWebTokenBasicAuthAPIView.as_view()),
-    path("token/create/social", JSONWebTokenSocialAuthAPIView.as_view()),
-    path("token/refresh", RefreshJSONWebTokenAPIView.as_view()),
-    path("token/verify", VerifyJSONWebTokenAPIView.as_view()),
+    path("auth/token/create/basic", JSONWebTokenBasicAuthAPIView.as_view()),
+    path("auth/token/create/social", JSONWebTokenSocialAuthAPIView.as_view()),
+    path("auth/token/refresh", RefreshJSONWebTokenAPIView.as_view()),
+    path("auth/token/verify", VerifyJSONWebTokenAPIView.as_view()),
 ]

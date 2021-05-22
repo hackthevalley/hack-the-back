@@ -45,7 +45,7 @@ class JSONWebTokenBasicAuthAPIView(BaseJSONWebTokenAuthAPIView):
     serializer_class = JSONWebTokenBasicAuthSerializer
 
     @extend_schema(
-        summary="Create Auth Token from Basic Login", tags=["Authentication"]
+        summary="Create Auth Token from Basic Login", tags=["Account"]
     )
     def post(self, request, *args, **kwargs):
         """
@@ -59,7 +59,7 @@ class JSONWebTokenSocialAuthAPIView(BaseJSONWebTokenAuthAPIView):
     serializer_class = JSONWebTokenSocialAuthSerializer
 
     @extend_schema(
-        summary="Create Auth Token from Social Login", tags=["Authentication"]
+        summary="Create Auth Token from Social Login", tags=["Account"]
     )
     def post(self, request, *args, **kwargs):
         """
@@ -74,7 +74,7 @@ class RefreshJSONWebTokenAPIView(BaseJSONWebTokenAuthAPIView):
     serializer_class = RefreshJSONWebTokenSerializer
     authentication_classes = []
 
-    @extend_schema(summary="Refresh Auth Token", tags=["Authentication"])
+    @extend_schema(summary="Refresh Auth Token", tags=["Account"])
     def post(self, request, *args, **kwargs):
         """
         Refresh a user authentication token (JWT).
@@ -86,7 +86,7 @@ class VerifyJSONWebTokenAPIView(GenericAPIView):
     serializer_class = VerifyJSONWebTokenSerializer
     authentication_classes = []
 
-    @extend_schema(summary="Verify Auth Token", tags=["Authentication"])
+    @extend_schema(summary="Verify Auth Token", tags=["Account"])
     def post(self, request, *args, **kwargs):
         """
         Confirm if a user authentication token (JWT) is valid.
