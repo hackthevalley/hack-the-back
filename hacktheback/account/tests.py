@@ -1,7 +1,7 @@
 import pytest
 from faker import Faker
 
-from .models import User
+from hacktheback.account.models import User
 
 fake = Faker()
 

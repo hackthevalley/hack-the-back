@@ -2,10 +2,8 @@
 load-plugins=pylint_django
 
 [MESSAGES CONTROL]
-# Warn about unused imports
-enable=W0614
-# Disable missing docstring warning
-disable=C0111,invalid-name
+enable=W0614 # Warn about unused imports
+disable=C0103,C0111,R0903
 
 [BASIC]
 good-names=e

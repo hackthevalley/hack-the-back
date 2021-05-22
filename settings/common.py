@@ -36,9 +36,12 @@ INSTALLED_APPS = [
     "hacktheback.forms",
     "hacktheback.graphql",
     "hacktheback.hackathon",
+    "hacktheback.rest",
     # External apps
+    "drf_spectacular",
     "graphene_django",
     "phonenumber_field",
+    "rest_framework",
     "social_django",
 ]
 
@@ -130,6 +133,10 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/3.1/howto/static-files/
+# https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = "/static/"
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

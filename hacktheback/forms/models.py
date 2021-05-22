@@ -3,8 +3,12 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from ordered_model.models import OrderedModel
 
-from ..core.models import (CreateTimestampMixin, GenericModel, IntervalMixin,
-                           TimestampMixin)
+from ..core.models import (
+    CreateTimestampMixin,
+    GenericModel,
+    IntervalMixin,
+    TimestampMixin,
+)
 from ..hackathon.models import Hackathon
 
 
@@ -56,10 +60,7 @@ class Question(GenericModel, OrderedModel):
         QuestionType.MULTISELECT,
         QuestionType.RADIO,
     ]
-    SOLO_OPTION_TYPES = [
-        QuestionType.SELECT,
-        QuestionType.RADIO
-    ]
+    SOLO_OPTION_TYPES = [QuestionType.SELECT, QuestionType.RADIO]
 
     form = models.ForeignKey(
         Form, on_delete=models.CASCADE, related_name="questions"
@@ -97,7 +98,6 @@ class QuestionOption(GenericModel, OrderedModel):
         Question, on_delete=models.CASCADE, related_name="options"
     )
     label = models.CharField(max_length=128)
-    value = models.CharField(max_length=64)
     default_answer = models.BooleanField(default=False)
     # Edge case: If an admin deletes a QuestionOption but a related
     # AnswerOption exists, don't delete it but instead set this to True.

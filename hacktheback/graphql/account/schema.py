@@ -5,10 +5,10 @@ import graphql_social_auth
 
 class AccountMutations(graphene.ObjectType):
     """
-    Mutations involving user authentication and accounts.
+    Mutations involving user accounts and authentication.
     """
 
-    create_auth_token = graphql_jwt.ObtainJSONWebToken.Field(
+    basic_auth_token = graphql_jwt.ObtainJSONWebToken.Field(
         description="Mutation that authenticates a user with their email "
         + "and password. Returns a JWT (JSON Web Token) to be used for "
         + "authenticated requests on this server."
@@ -19,7 +19,8 @@ class AccountMutations(graphene.ObjectType):
         + "to be used for authenticated requests on this server."
     )
     refresh_auth_token = graphql_jwt.Refresh.Field(
-        description="Mutation that refreshes a user authentication token (JWT)."
+        description="Mutation that refreshes a user authentication token ("
+        "JWT). "
     )
     verify_auth_token = graphql_jwt.Verify.Field(
         description="Mutation that confirms if a user authentication token "

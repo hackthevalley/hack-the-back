@@ -1,7 +1,7 @@
 import graphene
 
-from .account.schema import AccountMutations
-from .apps.schema import AppsQueries
+from hacktheback.graphql.account.schema import AccountMutations
+from hacktheback.graphql.apps.schema import AppsQueries
 
 
 class Query(AppsQueries):
