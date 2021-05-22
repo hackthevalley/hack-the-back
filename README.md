@@ -7,7 +7,7 @@
 </div>
 
 <div align="center">
-    <em>A Hackathon event platform for elegantly handling Hacker applications, with ready-made GraphQL and REST endpoints.</em>
+    <em>A Hackathon event platform to elegantly handle Hacker apps, with ready-made GraphQL and REST endpoints.</em>
 </div>
 
 <br/>
