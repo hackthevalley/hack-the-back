@@ -23,6 +23,7 @@ graphene-django = "^2.15.0"
 graphene-django-extras = "^0.4.6"
 django-templated-mail = "^1.1.1"
 hipo-drf-exceptions = "^0.1.7"
+django-environ = "^0.4.5"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.8.2"
