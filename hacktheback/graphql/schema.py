@@ -1,10 +1,9 @@
 import graphene
 
-from hacktheback.graphql.account.schema import AccountMutations
-from hacktheback.graphql.apps.schema import AppsQueries
+from hacktheback.graphql.account.schema import AccountMutations, AccountQueries
 
 
-class Query(AppsQueries):
+class Query(AccountQueries):
     pass
 
 

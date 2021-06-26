@@ -9,10 +9,13 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 # Authentication settings
-from .auth import *
+from .account import *
 
 # Common settings
 from .common import *
+
+# Email settings
+from .email import *
 
 # GraphQL API (Graphene) settings
 from .graphql import *

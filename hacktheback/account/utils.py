@@ -2,6 +2,8 @@ from calendar import timegm
 from datetime import datetime
 
 from django.conf import settings
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from hacktheback.account.models import User
 
@@ -30,3 +32,15 @@ def jwt_payload(user: User, context=None) -> dict:
         payload["iss"] = settings.JWT_AUTH["JWT_ISSUER"]
 
     return payload
+
+
+def encode_uid(pk):
+    return force_str(urlsafe_base64_encode(force_bytes(pk)))
+
+
+def decode_uid(pk):
+    return force_str(urlsafe_base64_decode(pk))
+
+
+def get_user_email(user):
+    return getattr(user, user.get_email_field_name(), None)

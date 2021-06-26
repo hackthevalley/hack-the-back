@@ -14,6 +14,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "hacktheback.account.authentication.JSONWebTokenAuthentication",
     ),
+    "EXCEPTION_HANDLER": "hacktheback.core.errors.exception_handler",
 }
 
 # DRF Spectacular

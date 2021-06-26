@@ -6,6 +6,8 @@ from drf_spectacular.views import (
     SpectacularYAMLAPIView,
 )
 
+from hacktheback.rest.openapi import JSONWebTokenAuthenticationScheme
+
 urlpatterns = [
     path("account/", include("hacktheback.rest.account.urls")),
     path("schema", SpectacularAPIView.as_view(), name="schema"),

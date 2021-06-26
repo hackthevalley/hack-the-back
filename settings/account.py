@@ -5,6 +5,29 @@ from django.contrib.auth import get_user_model
 
 from . import common, utils
 
+# Account Activation and Registration
+
+# If True user will be required to click activation link sent in email after
+# creating an account or updating their email.
+SEND_ACTIVATION_EMAIL = True
+# The URL to your frontend activation page. It should contain {uid} and {token}
+# placeholders. You should pass uid and token to activation endpoint.
+ACTIVATION_URL = "activate?uid={uid}&token={token}"
+# If True, register or activation endpoint will send confirmation email to
+# user.
+SEND_CONFIRMATION_EMAIL = True
+
+
+# Password Reset
+
+# URL to your frontend password reset page. It should contain {uid} and {token}
+# placeholders. You should pass uid and token to reset password confirmation
+# endpoint.
+PASSWORD_RESET_CONFIRM_URL = "reset_password?uid={uid}&token={token}"
+# If True, change password endpoints will send confirmation email to user.
+PASSWORD_CHANGED_EMAIL_CONFIRMATION = True
+
+
 # Custom User model
 # https://docs.djangoproject.com/en/3.2/topics/auth/customizing/#substituting-a-custom-user-model
 

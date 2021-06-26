@@ -3,8 +3,7 @@ from datetime import datetime
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from graphql_jwt.utils import set_cookie
-from rest_framework import status
-from rest_framework.generics import GenericAPIView
+from rest_framework import generics, status
 from rest_framework.response import Response
 
 from hacktheback.account.serializers import (
@@ -15,9 +14,9 @@ from hacktheback.account.serializers import (
 )
 
 
-class BaseJSONWebTokenAuthAPIView(GenericAPIView):
+class BaseJSONWebTokenAuthAPIView(generics.GenericAPIView):
     serializer_class = None
-    authentication_classes = []
+    authentication_classes = ()
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -82,7 +81,7 @@ class RefreshJSONWebTokenAPIView(BaseJSONWebTokenAuthAPIView):
         return super().post(request, *args, **kwargs)
 
 
-class VerifyJSONWebTokenAPIView(GenericAPIView):
+class VerifyJSONWebTokenAPIView(generics.GenericAPIView):
     serializer_class = VerifyJSONWebTokenSerializer
     authentication_classes = []
 

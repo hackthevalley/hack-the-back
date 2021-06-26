@@ -248,7 +248,7 @@ python-versions = "*"
 
 [[package]]
 name = "django-phonenumber-field"
-version = "5.1.0"
+version = "5.2.0"
 description = "An international phone number field for django models."
 category = "main"
 optional = false
@@ -286,6 +286,14 @@ python-versions = ">=3.6"
 
 [package.dependencies]
 django = "*"
+
+[[package]]
+name = "django-templated-mail"
+version = "1.1.1"
+description = "Send emails using Django template system."
+category = "main"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "djangorestframework"
@@ -402,6 +410,21 @@ rest_framework = ["djangorestframework (>=3.6.3)"]
 test = ["pytest (>=3.6.3)", "pytest-cov", "coveralls", "mock", "pytz", "pytest-django (>=3.3.2)", "djangorestframework (>=3.6.3)", "django-filter (<2)", "django-filter (>=2)"]
 
 [[package]]
+name = "graphene-django-extras"
+version = "0.4.9"
+description = "This library add some extra funcionalities to graphene-django to facilitate the graphql use without Relay, allow paginations and filtering integration and add some extra directives"
+category = "main"
+optional = false
+python-versions = ">=3.6,<4.0"
+
+[package.dependencies]
+django-filter = ">=2.2.0,<3.0.0"
+djangorestframework = "*"
+graphene = ">=2.1.8,<3.0.0"
+graphene-django = ">=2.5.0,<3.0.0"
+python-dateutil = ">=2.8.0,<3.0.0"
+
+[[package]]
 name = "graphql-core"
 version = "2.3.2"
 description = "GraphQL implementation for Python"
@@ -430,6 +453,18 @@ python-versions = "*"
 graphql-core = ">=2.2,<3"
 promise = ">=2.2,<3"
 six = ">=1.12"
+
+[[package]]
+name = "hipo-drf-exceptions"
+version = "0.1.7"
+description = "A Django app for returning consistent, verbose and easy to parse error messages on Django Rest Framework backends."
+category = "main"
+optional = false
+python-versions = ">=3.5,<4"
+
+[package.dependencies]
+Django = ">=2.2"
+djangorestframework = ">=3.0"
 
 [[package]]
 name = "idna"
@@ -747,7 +782,7 @@ testing = ["django", "django-configurations (>=2.0)"]
 name = "python-dateutil"
 version = "2.8.1"
 description = "Extensions to the standard Python datetime module"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 
@@ -977,7 +1012,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "01ac787a7ffa2e48998dab49ee27bfbcf6627b202378ae7afd328771eae60899"
+content-hash = "03923fe4fd1accb7f0d4f55075931f37e3bc4d7d8f356a74f041e600e0fc1730"
 
 [metadata.files]
 aniso8601 = [
@@ -1110,8 +1145,8 @@ django-ordered-model = [
     {file = "django_ordered_model-3.4.3-py3-none-any.whl", hash = "sha256:5aa58277b81b4ca93fb18caf15069af604bac5c5146d2c29aae56da07a86ef1b"},
 ]
 django-phonenumber-field = [
-    {file = "django-phonenumber-field-5.1.0.tar.gz", hash = "sha256:9eda963ac15b363393f677cc084efd45c3bd97bb5a0cdb4a06409ac99e05dd4b"},
-    {file = "django_phonenumber_field-5.1.0-py3-none-any.whl", hash = "sha256:48724ba235ee8248a474204faa0934c5baf9536f429859d05cb131fbd6b1c695"},
+    {file = "django-phonenumber-field-5.2.0.tar.gz", hash = "sha256:52b2e5970133ec5ab701218b802f7ab237229854dc95fd239b7e9e77dc43731d"},
+    {file = "django_phonenumber_field-5.2.0-py3-none-any.whl", hash = "sha256:5547fb2b2cc690a306ba77a5038419afc8fa8298a486fb7895008e9067cc7e75"},
 ]
 django-stubs = [
     {file = "django-stubs-1.8.0.tar.gz", hash = "sha256:717967d7fee0a6af0746724a0be80d72831a982a40fa8f245a6a46f4cafd157b"},
@@ -1120,6 +1155,10 @@ django-stubs = [
 django-stubs-ext = [
     {file = "django-stubs-ext-0.2.0.tar.gz", hash = "sha256:c14f297835a42c1122421ec7e2d06579996b29d33b8016002762afa5d78863af"},
     {file = "django_stubs_ext-0.2.0-py3-none-any.whl", hash = "sha256:bd4a1e36ef2ba0ef15801933c85c68e59b383302c873795c6ecfc25950c7ecdb"},
+]
+django-templated-mail = [
+    {file = "django-templated-mail-1.1.1.tar.gz", hash = "sha256:8db807effebb42a532622e2d142dfd453dafcd0d7794c4c3332acb90656315f9"},
+    {file = "django_templated_mail-1.1.1-py3-none-any.whl", hash = "sha256:f7127e1e31d7cad4e6c4b4801d25814d4b8782627ead76f4a75b3b7650687556"},
 ]
 djangorestframework = [
     {file = "djangorestframework-3.12.4-py3-none-any.whl", hash = "sha256:6d1d59f623a5ad0509fe0d6bfe93cbdfe17b8116ebc8eda86d45f6e16e819aaf"},
@@ -1152,6 +1191,10 @@ graphene-django = [
     {file = "graphene-django-2.15.0.tar.gz", hash = "sha256:b78c9b05bc899016b9cc5bf13faa1f37fe1faa8c5407552c6ddd1a28f46fc31a"},
     {file = "graphene_django-2.15.0-py2.py3-none-any.whl", hash = "sha256:02671d195f0c09c8649acff2a8f4ad4f297d0f7d98ea6e6cdf034b81bab92880"},
 ]
+graphene-django-extras = [
+    {file = "graphene-django-extras-0.4.9.tar.gz", hash = "sha256:e13d750946de71a9fdae87b07d224be9d3a6cd51711c50180dbb74119ef71fb0"},
+    {file = "graphene_django_extras-0.4.9-py3-none-any.whl", hash = "sha256:db6d6a5d16dd3eb9acf68c0b8a5418536df73c6a211fbe40ec09d1271787cdfc"},
+]
 graphql-core = [
     {file = "graphql-core-2.3.2.tar.gz", hash = "sha256:aac46a9ac524c9855910c14c48fc5d60474def7f99fd10245e76608eba7af746"},
     {file = "graphql_core-2.3.2-py2.py3-none-any.whl", hash = "sha256:44c9bac4514e5e30c5a595fac8e3c76c1975cae14db215e8174c7fe995825bad"},
@@ -1159,6 +1202,10 @@ graphql-core = [
 graphql-relay = [
     {file = "graphql-relay-2.0.1.tar.gz", hash = "sha256:870b6b5304123a38a0b215a79eace021acce5a466bf40cd39fa18cb8528afabb"},
     {file = "graphql_relay-2.0.1-py3-none-any.whl", hash = "sha256:ac514cb86db9a43014d7e73511d521137ac12cf0101b2eaa5f0a3da2e10d913d"},
+]
+hipo-drf-exceptions = [
+    {file = "hipo-drf-exceptions-0.1.7.tar.gz", hash = "sha256:3de97a727dbf83faaa78be39d332b667b5f2c3c555304969af18b3a53a52dc9a"},
+    {file = "hipo_drf_exceptions-0.1.7-py3-none-any.whl", hash = "sha256:46f5aaeeed8d29892d49934556d10205342da979d6a49c039d9a1454f5aca806"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},

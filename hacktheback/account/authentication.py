@@ -37,7 +37,7 @@ class JSONWebTokenAuthentication(BaseAuthentication):
         try:
             payload = get_payload(jwt_value)
         except (JSONWebTokenExpired, JSONWebTokenError) as e:
-            raise exceptions.AuthenticationFailed(e.message)
+            raise exceptions.AuthenticationFailed(str(e))
 
         try:
             user = get_user_by_payload(payload)
