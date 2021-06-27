@@ -12,10 +12,8 @@ from django.contrib.auth import get_user_model
 # Helpful links:
 # 1. Deployment Checklist
 # --> https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
-# 2. Django Settings Reference
-# --> https://docs.djangoproject.com/en/3.2/ref/settings/
-# 3. Django-environ Documentation
-# --> https://django-environ.readthedocs.io/en/latest/
+# 2. Installation Wiki (includes detailed list of Environment Variables)
+# --> https://github.com/hackthevalley/hack-the-back/wiki/Installation
 
 # ------
 
@@ -177,9 +175,9 @@ GRAPHENE = {
     ],
 }
 
-JWT_EXPIRATION_DELTA = env.int("JWT_EXPIRATION_DELTA", default=60 * 5)
+JWT_EXPIRATION_DELTA = env.int("JWT_EXPIRATION", default=60 * 5)
 JWT_REFRESH_EXPIRATION_DELTA = env.int(
-    "JWT_REFRESH_EXPIRATION_DELTA", default=60 * 60 * 24 * 7
+    "JWT_REFRESH_EXPIRATION", default=60 * 60 * 24 * 7
 )
 JWT_AUTH_HEADER_PREFIX = env.str("JWT_AUTH_HEADER_PREFIX", "JWT")
 JWT_AUTH = {
@@ -254,17 +252,16 @@ if DATABASE_CONFIG and "postgresql" in DATABASE_CONFIG.get("ENGINE"):
 SOCIAL_AUTH_USER_MODEL = AUTH_USER_MODEL
 SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
 USER_FIELDS = ["email"]
-# https://github.com/flavors/django-graphql-social-auth/wiki/Authentication-backends
 SOCIAL_AUTH_BACKENDS = env.list("SOCIAL_AUTH_BACKENDS", default=[])
-if "facebook.FacebookOAuth2" in SOCIAL_AUTH_BACKENDS:
+if "social_core.backends.facebook.FacebookOAuth2" in SOCIAL_AUTH_BACKENDS:
     SOCIAL_AUTH_FACEBOOK_KEY = env.str("SOCIAL_AUTH_FACEBOOK_KEY")
     SOCIAL_AUTH_FACEBOOK_SECRET = env.str("SOCIAL_AUTH_FACEBOOK_SECRET")
     SOCIAL_AUTH_FACEBOOK_SCOPE = ["email"]
-if "github.GithubOAuth2" in SOCIAL_AUTH_BACKENDS:
+if "social_core.backends.github.GithubOAuth2" in SOCIAL_AUTH_BACKENDS:
     SOCIAL_AUTH_GITHUB_KEY = env.str("SOCIAL_AUTH_GITHUB_KEY")
     SOCIAL_AUTH_GITHUB_SECRET = env.str("SOCIAL_AUTH_GITHUB_SECRET")
     SOCIAL_AUTH_GITHUB_SCOPE = ["user:email"]
-if "google.GoogleOAuth2" in SOCIAL_AUTH_BACKENDS:
+if "social_core.backends.google.GoogleOAuth2" in SOCIAL_AUTH_BACKENDS:
     SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = env.str("SOCIAL_AUTH_GOOGLE_OAUTH2_KEY")
     SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = env.str(
         "SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET"
@@ -272,7 +269,7 @@ if "google.GoogleOAuth2" in SOCIAL_AUTH_BACKENDS:
     SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
         "https://www.googleapis.com/auth/userinfo.email"
     ]
-if "linkedin.LinkedinOAuth2" in SOCIAL_AUTH_BACKENDS:
+if "social_core.backends.linkedin.LinkedinOAuth2" in SOCIAL_AUTH_BACKENDS:
     SOCIAL_AUTH_LINKEDIN_OAUTH2_KEY = env.str(
         "SOCIAL_AUTH_LINKEDIN_OAUTH2_KEY"
     )
@@ -280,7 +277,7 @@ if "linkedin.LinkedinOAuth2" in SOCIAL_AUTH_BACKENDS:
         "SOCIAL_AUTH_LINKEDIN_OAUTH2_SECRET"
     )
     SOCIAL_AUTH_LINKEDIN_OAUTH2_SCOPE = ["r_emailaddress"]
-if "twitter.TwitterOAuth" in SOCIAL_AUTH_BACKENDS:
+if "social_core.backends.twitter.TwitterOAuth" in SOCIAL_AUTH_BACKENDS:
     SOCIAL_AUTH_TWITTER_KEY = env.str("SOCIAL_AUTH_TWITTER_KEY")
     SOCIAL_AUTH_TWITTER_SECRET = env.str("SOCIAL_AUTH_TWITTER_SECRET")
 
@@ -289,26 +286,15 @@ AUTHENTICATION_BACKENDS = [
     "graphql_jwt.backends.JSONWebTokenBackend",
 ] + SOCIAL_AUTH_BACKENDS
 
-# - Account Activation, Registration and Password Reset Settings -
-# If True user will be required to click activation link sent in email after
-# creating an account or updating their email.
 SEND_ACTIVATION_EMAIL = env.bool("SEND_ACTIVATION_EMAIL", default=True)
-# The URL to your frontend activation page. It should contain {uid} and {token}
-# placeholders. You should pass uid and token to activation endpoint.
 ACTIVATION_URL = env.str(
     "ACTIVATION_URL", default="activate?uid={uid}&token={token}"
 )
-# If True, register or activation endpoint will send confirmation email to
-# user.
 SEND_CONFIRMATION_EMAIL = env.bool("SEND_CONFIRMATION_EMAIL", default=True)
-# URL to your frontend password reset page. It should contain {uid} and {token}
-# placeholders. You should pass uid and token to reset password confirmation
-# endpoint.
 PASSWORD_RESET_CONFIRM_URL = env.str(
     "PASSWORD_RESET_CONFIRM_URL",
     default="reset_password?uid={uid}&token={token}",
 )
-# If True, change password endpoints will send confirmation email to user.
 PASSWORD_CHANGED_EMAIL_CONFIRMATION = env.bool(
     "PASSWORD_CHANGED_EMAIL_CONFIRMATION", default=True
 )
