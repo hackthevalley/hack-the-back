@@ -145,7 +145,6 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": (
         "djangorestframework_camel_case.render.CamelCaseJSONRenderer",
-        "djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer",
     ),
     "DEFAULT_PARSER_CLASSES": (
         "djangorestframework_camel_case.parser.CamelCaseJSONParser",
@@ -158,7 +157,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": SITE_NAME,
-    "DESCRIPTION": "RESTful APIs for managing Hackathons. To use the GraphQL "
+    "DESCRIPTION": "RESTful APIs for managing a Hackathon. To use the GraphQL "
     "API instead, head over the playground at [/api/graphql]("
     "/api/graphql).",
     "VERSION": "1.0.0",
