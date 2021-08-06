@@ -11,7 +11,7 @@ class GenericModel(models.Model):
     """
 
     # Note: Using UUIDs as primary keys with PostgreSQL will not create any
-    # performance distruptions compared to other relational databases
+    # performance disruptions compared to other relational databases
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     class Meta:
@@ -32,7 +32,7 @@ class CreateTimestampMixin(models.Model):
 
 class UpdateTimestampMixin(models.Model):
     """
-    This abstract model should be inherited by models that require an updation
+    This abstract model should be inherited by models that require an update at
     timestamp.
     """
 
@@ -45,7 +45,7 @@ class UpdateTimestampMixin(models.Model):
 class TimestampMixin(CreateTimestampMixin, UpdateTimestampMixin):
     """
     This abstract model should be inherited by models that require a creation
-    and an updation timestamp.
+    and an update at timestamp.
     """
 
     class Meta:
