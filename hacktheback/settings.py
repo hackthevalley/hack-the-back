@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from email.utils import getaddresses
 
 import environ
 from django.contrib.auth import get_user_model
@@ -65,6 +66,8 @@ ROOT_URLCONF = "hacktheback.urls"
 
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
 STATIC_URL = env.str("STATIC_URL", default="/static/")
+
+ADMINS = getaddresses([env.str("ADMINS")])
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
