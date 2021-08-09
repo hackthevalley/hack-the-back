@@ -1,15 +1,17 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from ordered_model.models import OrderedModel
 
-from ..core.models import (
+from hacktheback.core.models import (
     CreateTimestampMixin,
+    FileMixin,
     GenericModel,
     IntervalMixin,
     TimestampMixin,
 )
-from ..hackathon.models import Hackathon
+from hacktheback.forms.managers import FormManager
 
 
 class Form(GenericModel, CreateTimestampMixin, IntervalMixin):
@@ -22,18 +24,17 @@ class Form(GenericModel, CreateTimestampMixin, IntervalMixin):
     """
 
     class FormType(models.TextChoices):
-        HACKER_APPLICANT = "HA", _("Hacker Applicant")
+        HACKER_APPLICATION = "HA", _("Hacker Application")
         MISCELLANEOUS = "MI", _("Miscellaneous")
 
     title = models.CharField(max_length=128)
-    hackathon = models.ForeignKey(
-        Hackathon, on_delete=models.CASCADE, related_name="forms"
-    )
     description = models.TextField()
     type = models.CharField(
         max_length=2, choices=FormType.choices, default=FormType.MISCELLANEOUS
     )
     is_draft = models.BooleanField(default=True)
+
+    objects = FormManager()
 
 
 class Question(GenericModel, OrderedModel):
@@ -45,15 +46,16 @@ class Question(GenericModel, OrderedModel):
     """
 
     class QuestionType(models.TextChoices):
-        SHORT_TEXT = "ST", _("Short Text")
-        LONG_TEXT = "LT", _("Long Text")
-        SELECT = "SL", _("Select")
-        MULTISELECT = "MS", _("Multiselect")
-        HYPERLINK = "HL", _("Hyperlink")
-        PHONE = "PH", _("Phone")
-        EMAIL = "EM", _("Email")
-        RADIO = "RD", _("Radio")
-        FILE = "FL", _("File")
+        SHORT_TEXT = "SHORT_TEXT", _("Short Text")
+        LONG_TEXT = "LONG_TEXT", _("Long Text")
+        SELECT = "SELECT", _("Select")
+        MULTISELECT = "MULTISELECT", _("Multiselect")
+        RADIO = "RADIO", _("Radio")
+        HTTP_URL = "HTTP_URL", _("HTTP URL")
+        PHONE = "PHONE", _("Phone")
+        EMAIL = "EMAIL", _("Email")
+        PDF_FILE = "PDF_FILE", _("PDF File")
+        IMAGE_FILE = "IMAGE_FILE", _("Image File")
 
     OPTION_TYPES = [
         QuestionType.SELECT,
@@ -61,13 +63,23 @@ class Question(GenericModel, OrderedModel):
         QuestionType.RADIO,
     ]
     SOLO_OPTION_TYPES = [QuestionType.SELECT, QuestionType.RADIO]
+    NON_OPTION_TYPES = [
+        QuestionType.SHORT_TEXT,
+        QuestionType.LONG_TEXT,
+        QuestionType.HTTP_URL,
+        QuestionType.PHONE,
+        QuestionType.EMAIL,
+        QuestionType.PDF_FILE,
+        QuestionType.IMAGE_FILE,
+    ]
+    FILE_TYPES = [QuestionType.PDF_FILE, QuestionType.IMAGE_FILE]
 
     form = models.ForeignKey(
         Form, on_delete=models.CASCADE, related_name="questions"
     )
     label = models.CharField(max_length=128)
     type = models.CharField(
-        max_length=2,
+        max_length=11,
         choices=QuestionType.choices,
         default=QuestionType.SHORT_TEXT,
     )
@@ -85,7 +97,14 @@ class Question(GenericModel, OrderedModel):
     order_with_respect_to = "form"
 
     class Meta(OrderedModel.Meta):
-        unique_together = ["form", "label"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["form", "label"], name="unique_question_per_form"
+            )
+        ]
+
+    def __str__(self):
+        return self.label
 
 
 class QuestionOption(GenericModel, OrderedModel):
@@ -99,18 +118,24 @@ class QuestionOption(GenericModel, OrderedModel):
     )
     label = models.CharField(max_length=128)
     default_answer = models.BooleanField(default=False)
+    # TODO:
     # Edge case: If an admin deletes a QuestionOption but a related
     # AnswerOption exists, don't delete it but instead set this to True.
     persist_deletion = models.BooleanField(
         default=False,
-        help_text="The option has been deleted and won't be valid for future responses.",
+        help_text="The option has been deleted and won't be valid for future "
+        "responses.",
     )
 
     class Meta(OrderedModel.Meta):
-        unique_together = ["question", "label"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["question", "label"], name="unique_option_per_question"
+            )
+        ]
 
 
-class Response(GenericModel, TimestampMixin):
+class FormResponse(GenericModel, TimestampMixin):
     """
     A response to a related :model: `forms.Form`, by a :model: `account.User`.
 
@@ -122,6 +147,7 @@ class Response(GenericModel, TimestampMixin):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="form_responses",
+        null=True,
     )
     form = models.ForeignKey(
         Form, on_delete=models.CASCADE, related_name="responses"
@@ -142,9 +168,9 @@ class Answer(GenericModel):
         Question, on_delete=models.CASCADE, related_name="answers"
     )
     response = models.ForeignKey(
-        Response,
+        FormResponse,
         on_delete=models.CASCADE,
-        related_name="responses",
+        related_name="answers",
     )
 
 
@@ -160,4 +186,47 @@ class AnswerOption(GenericModel):
     )
     option = models.ForeignKey(
         QuestionOption, on_delete=models.CASCADE, related_name="answers"
+    )
+
+
+class AnswerFile(GenericModel, FileMixin, CreateTimestampMixin):
+    """
+    A file that is uploaded by the user and its id can then be placed in
+    the answer field of :model: `forms.Answer`.
+    """
+
+    FILE_UPLOAD_TO = settings.MEDIA_PATHS["ANSWER_FILE"]
+
+    question = models.ForeignKey(
+        Question, on_delete=models.CASCADE, related_name="answer_files"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="answer_files",
+        null=True,
+    )
+
+
+class HackathonApplicant(GenericModel, CreateTimestampMixin):
+    """
+    An applicant for the hackathon, where the applicant must be an existing
+    :model: `account.User`.
+
+    A HackathonApplicant should be created with a :model: `forms.Response`
+    that is submitted for a hacker application :model: `forms.Form` for the
+    related :model: `hackathon.Hackathon`.
+    """
+
+    class Status(models.TextChoices):
+        APPLYING = "APPLYING", _("Applying")
+        APPLIED = "APPLIED", _("Applied")
+        UNDER_REVIEW = "UNDER_REVIEW", _("Under Review")
+        ACCEPTED = "ACCEPTED", _("Accepted")
+
+    application = models.OneToOneField(
+        FormResponse, on_delete=models.CASCADE, related_name="applicant"
+    )
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.APPLIED
     )

@@ -10,6 +10,7 @@ from hacktheback.rest.openapi import JSONWebTokenAuthenticationScheme
 
 urlpatterns = [
     path("account/", include("hacktheback.rest.account.urls")),
+    path("", include("hacktheback.rest.forms.urls")),
     path("schema", SpectacularAPIView.as_view(), name="schema"),
     path("schema.json", SpectacularJSONAPIView.as_view(), name="schema-json"),
     path("schema.yaml", SpectacularYAMLAPIView.as_view(), name="schema-yaml"),

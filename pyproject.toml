@@ -25,6 +25,8 @@ django-templated-mail = "^1.1.1"
 hipo-drf-exceptions = "^0.1.7"
 django-environ = "^0.4.5"
 django-cors-headers = "^3.7.0"
+"hurry.filesize" = "^0.9"
+filetype = "^1.0.7"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.8.2"

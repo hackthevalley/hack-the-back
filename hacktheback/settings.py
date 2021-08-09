@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import timedelta
 from email.utils import getaddresses
 
@@ -67,6 +68,28 @@ ROOT_URLCONF = "hacktheback.urls"
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
 STATIC_URL = env.str("STATIC_URL", default="/static/")
 
+
+def media_upload_to_path(instance, filename, sub_dir=None):
+    upload_dir = (
+        f"user_{'anonymous' if instance.user.id is None else instance.user.id}"
+    )
+    file_ext = filename.split(".")[-1].lower()
+    new_filename = f"{uuid.uuid4()}.{file_ext}"
+    if sub_dir is None:
+        return os.path.join(upload_dir, new_filename)
+    return os.path.join(upload_dir, sub_dir, new_filename)
+
+
+MEDIA_PATHS = {
+    "ANSWER_FILE": lambda _, instance, filename: media_upload_to_path(
+        instance, filename, "form"
+    )
+}
+MEDIA_MAX_FILE_SIZE = env.int("MEDIA_MAX_FILE_SIZE", 52428800)
+MEDIA_ROOT = os.path.join(PROJECT_ROOT, "media")
+MEDIA_URL = env.str("MEDIA_URL", default="/media/")
+
+
 ADMINS = getaddresses([env.str("ADMINS", "")])
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
@@ -85,7 +108,6 @@ INSTALLED_APPS = [
     "hacktheback.core",
     "hacktheback.forms",
     "hacktheback.graphql",
-    "hacktheback.hackathon",
     "hacktheback.rest",
     # External apps
     "drf_spectacular",
@@ -177,6 +199,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "CAMELIZE_NAMES": True,
+    "COMPONENT_SPLIT_REQUEST": True,
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.contrib.djangorestframework_camel_case"
         ".camelize_serializer_fields",
