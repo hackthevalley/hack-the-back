@@ -67,7 +67,7 @@ ROOT_URLCONF = "hacktheback.urls"
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
 STATIC_URL = env.str("STATIC_URL", default="/static/")
 
-ADMINS = getaddresses([env.str("ADMINS")])
+ADMINS = getaddresses([env.str("ADMINS", "")])
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
