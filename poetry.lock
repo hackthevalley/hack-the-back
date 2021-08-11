@@ -456,6 +456,18 @@ graphene-django = ">=2.5.0,<3.0.0"
 python-dateutil = ">=2.8.0,<3.0.0"
 
 [[package]]
+name = "graphene-stubs"
+version = "0.15"
+description = "Graphene stubs and mypy plugin"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+mypy = ">=0.750"
+typing-extensions = ">=3.6.5"
+
+[[package]]
 name = "graphql-core"
 version = "2.3.2"
 description = "GraphQL implementation for Python"
@@ -1060,7 +1072,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "31a63e086b8bf9e40391e932c48d201c3c461bd6844d8b792e7ddffd41c08b4b"
+content-hash = "8f8fb3acc00b075dcc348b32494d7b740dae783839e74be7636cad12fa2fa22f"
 
 [metadata.files]
 aniso8601 = [
@@ -1262,6 +1274,10 @@ graphene-django = [
 graphene-django-extras = [
     {file = "graphene-django-extras-0.4.9.tar.gz", hash = "sha256:e13d750946de71a9fdae87b07d224be9d3a6cd51711c50180dbb74119ef71fb0"},
     {file = "graphene_django_extras-0.4.9-py3-none-any.whl", hash = "sha256:db6d6a5d16dd3eb9acf68c0b8a5418536df73c6a211fbe40ec09d1271787cdfc"},
+]
+graphene-stubs = [
+    {file = "graphene-stubs-0.15.tar.gz", hash = "sha256:d1a1b38c4f4f9f3b97438d9ec57c44ff115103504f0138f99374182f5ea57ca6"},
+    {file = "graphene_stubs-0.15-py3-none-any.whl", hash = "sha256:dfefc5f4bda5eccff3f0a976d804c2a972c631025894b43a48dccae8e78cad1f"},
 ]
 graphql-core = [
     {file = "graphql-core-2.3.2.tar.gz", hash = "sha256:aac46a9ac524c9855910c14c48fc5d60474def7f99fd10245e76608eba7af746"},
