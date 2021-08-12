@@ -212,7 +212,7 @@ class RefreshJSONWebTokenSerializer(serializers.Serializer):
             orig_iat
             + jwt_settings.JWT_REFRESH_EXPIRATION_DELTA.total_seconds()
         )
-        token = jwt_encode_handler(payload)
+        token = jwt_encode_handler(new_payload)
 
         return {
             "token": token,
