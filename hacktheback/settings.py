@@ -92,6 +92,8 @@ MEDIA_URL = env.str("MEDIA_URL", default="/media/")
 
 ADMINS = getaddresses([env.str("ADMINS", "")])
 
+DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", "webmaster@localhost")
+
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 AUTH_USER_MODEL = "account.User"
