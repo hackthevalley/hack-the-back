@@ -182,7 +182,7 @@ class AnswerOption(GenericModel):
     """
 
     answer = models.ForeignKey(
-        Answer, on_delete=models.CASCADE, related_name="selected_options"
+        Answer, on_delete=models.CASCADE, related_name="answer_options"
     )
     option = models.ForeignKey(
         QuestionOption, on_delete=models.CASCADE, related_name="answers"

@@ -407,7 +407,7 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
             )
             for answer in answers:
                 answer_options = None
-                if answer.get("answer_options"):
+                if "answer_options" in answer.keys():
                     answer_options = answer.pop("answer_options")
                 # Format data in `answer` field before it's placed inside the
                 # database.
