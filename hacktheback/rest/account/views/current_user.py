@@ -5,13 +5,13 @@ from rest_framework import generics, permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from hacktheback.account.serializers import (
+from hacktheback.rest.account.serializers import (
     SetPasswordRetypeSerializer,
     UserSerializer,
 )
 
 
-@extend_schema(tags=["Account"])
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
 class CurrentUserAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -41,7 +41,7 @@ class CurrentUserAPIView(generics.RetrieveUpdateAPIView):
         return super().patch(request, *args, **kwargs)
 
 
-@extend_schema(tags=["Account"], responses={204: None})
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"], responses={204: None})
 class CurrentUserSetPasswordAPIView(generics.GenericAPIView):
     serializer_class = SetPasswordRetypeSerializer
     permission_classes = (permissions.IsAuthenticated,)

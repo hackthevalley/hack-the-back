@@ -18,15 +18,15 @@ from hacktheback.forms.models import (
     HackathonApplicant,
     Question,
 )
-from hacktheback.forms.serializers import (
+from hacktheback.rest.exceptions import ConflictError
+from hacktheback.rest.forms.serializers import (
     AnswerSerializer,
     FormResponseSerializer,
 )
-from hacktheback.rest.exceptions import ConflictError
 from hacktheback.rest.permissions import IsOwner
 
 
-@extend_schema(tags=["Forms"])
+@extend_schema(tags=["Hacker APIs", "Forms"])
 class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
     queryset = FormResponse.objects.filter(
         form__type=Form.FormType.HACKER_APPLICATION,
@@ -157,7 +157,10 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         summary="Submit the Current User's Hacker Application",
         request=None,
         responses={
-            204: "The current user's hacker application has been submitted."
+            204: OpenApiResponse(
+                description="The current user's hacker application has been "
+                            "submitted."
+            )
         }
     )
     @action(methods=["POST"], detail=False)

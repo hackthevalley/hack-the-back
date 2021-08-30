@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from graphene_django import DjangoObjectType
 
-from hacktheback.account.serializers import UserSerializer
+from hacktheback.rest.account.serializers import UserSerializer
 
 User = get_user_model()
 

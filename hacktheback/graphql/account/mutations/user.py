@@ -2,16 +2,16 @@ import graphene
 from django.contrib.auth import get_user_model
 from graphene_django_extras import DjangoInputObjectType
 
-from hacktheback.account.serializers import (
+from hacktheback.core.errors import get_formatted_exception
+from hacktheback.graphql.account.types.user import UserType
+from hacktheback.graphql.core.errors import Errors
+from hacktheback.rest.account.serializers import (
     ActivationSerializer,
     PasswordResetConfirmRetypeSerializer,
     ResendActivationSerializer,
     SendEmailResetSerializer,
     UserCreatePasswordRetypeSerializer,
 )
-from hacktheback.core.errors import get_formatted_exception
-from hacktheback.graphql.account.types.user import UserType
-from hacktheback.graphql.core.errors import Errors
 
 User = get_user_model()
 

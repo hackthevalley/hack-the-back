@@ -6,7 +6,7 @@ from graphql_jwt.utils import set_cookie
 from rest_framework import generics, status
 from rest_framework.response import Response
 
-from hacktheback.account.serializers import (
+from hacktheback.rest.account.serializers import (
     JSONWebTokenBasicAuthSerializer,
     JSONWebTokenSocialAuthSerializer,
     RefreshJSONWebTokenSerializer,
@@ -14,6 +14,7 @@ from hacktheback.account.serializers import (
 )
 
 
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
 class BaseJSONWebTokenAuthAPIView(generics.GenericAPIView):
     serializer_class = None
     authentication_classes = ()
@@ -40,11 +41,12 @@ class BaseJSONWebTokenAuthAPIView(generics.GenericAPIView):
         return response
 
 
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
 class JSONWebTokenBasicAuthAPIView(BaseJSONWebTokenAuthAPIView):
     serializer_class = JSONWebTokenBasicAuthSerializer
 
     @extend_schema(
-        summary="Create Auth Token from Basic Login", tags=["Account"]
+        summary="Create Auth Token from Basic Login"
     )
     def post(self, request, *args, **kwargs):
         """
@@ -54,11 +56,12 @@ class JSONWebTokenBasicAuthAPIView(BaseJSONWebTokenAuthAPIView):
         return super().post(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
 class JSONWebTokenSocialAuthAPIView(BaseJSONWebTokenAuthAPIView):
     serializer_class = JSONWebTokenSocialAuthSerializer
 
     @extend_schema(
-        summary="Create Auth Token from Social Login", tags=["Account"]
+        summary="Create Auth Token from Social Login"
     )
     def post(self, request, *args, **kwargs):
         """
@@ -69,11 +72,12 @@ class JSONWebTokenSocialAuthAPIView(BaseJSONWebTokenAuthAPIView):
         return super().post(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
 class RefreshJSONWebTokenAPIView(BaseJSONWebTokenAuthAPIView):
     serializer_class = RefreshJSONWebTokenSerializer
     authentication_classes = []
 
-    @extend_schema(summary="Refresh Auth Token", tags=["Account"])
+    @extend_schema(summary="Refresh Auth Token")
     def post(self, request, *args, **kwargs):
         """
         Refresh a user authentication token (JWT).
@@ -81,11 +85,12 @@ class RefreshJSONWebTokenAPIView(BaseJSONWebTokenAuthAPIView):
         return super().post(request, *args, **kwargs)
 
 
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
 class VerifyJSONWebTokenAPIView(generics.GenericAPIView):
     serializer_class = VerifyJSONWebTokenSerializer
     authentication_classes = []
 
-    @extend_schema(summary="Verify Auth Token", tags=["Account"])
+    @extend_schema(summary="Verify Auth Token")
     def post(self, request, *args, **kwargs):
         """
         Confirm if a user authentication token (JWT) is valid.

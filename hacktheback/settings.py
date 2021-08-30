@@ -199,6 +199,30 @@ SPECTACULAR_SETTINGS = {
     "API instead, head over the playground at [/api/graphql]("
     "/api/graphql).",
     "VERSION": "1.0.0",
+    "TAGS": [
+        {
+            "name": "Hacker APIs",
+            "description": "**All operations for hacker users.**"
+        },
+        {
+            "name": "Admin APIs",
+            "description": "**All operations for admin users.**"
+        },
+        {
+            "name": "Account",
+            "description": "Operations associated with the `account` app. "
+                           "_This includes operations for all users._"
+        },
+        {
+            "name": "Forms",
+            "description": "Operations associated with the `forms` app. "
+                           "_This includes operations for all users._"
+        },
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+        "docExpansion": "none"
+    },
     "SERVE_INCLUDE_SCHEMA": False,
     "CAMELIZE_NAMES": True,
     "COMPONENT_SPLIT_REQUEST": True,

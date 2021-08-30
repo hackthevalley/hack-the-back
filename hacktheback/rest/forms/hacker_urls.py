@@ -1,10 +1,8 @@
 from rest_framework import routers
 
-from hacktheback.rest.forms.views.answer_file import (
+from hacktheback.rest.forms.views import (
+    FormsViewSet,
     HackerApplicationAnswerFileViewSet,
-)
-from hacktheback.rest.forms.views.form import FormsViewSet
-from hacktheback.rest.forms.views.form_response import (
     HackerApplicationResponsesViewSet,
 )
 

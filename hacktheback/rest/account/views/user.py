@@ -6,7 +6,7 @@ from rest_framework import generics, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from hacktheback.account.serializers import (
+from hacktheback.rest.account.serializers import (
     ActivationSerializer,
     PasswordResetConfirmRetypeSerializer,
     ResendActivationSerializer,
@@ -17,8 +17,8 @@ from hacktheback.account.serializers import (
 User = get_user_model()
 
 
-@extend_schema(tags=["Account"])
-class UserAPIView(generics.CreateAPIView):
+@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
+class RegisterUserAPIView(generics.CreateAPIView):
     serializer_class = UserCreatePasswordRetypeSerializer
     authentication_classes = ()
 
@@ -36,7 +36,9 @@ class UserAPIView(generics.CreateAPIView):
         serializer.save(request=self.request)
 
 
-@extend_schema(tags=["Account"], responses={204: None})
+@extend_schema(
+    tags=["Hacker APIs", "Admin APIs", "Account"], responses={204: None}
+)
 class UserActivationAPIView(generics.GenericAPIView):
     serializer_class = ActivationSerializer
     authentication_classes = ()
@@ -53,7 +55,9 @@ class UserActivationAPIView(generics.GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["Account"], responses={204: None})
+@extend_schema(
+    tags=["Hacker APIs", "Admin APIs", "Account"], responses={204: None}
+)
 class UserResendActivationAPIView(generics.GenericAPIView):
     serializer_class = ResendActivationSerializer
     authentication_classes = ()
@@ -72,7 +76,9 @@ class UserResendActivationAPIView(generics.GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["Account"], responses={204: None})
+@extend_schema(
+    tags=["Hacker APIs", "Admin APIs", "Account"], responses={204: None}
+)
 class UserResetPasswordAPIView(generics.GenericAPIView):
     serializer_class = SendEmailResetSerializer
     authentication_classes = ()
@@ -90,7 +96,9 @@ class UserResetPasswordAPIView(generics.GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema(tags=["Account"], responses={204: None})
+@extend_schema(
+    tags=["Hacker APIs", "Admin APIs", "Account"], responses={204: None}
+)
 class UserResetPasswordConfirmAPIView(generics.GenericAPIView):
     serializer_class = PasswordResetConfirmRetypeSerializer
     authentication_classes = ()

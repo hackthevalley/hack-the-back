@@ -5,10 +5,10 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 
 from hacktheback.forms.models import Form
-from hacktheback.forms.serializers import FormSerializer
+from hacktheback.rest.forms.serializers import FormSerializer
 
 
-@extend_schema(tags=["Forms"])
+@extend_schema(tags=["Hacker APIs", "Forms"])
 class FormsViewSet(
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,

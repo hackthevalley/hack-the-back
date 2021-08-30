@@ -7,13 +7,13 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from hacktheback.forms.models import AnswerFile, Form
-from hacktheback.forms.serializers.answer_file import (
+from hacktheback.rest.forms.serializers import (
     HackerApplicationAnswerFileSerializer,
 )
 from hacktheback.rest.permissions import IsOwner
 
 
-@extend_schema(tags=["Forms"])
+@extend_schema(tags=["Hacker APIs", "Forms"])
 class HackerApplicationAnswerFileViewSet(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):

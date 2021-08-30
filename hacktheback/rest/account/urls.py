@@ -1,21 +1,17 @@
 from django.urls import path
 
-from hacktheback.rest.account.views.auth_token import (
+from hacktheback.rest.account.views import (
+    CurrentUserAPIView,
+    CurrentUserSetPasswordAPIView,
     JSONWebTokenBasicAuthAPIView,
     JSONWebTokenSocialAuthAPIView,
     RefreshJSONWebTokenAPIView,
-    VerifyJSONWebTokenAPIView,
-)
-from hacktheback.rest.account.views.current_user import (
-    CurrentUserAPIView,
-    CurrentUserSetPasswordAPIView,
-)
-from hacktheback.rest.account.views.user import (
+    RegisterUserAPIView,
     UserActivationAPIView,
-    UserAPIView,
     UserResendActivationAPIView,
     UserResetPasswordAPIView,
     UserResetPasswordConfirmAPIView,
+    VerifyJSONWebTokenAPIView,
 )
 
 urlpatterns = [
@@ -23,7 +19,7 @@ urlpatterns = [
     path("auth/token/create/social", JSONWebTokenSocialAuthAPIView.as_view()),
     path("auth/token/refresh", RefreshJSONWebTokenAPIView.as_view()),
     path("auth/token/verify", VerifyJSONWebTokenAPIView.as_view()),
-    path("users", UserAPIView.as_view()),
+    path("users", RegisterUserAPIView.as_view()),
     path("users/activation", UserActivationAPIView.as_view()),
     path("users/resend_activation", UserResendActivationAPIView.as_view()),
     path("users/reset_password", UserResetPasswordAPIView.as_view()),

@@ -3,13 +3,13 @@ from django.contrib.auth import get_user_model
 from graphene_django_extras import DjangoInputObjectType
 from graphql_jwt.decorators import login_required
 
-from hacktheback.account.serializers import (
-    SetPasswordRetypeSerializer,
-    UserSerializer,
-)
 from hacktheback.core.errors import get_formatted_exception
 from hacktheback.graphql.account.types.user import UserType
 from hacktheback.graphql.core.errors import Errors
+from hacktheback.rest.account.serializers import (
+    SetPasswordRetypeSerializer,
+    UserSerializer,
+)
 
 User = get_user_model()
 

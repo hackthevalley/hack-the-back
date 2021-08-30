@@ -1,16 +1,24 @@
 from django.urls import include, path
-from drf_spectacular.views import (
-    SpectacularAPIView,
-    SpectacularJSONAPIView,
-    SpectacularSwaggerView,
-    SpectacularYAMLAPIView,
-)
+from drf_spectacular.views import (SpectacularAPIView, SpectacularJSONAPIView,
+                                   SpectacularSwaggerView,
+                                   SpectacularYAMLAPIView)
 
+# noinspection PyUnresolvedReferences
 from hacktheback.rest.openapi import JSONWebTokenAuthenticationScheme
+
+# URL patterns for hacker APIs
+hacker_urlpatterns = [
+    path("", include("hacktheback.rest.forms.hacker_urls")),
+]
+
+# URL patterns for admin APIs
+admin_urlpatterns = [
+]
 
 urlpatterns = [
     path("account/", include("hacktheback.rest.account.urls")),
-    path("", include("hacktheback.rest.forms.urls")),
+    path("", include(hacker_urlpatterns)),
+    path("admin/", include(admin_urlpatterns)),
     path("schema", SpectacularAPIView.as_view(), name="schema"),
     path("schema.json", SpectacularJSONAPIView.as_view(), name="schema-json"),
     path("schema.yaml", SpectacularYAMLAPIView.as_view(), name="schema-yaml"),
