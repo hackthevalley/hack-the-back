@@ -1,0 +1,5 @@
+This project is made possible by open source software.
+
+This repository includes source code from https://github.com/sunscrapers/djoser
+under hacktheback/account/serializers.py, hacktheback/rest/account/email.py and
+templates/email/*.
