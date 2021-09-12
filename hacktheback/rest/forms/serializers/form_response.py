@@ -4,7 +4,7 @@ import phonenumbers
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import URLValidator, validate_email
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from hacktheback.core.serializers import ValidationMixin
@@ -19,6 +19,7 @@ from hacktheback.forms.models import (
     Question,
     QuestionOption,
 )
+from hacktheback.rest.account.serializers import UserSerializer
 
 
 class AnswerOptionSerializer(serializers.ModelSerializer):
@@ -184,7 +185,10 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
         """
         # Validate that `answer` field is null and that the `answer_options`
         # field is not null
-        if data.get("answer") is not None or data.get("answer_options") is None:
+        if (
+            data.get("answer") is not None
+            or data.get("answer_options") is None
+        ):
             self.fail_for_field("only_answer_options_field")
 
         # Validate that at least one option is selected if the question
@@ -234,7 +238,7 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
 
     def create(self, data: Any) -> Answer:
         """
-        Create a new :model: `forms.Answer` object associated :model:
+        Create a new :model: `forms.Answer` object and associated :model:
         `forms.AnswerOption` objects.
         """
         with transaction.atomic():
@@ -258,7 +262,7 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
 
     def update(self, instance: Answer, validated_data: Any) -> Answer:
         """
-        Update am :model: `forms.Answer` object and create associated :model:
+        Update a :model: `forms.Answer` object and create associated :model:
         `forms.AnswerOption` objects. Delete past associated :model:
         `forms.AnswerOption` objects as well.
         """
@@ -267,7 +271,7 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
             answer_options = validated_data.get("answer_options", None)
 
             if question.type in Question.NON_OPTION_TYPES:
-                instance.answer = validated_data.get("answer", None)
+                instance.answer = validated_data.get("answer", instance.answer)
                 instance.save()
             else:
                 # Delete all past answer options
@@ -296,8 +300,9 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
             _("Not all required questions have been answered: {questions}"),
         ),
         "invalid_question_in_form": {
-            "answers", _("This is not a valid question in the form: {question}")
-        }
+            "answers",
+            _("This is not a valid question in the form: {question}"),
+        },
     }
 
     class Meta:
@@ -374,8 +379,7 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
             question: Question = answer.get("question")
             if question in answered_questions:
                 self.fail_for_field(
-                    "answers_for_same_question",
-                    **{"question": question.label}
+                    "answers_for_same_question", **{"question": question.label}
                 )
             answered_questions.append(question)
 
@@ -383,13 +387,16 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
         # required questions are provided in the response
         if not data.get("is_draft"):
             missing_questions: List[Question] = utils.get_missing_questions(
-                required_questions,
-                answered_questions
+                required_questions, answered_questions
             )
             if len(missing_questions) > 0:
                 self.fail_for_field(
                     "missing_questions",
-                    **{"questions": "; ".join(str(q) for q in missing_questions)},
+                    **{
+                        "questions": "; ".join(
+                            str(q) for q in missing_questions
+                        )
+                    },
                 )
         return data
 
@@ -413,8 +420,7 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
                 # database.
                 question: Question = answer.get("question")
                 answer["answer"] = utils.format_answer(
-                    answer.get("answer"),
-                    question.type
+                    answer.get("answer"), question.type
                 )
                 answer_obj = Answer.objects.create(
                     response=form_response_obj, **answer
@@ -446,4 +452,47 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
         raise Exception("This has not been implemented.")
 
 
-__all__ = ["FormResponseSerializer", "AnswerSerializer"]
+class HackathonApplicantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HackathonApplicant
+        fields = ("status",)
+
+
+class HackerApplicationResponseSerializer(FormResponseSerializer):
+    """
+    This contains the `applicant` associated object which should only be shown
+    to admin users.
+    """
+
+    applicant = HackathonApplicantSerializer()
+    user = UserSerializer()
+
+    class Meta(FormResponseSerializer.Meta):
+        fields = FormResponseSerializer.Meta.fields + (
+            "applicant",
+            "user",
+        )
+
+
+class HackerApplicationBatchStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=HackathonApplicant.Status,
+        required=True,
+        help_text="The status to update to.",
+    )
+    responses = serializers.PrimaryKeyRelatedField(
+        queryset=FormResponse.objects.all(),
+        many=True,
+        required=True,
+        allow_null=False,
+        allow_empty=False,
+        help_text="The ids of the hacker application responses to update.",
+    )
+
+
+__all__ = [
+    "HackerApplicationResponseSerializer",
+    "FormResponseSerializer",
+    "HackerApplicationBatchStatusUpdateSerializer",
+    "AnswerSerializer",
+]

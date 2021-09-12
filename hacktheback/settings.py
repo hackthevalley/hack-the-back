@@ -112,6 +112,7 @@ INSTALLED_APPS = [
     "hacktheback.graphql",
     "hacktheback.rest",
     # External apps
+    "django_filters",
     "drf_spectacular",
     "graphene_django",
     "phonenumber_field",
@@ -190,6 +191,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "hacktheback.account.authentication.JSONWebTokenAuthentication",
     ),
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend"
+    ],
     "EXCEPTION_HANDLER": "hacktheback.core.errors.exception_handler",
 }
 
@@ -220,11 +224,11 @@ SPECTACULAR_SETTINGS = {
         },
     ],
     "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
         "persistAuthorization": True,
         "docExpansion": "none"
     },
     "SERVE_INCLUDE_SCHEMA": False,
-    "CAMELIZE_NAMES": True,
     "COMPONENT_SPLIT_REQUEST": True,
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.contrib.djangorestframework_camel_case"

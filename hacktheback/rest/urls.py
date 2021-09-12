@@ -1,7 +1,10 @@
 from django.urls import include, path
-from drf_spectacular.views import (SpectacularAPIView, SpectacularJSONAPIView,
-                                   SpectacularSwaggerView,
-                                   SpectacularYAMLAPIView)
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularJSONAPIView,
+    SpectacularSwaggerView,
+    SpectacularYAMLAPIView,
+)
 
 # noinspection PyUnresolvedReferences
 from hacktheback.rest.openapi import JSONWebTokenAuthenticationScheme
@@ -13,6 +16,7 @@ hacker_urlpatterns = [
 
 # URL patterns for admin APIs
 admin_urlpatterns = [
+    path("", include("hacktheback.rest.forms.admin_urls")),
 ]
 
 urlpatterns = [

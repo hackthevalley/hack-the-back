@@ -3,8 +3,12 @@ from typing import List
 from django.db import transaction
 from django.http import Http404
 from django.utils.translation import ugettext as _
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import permissions, status, viewsets
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import get_object_or_404
@@ -19,11 +23,18 @@ from hacktheback.forms.models import (
     Question,
 )
 from hacktheback.rest.exceptions import ConflictError
+from hacktheback.rest.forms.common import answer_question_in_form_response
+from hacktheback.rest.forms.filters import (
+    HackerApplicationResponsesAdminFilter,
+)
 from hacktheback.rest.forms.serializers import (
     AnswerSerializer,
     FormResponseSerializer,
+    HackerApplicationBatchStatusUpdateSerializer,
+    HackerApplicationResponseSerializer,
 )
-from hacktheback.rest.permissions import IsOwner
+from hacktheback.rest.pagination import StandardResultsPagination
+from hacktheback.rest.permissions import AdminSiteModelPermissions, IsOwner
 
 
 @extend_schema(tags=["Hacker APIs", "Forms"])
@@ -78,9 +89,13 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
     def _do_response_not_in_draft_check(self) -> FormResponse:
         response: FormResponse = self.get_object()
         if not response.is_draft:
-            raise PermissionDenied(detail=_("The hacker application has "
-                                            "already been submitted. It "
-                                            "cannot be edited anymore."))
+            raise PermissionDenied(
+                detail=_(
+                    "The hacker application has "
+                    "already been submitted. It "
+                    "cannot be edited anymore."
+                )
+            )
         return response
 
     @extend_schema(
@@ -120,7 +135,7 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
     @extend_schema(
         summary="Answer a Question in the Current User's Hacker Application",
         request=AnswerSerializer,
-        responses={200: AnswerSerializer}
+        responses={200: AnswerSerializer},
     )
     @action(methods=["PUT"], detail=False)
     def answer_question(self, request, *args, **kwargs):
@@ -133,25 +148,10 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         self._do_form_open_check()
         # Cannot update a response that has already been submitted.
         form_response: FormResponse = self._do_response_not_in_draft_check()
-        # Validate request data
-        serializer = AnswerSerializer(
-            data=request.data,
-            context={"form_response": form_response}
+        data = answer_question_in_form_response(
+            form_response=form_response, answer_data=request.data
         )
-        serializer.is_valid(raise_exception=True)
-        try:
-            # Get answer to question if it exists
-            question: Question = serializer.validated_data.get("question")
-            answer = Answer.objects.get(
-                question=question,
-                response=form_response
-            )
-            serializer.instance = answer
-        except Answer.DoesNotExist:
-            pass
-        # Create or update the answer
-        serializer.save()
-        return Response(serializer.data)
+        return Response(data)
 
     @extend_schema(
         summary="Submit the Current User's Hacker Application",
@@ -159,9 +159,9 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         responses={
             204: OpenApiResponse(
                 description="The current user's hacker application has been "
-                            "submitted."
+                "submitted."
             )
-        }
+        },
     )
     @action(methods=["POST"], detail=False)
     def submit(self, request, *args, **kwargs):
@@ -176,23 +176,26 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         instance: FormResponse = self._do_response_not_in_draft_check()
         # Check if all required questions have been answered.
         required_questions = list(
-            instance.form.questions.filter(required=True))
+            instance.form.questions.filter(required=True)
+        )
         answered = list(instance.answers.all())
         answered_questions = list(
             Question.objects.filter(answers__in=answered)
         )
         missing_questions: List[Question] = utils.get_missing_questions(
-            required_questions,
-            answered_questions
+            required_questions, answered_questions
         )
         if len(missing_questions) > 0:
             raise ConflictError(
                 detail=_(
                     "Not all required questions have been answered: {"
-                    "questions}").format(
-                        **{"questions": "; ".join(
+                    "questions}"
+                ).format(
+                    **{
+                        "questions": "; ".join(
                             str(q) for q in missing_questions
-                        )}
+                        )
+                    }
                 )
             )
         with transaction.atomic():
@@ -202,4 +205,89 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             # Set the status of the HackerApplicant object to APPLIED
             instance.applicant.status = HackathonApplicant.Status.APPLIED
             instance.applicant.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(tags=["Admin APIs", "Forms"])
+@extend_schema_view(
+    list=extend_schema(
+        summary="List Hacker Applications",
+        description="List hacker applications.",
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve a Hacker Application",
+        description="Retrieve a hacker application.",
+    ),
+    answer_question=extend_schema(
+        summary="Answer a Question in a Hacker Application",
+        request=AnswerSerializer,
+        responses={200: AnswerSerializer},
+    ),
+    batch_status_update=extend_schema(
+        summary="Change the Status of Hacker Application(s)",
+        request=HackerApplicationBatchStatusUpdateSerializer,
+        responses={
+            "204": OpenApiResponse(
+                description="The hacker applications have had their statuses "
+                "changed."
+            )
+        },
+    ),
+)
+class HackerApplicationResponsesAdminViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = FormResponse.objects.filter(
+        form__type=Form.FormType.HACKER_APPLICATION
+    )
+    permission_classes = (AdminSiteModelPermissions,)
+    serializer_class = HackerApplicationResponseSerializer
+    pagination_class = StandardResultsPagination
+    filterset_class = HackerApplicationResponsesAdminFilter
+
+    @action(methods=["PUT"], detail=True)
+    def answer_question(self, request, *args, **kwargs):
+        """
+        Answer a question in the specified hacker application. This is
+        idempotent in that one answer will be created if it doesn't exist and
+        will be updated if it does exist.
+        """
+        data = answer_question_in_form_response(
+            form_response=self.get_object(), answer_data=request.data
+        )
+        return Response(data)
+
+    @action(detail=False, methods=["POST"])
+    def batch_status_update(self, request, *args, **kwargs):
+        """
+        Update the state of one or more hacker applications.
+        """
+        # Validate data
+        serializer = HackerApplicationBatchStatusUpdateSerializer(
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+        # Gather data
+        new_status = serializer.data.get("status")
+        responses = serializer.data.get("responses")
+        with transaction.atomic():
+            # Retrieve all associated HackathonApplicant objects
+            ha_objs = HackathonApplicant.objects.filter(
+                application__id__in=responses
+            )
+            for ha_obj in ha_objs:
+                ha_obj.status = new_status
+            # Update status of those objects
+            HackathonApplicant.objects.bulk_update(ha_objs, ["status"])
+
+            # Also, set the form response `is_draft` to `True` if status
+            # changes to `APPLYING`. Otherwise, all status changes will have
+            # form response `is_draft` to `False`
+            response_objs = FormResponse.objects.filter(id__in=responses)
+            if new_status == HackathonApplicant.Status.APPLYING:
+                for response_obj in response_objs:
+                    response_obj.is_draft = True
+            else:
+                for response_obj in response_objs:
+                    response_obj.is_draft = False
+            FormResponse.objects.bulk_update(response_objs, ["is_draft"])
+
         return Response(status=status.HTTP_204_NO_CONTENT)
