@@ -44,6 +44,8 @@ class AnswerFileSerializer(serializers.ModelSerializer, ValidationMixin):
         """
         file = validated_data.get("file")
         user = self.context["request"].user
+        if validated_data.get("user"):
+            user = validated_data.pop("user")
         return AnswerFile.objects.create(
             user=user, original_filename=file.name, **validated_data
         )
@@ -99,3 +101,12 @@ class HackerApplicationAnswerFileSerializer(AnswerFileSerializer):
         if question.form.type != Form.FormType.HACKER_APPLICATION:
             self.fail("question_not_in_ha_form")
         return super().validate(data)
+
+
+class HackerApplicationAnswerFileAdminSerializer(
+    HackerApplicationAnswerFileSerializer
+):
+    class Meta(AnswerFileSerializer.Meta):
+        fields = "__all__"
+        read_only_fields = ("original_filename",)
+        extra_kwargs = {"user": {"required": True}}

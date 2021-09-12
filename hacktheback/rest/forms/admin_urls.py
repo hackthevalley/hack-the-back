@@ -5,10 +5,16 @@ from hacktheback.rest.forms.views import (
     FormQuestionOptionsAdminViewSet,
     FormQuestionsAdminViewSet,
     FormsAdminViewSet,
+    HackerApplicationAnswerFileAdminViewSet,
     HackerApplicationResponsesAdminViewSet,
 )
 
 router = routers.SimpleRouter(trailing_slash=False)
+router.register(
+    "forms/hacker_application/responses/files",
+    HackerApplicationAnswerFileAdminViewSet,
+    basename="admin-hacker-application-form-response-files"
+)
 router.register(
     "forms/hacker_application/responses",
     HackerApplicationResponsesAdminViewSet,
