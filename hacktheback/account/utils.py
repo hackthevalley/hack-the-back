@@ -19,6 +19,8 @@ def jwt_payload(user: User, context=None) -> dict:
         "fullName": user.get_full_name(),
         "firstName": user.first_name,
         "lastName": user.last_name,
+        "isStaffUser": user.is_staff,
+        "isPotentialHackerUser": not user.is_staff,
         "exp": timegm(exp.utctimetuple()),
     }
 
