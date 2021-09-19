@@ -23,6 +23,7 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core import exceptions as django_exceptions
@@ -233,14 +234,27 @@ class VerifyJSONWebTokenSerializer(serializers.Serializer):
         return {"payload": payload}
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserBaseSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="get_full_name", read_only=True)
+
     class Meta:
         model = User
-        fields = tuple(User.REQUIRED_FIELDS) + (
+        fields = (
             "id",
             User.USERNAME_FIELD,
+            "full_name",
+            "first_name",
+            "last_name",
+            "is_staff",
         )
         read_only_fields = (User.USERNAME_FIELD,)
+
+
+class UserSerializer(UserBaseSerializer):
+    class Meta(UserBaseSerializer.Meta):
+        read_only_fields = UserBaseSerializer.Meta.read_only_fields + (
+            "is_staff",
+        )
 
     def update(self, instance, validated_data):
         email_field = User.EMAIL_FIELD
@@ -250,6 +264,22 @@ class UserSerializer(serializers.ModelSerializer):
                 instance.is_active = False
                 instance.save(update_fields=["is_active"])
         return super().update(instance, validated_data)
+
+
+class CompleteUserSerializer(UserBaseSerializer):
+    groups = serializers.PrimaryKeyRelatedField(
+        queryset=Group.objects.all(), many=True
+    )
+    user_permissions = serializers.PrimaryKeyRelatedField(
+        queryset=Permission.objects.all(), many=True
+    )
+
+    class Meta(UserBaseSerializer.Meta):
+        fields = UserBaseSerializer.Meta.fields + (
+            "is_active",
+            "groups",
+            "user_permissions",
+        )
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

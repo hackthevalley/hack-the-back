@@ -1,18 +1,22 @@
 from typing import Any
 
 from django.contrib.auth import get_user_model
-from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import generics, mixins, status, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from hacktheback.rest.account.filters import UserAdminFilter
 from hacktheback.rest.account.serializers import (
     ActivationSerializer,
+    CompleteUserSerializer,
     PasswordResetConfirmRetypeSerializer,
     ResendActivationSerializer,
     SendEmailResetSerializer,
     UserCreatePasswordRetypeSerializer,
 )
+from hacktheback.rest.pagination import StandardResultsPagination
+from hacktheback.rest.permissions import AdminSiteModelPermissions
 
 User = get_user_model()
 
@@ -115,3 +119,29 @@ class UserResetPasswordConfirmAPIView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(tags=["Admin APIs", "Account"])
+@extend_schema_view(
+    list=extend_schema(summary="List Users", description="List users."),
+    retrieve=extend_schema(
+        summary="Retrieve a User", description="Retrieve a user."
+    ),
+    update=extend_schema(
+        summary="Update a User", description="Update a user."
+    ),
+    partial_update=extend_schema(
+        summary="Partial Update a User", description="Partial update a user."
+    ),
+)
+class UserAdminViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = User.objects.all()
+    permission_classes = (AdminSiteModelPermissions,)
+    serializer_class = CompleteUserSerializer
+    pagination_class = StandardResultsPagination
+    filterset_class = UserAdminFilter

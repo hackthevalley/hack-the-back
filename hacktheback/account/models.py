@@ -15,3 +15,6 @@ class User(AbstractUser, GenericModel):
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
     objects = UserManager()
+
+    class Meta:
+        ordering = ["email"]
