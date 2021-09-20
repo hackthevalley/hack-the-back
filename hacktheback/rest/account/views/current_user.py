@@ -1,17 +1,34 @@
 from typing import Any
 
-from drf_spectacular.utils import extend_schema
+from django.contrib.auth.models import Permission
+from django.db.models import Q
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from hacktheback.rest.account.serializers import (
+    PermissionSerializer,
     SetPasswordRetypeSerializer,
     UserSerializer,
 )
 
 
 @extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"])
+@extend_schema_view(
+    get=extend_schema(
+        summary="Retrieve Current User Account",
+        description="Retrieve the user that is currently signed in.",
+    ),
+    put=extend_schema(
+        summary="Update Current User Account",
+        description="Update the user that is currently signed in.",
+    ),
+    patch=extend_schema(
+        summary="Partial Update Current User Account",
+        description="Partial update the user that is currently signed in.",
+    ),
+)
 class CurrentUserAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -19,29 +36,10 @@ class CurrentUserAPIView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
-    @extend_schema(summary="Retrieve Current User Account")
-    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        """
-        Retrieve the user that is currently signed in.
-        """
-        return super().get(request, *args, **kwargs)
 
-    @extend_schema(summary="Update Current User Account")
-    def put(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        """
-        Update the user that is currently signed in.
-        """
-        return super().put(request, *args, **kwargs)
-
-    @extend_schema(summary="Partial Update Current User Account")
-    def patch(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        """
-        Partially update the user that is currently signed in.
-        """
-        return super().patch(request, *args, **kwargs)
-
-
-@extend_schema(tags=["Hacker APIs", "Admin APIs", "Account"], responses={204: None})
+@extend_schema(
+    tags=["Hacker APIs", "Admin APIs", "Account"], responses={204: None}
+)
 class CurrentUserSetPasswordAPIView(generics.GenericAPIView):
     serializer_class = SetPasswordRetypeSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -56,3 +54,23 @@ class CurrentUserSetPasswordAPIView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(
+    tags=["Hacker APIs", "Admin APIs", "Account"],
+    summary="List Permissions for Current Admin User Account",
+    description="List all permissions that the user that is currently signed "
+    "in has. If the user is a superuser, then they have all permissions. If "
+    "the user is in a group, they inherit all the permissions "
+    "associated to that group.",
+)
+class CurrentUserPermissionsAPIView(generics.ListAPIView):
+    serializer_class = PermissionSerializer
+    permission_classes = (permissions.IsAuthenticated, permissions.IsAdminUser)
+    queryset = Permission.objects.none()
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Permission.objects.all()
+        return Permission.objects.filter(Q(user=user) | Q(group__user=user))

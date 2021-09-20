@@ -2,6 +2,7 @@ from django.urls import path
 
 from hacktheback.rest.account.views import (
     CurrentUserAPIView,
+    CurrentUserPermissionsAPIView,
     CurrentUserSetPasswordAPIView,
     JSONWebTokenBasicAuthAPIView,
     JSONWebTokenSocialAuthAPIView,
@@ -29,4 +30,5 @@ urlpatterns = [
     ),
     path("users/me", CurrentUserAPIView.as_view()),
     path("users/me/set_password", CurrentUserSetPasswordAPIView.as_view()),
+    path("users/me/permissions", CurrentUserPermissionsAPIView.as_view()),
 ]
