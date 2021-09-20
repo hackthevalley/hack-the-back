@@ -8,7 +8,7 @@ class GroupSerializer(serializers.ModelSerializer):
     permissions = serializers.PrimaryKeyRelatedField(
         queryset=Permission.objects.all(), many=True
     )
-    users = UserSerializer(many=True, source="user_set")
+    users = UserSerializer(many=True, source="user_set", read_only=True)
 
     class Meta:
         model = Group
