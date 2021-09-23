@@ -41,11 +41,13 @@ def send_emails(subject, recipients, plaintext, html):
     conn.open()
     emails = []
     for recipient in recipients:
-        html = _render_template_with_context(html, {"user": recipient})
+        context = {"user": recipient}
+        html = _render_template_with_context(html, context)
         if plaintext is None:
             email = mail.EmailMessage(subject, html, to=[recipient.email])
             email.content_subtype = "html"
         else:
+            plaintext = _render_template_with_context(plaintext, context)
             email = mail.EmailMultiAlternatives(
                 subject, plaintext, to=[recipient.email]
             )
