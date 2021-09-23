@@ -17,4 +17,4 @@ class User(AbstractUser, GenericModel):
     objects = UserManager()
 
     class Meta:
-        ordering = ["email"]
+        ordering = ["first_name"]

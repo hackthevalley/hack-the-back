@@ -36,6 +36,9 @@ class Form(GenericModel, CreateTimestampMixin, IntervalMixin):
 
     objects = FormManager()
 
+    class Meta:
+        ordering = ["-created_at"]
+
 
 class Question(GenericModel, OrderedModel):
     """
@@ -153,6 +156,9 @@ class FormResponse(GenericModel, TimestampMixin):
         Form, on_delete=models.CASCADE, related_name="responses"
     )
     is_draft = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
 
 
 class Answer(GenericModel):
