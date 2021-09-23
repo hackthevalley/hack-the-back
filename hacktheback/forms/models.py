@@ -228,11 +228,15 @@ class HackathonApplicant(GenericModel, CreateTimestampMixin):
         APPLYING = "APPLYING", _("Applying")
         APPLIED = "APPLIED", _("Applied")
         UNDER_REVIEW = "UNDER_REVIEW", _("Under Review")
+        WAITLISTED = "WAITLISTED", _("Waitlisted")
         ACCEPTED = "ACCEPTED", _("Accepted")
+        REJECTED = "REJECTED", _("Rejected")
+        ACCEPTED_INVITE = "ACCEPTED_INVITE", _("Accepted Invitation")
+        REJECTED_INVITE = "REJECTED_INVITE", _("Rejected Invitation")
 
     application = models.OneToOneField(
         FormResponse, on_delete=models.CASCADE, related_name="applicant"
     )
     status = models.CharField(
-        max_length=12, choices=Status.choices, default=Status.APPLIED
+        max_length=15, choices=Status.choices, default=Status.APPLIED
     )

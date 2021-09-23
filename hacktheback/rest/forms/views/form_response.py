@@ -8,7 +8,7 @@ from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
 )
-from rest_framework import mixins, permissions, status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import get_object_or_404
@@ -16,7 +16,6 @@ from rest_framework.response import Response
 
 from hacktheback.forms import utils
 from hacktheback.forms.models import (
-    Answer,
     Form,
     FormResponse,
     HackathonApplicant,
@@ -29,8 +28,8 @@ from hacktheback.rest.forms.filters import (
 )
 from hacktheback.rest.forms.serializers import (
     AnswerSerializer,
-    FormResponseSerializer,
     HackerApplicationBatchStatusUpdateSerializer,
+    HackerApplicationResponseAdminSerializer,
     HackerApplicationResponseSerializer,
 )
 from hacktheback.rest.pagination import StandardResultsPagination
@@ -44,7 +43,7 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         form__is_draft=False,
     )
     permission_classes = (permissions.IsAuthenticated, IsOwner)
-    serializer_class = FormResponseSerializer
+    serializer_class = HackerApplicationResponseSerializer
 
     def get_queryset(self):
         """
@@ -207,6 +206,54 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             instance.applicant.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def _set_applicant_status(self, requirement, new_status) -> Response:
+        instance = self.get_object()
+        if instance.applicant.status != requirement:
+            raise Http404
+        instance.applicant.status = new_status
+        instance.applicant.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(
+        summary="Accept Invitation to Join Hackathon",
+        request=None,
+        responses={
+            204: OpenApiResponse(
+                description="The current user has accepted their invitation "
+                "to join the hackathon."
+            )
+        },
+    )
+    @action(methods=["POST"], detail=False)
+    def accept_invite(self, request, *args, **kwargs):
+        """
+        Accept invitation to join hackathon. Returns 404 if condition not met.
+        """
+        return self._set_applicant_status(
+            HackathonApplicant.Status.ACCEPTED,
+            HackathonApplicant.Status.ACCEPTED_INVITE,
+        )
+
+    @extend_schema(
+        summary="Reject Invitation to Join Hackathon",
+        request=None,
+        responses={
+            204: OpenApiResponse(
+                description="The current user has rejected their invitation "
+                "to join the hackathon."
+            )
+        },
+    )
+    @action(methods=["POST"], detail=False)
+    def reject_invite(self, request, *args, **kwargs):
+        """
+        Reject invitation to join hackathon. Returns 404 if condition not met.
+        """
+        return self._set_applicant_status(
+            HackathonApplicant.Status.ACCEPTED,
+            HackathonApplicant.Status.REJECTED_INVITE,
+        )
+
 
 @extend_schema(tags=["Admin APIs", "Forms"])
 @extend_schema_view(
@@ -239,7 +286,7 @@ class HackerApplicationResponsesAdminViewSet(viewsets.ReadOnlyModelViewSet):
         form__type=Form.FormType.HACKER_APPLICATION
     )
     permission_classes = (AdminSiteModelPermissions,)
-    serializer_class = HackerApplicationResponseSerializer
+    serializer_class = HackerApplicationResponseAdminSerializer
     pagination_class = StandardResultsPagination
     filterset_class = HackerApplicationResponsesAdminFilter
 
