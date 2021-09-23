@@ -17,6 +17,7 @@ hacker_urlpatterns = [
 # URL patterns for admin APIs
 admin_urlpatterns = [
     path("account/", include("hacktheback.rest.account.admin_urls")),
+    path("messenger/", include("hacktheback.rest.messenger.admin_urls")),
     path("", include("hacktheback.rest.forms.admin_urls")),
 ]
 

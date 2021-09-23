@@ -110,6 +110,7 @@ INSTALLED_APPS = [
     "hacktheback.core",
     "hacktheback.forms",
     "hacktheback.graphql",
+    "hacktheback.messenger",
     "hacktheback.rest",
     # External apps
     "django_filters",
@@ -117,6 +118,7 @@ INSTALLED_APPS = [
     "graphene_django",
     "phonenumber_field",
     "rest_framework",
+    "simple_history",
     "social_django",
     "corsheaders",
 ]
@@ -130,6 +132,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
 TEMPLATES_DIR = os.path.join(PROJECT_ROOT, "templates")
@@ -206,27 +209,31 @@ SPECTACULAR_SETTINGS = {
     "TAGS": [
         {
             "name": "Hacker APIs",
-            "description": "**All operations for hacker users.**"
+            "description": "**All operations for hacker users.**",
         },
         {
             "name": "Admin APIs",
-            "description": "**All operations for admin users.**"
+            "description": "**All operations for admin users.**",
         },
         {
             "name": "Account",
             "description": "Operations associated with the `account` app. "
-                           "_This includes operations for all users._"
+            "_This includes operations for all users._",
         },
         {
             "name": "Forms",
             "description": "Operations associated with the `forms` app. "
-                           "_This includes operations for all users._"
+            "_This includes operations for all users._",
+        },
+        {
+            "name": "Messenger",
+            "description": "Operations associated with the `messenger` app.",
         },
     ],
     "SWAGGER_UI_SETTINGS": {
         "deepLinking": True,
         "persistAuthorization": True,
-        "docExpansion": "none"
+        "docExpansion": "none",
     },
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
@@ -365,3 +372,7 @@ PASSWORD_RESET_CONFIRM_URL = env.str(
 PASSWORD_CHANGED_EMAIL_CONFIRMATION = env.bool(
     "PASSWORD_CHANGED_EMAIL_CONFIRMATION", default=True
 )
+
+MJML_API_URL = env.str("MJML_API_URL", default="https://api.mjml.io/v1/render")
+MJML_APPLICATION_ID = env.str("MJML_APPLICATION_ID")
+MJML_SECRET_KEY = env.str("MJML_SECRET_KEY")
