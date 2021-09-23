@@ -10,7 +10,7 @@ from hacktheback.rest.messenger.views import (
 
 router = SimpleRouter(trailing_slash=False)
 router.register(
-    "email-templates",
+    "email_templates",
     EmailTemplateAdminViewSet,
     basename="admin-email-templates",
 )
