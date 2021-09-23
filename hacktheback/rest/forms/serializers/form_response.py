@@ -459,6 +459,13 @@ class HackathonApplicantSerializer(serializers.ModelSerializer):
 
 
 class HackerApplicationResponseSerializer(FormResponseSerializer):
+    applicant = HackathonApplicantSerializer(read_only=True)
+
+    class Meta(FormResponseSerializer.Meta):
+        fields = FormResponseSerializer.Meta.fields + ("applicant",)
+
+
+class HackerApplicationResponseAdminSerializer(FormResponseSerializer):
     """
     This contains the `applicant` associated object which should only be shown
     to admin users.
@@ -492,6 +499,7 @@ class HackerApplicationBatchStatusUpdateSerializer(serializers.Serializer):
 
 __all__ = [
     "HackerApplicationResponseSerializer",
+    "HackerApplicationResponseAdminSerializer",
     "FormResponseSerializer",
     "HackerApplicationBatchStatusUpdateSerializer",
     "AnswerSerializer",
