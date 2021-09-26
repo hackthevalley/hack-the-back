@@ -284,7 +284,32 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
         return instance
 
 
+class HackathonApplicantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HackathonApplicant
+        fields = ("status",)
+
+
 class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
+    applicant = HackathonApplicantSerializer(read_only=True)
+    answers = AnswerSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = FormResponse
+        fields = (
+            "id",
+            "form",
+            "user",
+            "is_draft",
+            "answers",
+            "created_at",
+            "updated_at",
+            "applicant",
+        )
+        read_only_fields = ("user",)
+
+
+class HackerApplicationResponseSerializer(FormResponseSerializer):
     answers = AnswerSerializer(many=True, required=True)
 
     field_error_messages = {
@@ -305,18 +330,8 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
         },
     }
 
-    class Meta:
-        model = FormResponse
-        fields = (
-            "id",
-            "form",
-            "user",
-            "is_draft",
-            "answers",
-            "created_at",
-            "updated_at",
-        )
-        read_only_fields = ("user",)
+    class Meta(FormResponseSerializer.Meta):
+        pass
 
     def __init__(self, *args, **kwargs):
         self._form = None
@@ -452,33 +467,20 @@ class FormResponseSerializer(serializers.ModelSerializer, ValidationMixin):
         raise Exception("This has not been implemented.")
 
 
-class HackathonApplicantSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = HackathonApplicant
-        fields = ("status",)
-
-
-class HackerApplicationResponseSerializer(FormResponseSerializer):
-    applicant = HackathonApplicantSerializer(read_only=True)
-
-    class Meta(FormResponseSerializer.Meta):
-        fields = FormResponseSerializer.Meta.fields + ("applicant",)
-
-
 class HackerApplicationResponseAdminSerializer(FormResponseSerializer):
     """
     This contains the `applicant` associated object which should only be shown
     to admin users.
     """
 
-    applicant = HackathonApplicantSerializer()
-    user = UserSerializer()
+    user = UserSerializer(read_only=True)
 
     class Meta(FormResponseSerializer.Meta):
         fields = FormResponseSerializer.Meta.fields + (
-            "applicant",
+            "admin_notes",
             "user",
         )
+        read_only_fields = FormResponseSerializer.Meta.fields
 
 
 class HackerApplicationBatchStatusUpdateSerializer(serializers.Serializer):

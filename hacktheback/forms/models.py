@@ -156,6 +156,7 @@ class FormResponse(GenericModel, TimestampMixin):
         Form, on_delete=models.CASCADE, related_name="responses"
     )
     is_draft = models.BooleanField(default=True)
+    admin_notes = models.TextField(null=True)
 
     class Meta:
         ordering = ["-updated_at"]

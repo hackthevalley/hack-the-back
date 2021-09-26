@@ -8,7 +8,7 @@ from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
 )
-from rest_framework import permissions, status, viewsets
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import get_object_or_404
@@ -265,6 +265,14 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         summary="Retrieve a Hacker Application",
         description="Retrieve a hacker application.",
     ),
+    update=extend_schema(
+        summary="Update a Hacker Application",
+        description="Update a hacker application.",
+    ),
+    partial_update=extend_schema(
+        summary="Partial update a Hacker Application",
+        description="Partial update a hacker application.",
+    ),
     answer_question=extend_schema(
         summary="Answer a Question in a Hacker Application",
         request=AnswerSerializer,
@@ -281,7 +289,12 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         },
     ),
 )
-class HackerApplicationResponsesAdminViewSet(viewsets.ReadOnlyModelViewSet):
+class HackerApplicationResponsesAdminViewSet(
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = FormResponse.objects.filter(
         form__type=Form.FormType.HACKER_APPLICATION
     )
