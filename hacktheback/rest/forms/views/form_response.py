@@ -29,9 +29,9 @@ from hacktheback.rest.forms.filters import (
 from hacktheback.rest.forms.serializers import (
     AnswerSerializer,
     HackerApplicationBatchStatusUpdateSerializer,
+    HackerApplicationOverviewSerializer,
     HackerApplicationResponseAdminSerializer,
     HackerApplicationResponseSerializer,
-    HackerApplicationSummarySerializer,
 )
 from hacktheback.rest.pagination import StandardResultsPagination
 from hacktheback.rest.permissions import AdminSiteModelPermissions, IsOwner
@@ -292,7 +292,7 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
     overview=extend_schema(
         summary="Overview of Hacker Applications",
         request=None,
-        responses={"200": HackerApplicationSummarySerializer},
+        responses={"200": HackerApplicationOverviewSerializer},
     ),
 )
 class HackerApplicationResponsesAdminViewSet(
@@ -373,6 +373,6 @@ class HackerApplicationResponsesAdminViewSet(
                     ).count(),
                 },
             )
-        serializer = HackerApplicationSummarySerializer(data=response)
+        serializer = HackerApplicationOverviewSerializer(data=response)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.data)
