@@ -31,6 +31,7 @@ from hacktheback.rest.forms.serializers import (
     HackerApplicationBatchStatusUpdateSerializer,
     HackerApplicationResponseAdminSerializer,
     HackerApplicationResponseSerializer,
+    HackerApplicationSummarySerializer,
 )
 from hacktheback.rest.pagination import StandardResultsPagination
 from hacktheback.rest.permissions import AdminSiteModelPermissions, IsOwner
@@ -288,6 +289,11 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             )
         },
     ),
+    overview=extend_schema(
+        summary="Overview of Hacker Applications",
+        request=None,
+        responses={"200": HackerApplicationSummarySerializer},
+    ),
 )
 class HackerApplicationResponsesAdminViewSet(
     mixins.UpdateModelMixin,
@@ -351,3 +357,22 @@ class HackerApplicationResponsesAdminViewSet(
             FormResponse.objects.bulk_update(response_objs, ["is_draft"])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(methods=["GET"], detail=False)
+    def overview(self, request, *args, **kwargs):
+        """
+        General overview of hacker applications.
+        """
+        response = {"overview": []}
+        for status, _ in HackathonApplicant.Status.choices:
+            response["overview"].append(
+                {
+                    "status": status,
+                    "count": HackathonApplicant.objects.filter(
+                        status=status
+                    ).count(),
+                },
+            )
+        serializer = HackerApplicationSummarySerializer(data=response)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data)

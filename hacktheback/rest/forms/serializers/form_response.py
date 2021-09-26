@@ -499,10 +499,20 @@ class HackerApplicationBatchStatusUpdateSerializer(serializers.Serializer):
     )
 
 
+class HackerApplicationApplicantStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=HackathonApplicant.Status.choices)
+    count = serializers.IntegerField()
+
+
+class HackerApplicationOverviewSerializer(serializers.Serializer):
+    overview = HackerApplicationApplicantStatusSerializer(many=True)
+
+
 __all__ = [
     "HackerApplicationResponseSerializer",
     "HackerApplicationResponseAdminSerializer",
     "FormResponseSerializer",
     "HackerApplicationBatchStatusUpdateSerializer",
+    "HackerApplicationOverviewSerializer",
     "AnswerSerializer",
 ]
