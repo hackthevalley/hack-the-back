@@ -58,8 +58,6 @@ class FormsViewSet(
 ):
     queryset = Form.objects.filter(
         is_draft=False,
-        start_at__lte=timezone.now(),
-        end_at__gte=timezone.now(),
     )
     authentication_classes = ()
     serializer_class = FormSerializer
