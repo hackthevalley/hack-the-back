@@ -39,6 +39,15 @@ def format_email_address(email: str) -> str:
     return email.lower()
 
 
+def format_short_text(text: str) -> str:
+    """
+    If the text is an integer, then remove the leading zeros, otherwise do nothing
+    """
+    if text.isdigit():
+        return str(int(text))
+    return text
+
+
 def format_answer(answer: str, ftype: str):
     """
     Format and return answer based on type.
@@ -47,4 +56,6 @@ def format_answer(answer: str, ftype: str):
         return format_phone_number(answer)
     elif ftype == Question.QuestionType.EMAIL:
         return format_email_address(answer)
+    elif ftype == Question.QuestionType.SHORT_TEXT:
+        return format_short_text(answer)
     return answer
