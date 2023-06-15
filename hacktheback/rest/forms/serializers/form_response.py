@@ -269,8 +269,7 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
             answer_options = validated_data.get("answer_options", None)
 
             if question.type in Question.NON_OPTION_TYPES:
-                instance.answer = utils.format_answer(validated_data.get(
-                    "answer", instance.answer), instance.question.type)
+                instance.answer = utils.format_answer(validated_data.get("answer", instance.answer), instance.question.type)
                 instance.save()
             else:
                 # Delete all past answer options
