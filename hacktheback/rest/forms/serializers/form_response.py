@@ -9,16 +9,9 @@ from rest_framework import serializers
 
 from hacktheback.core.serializers import ValidationMixin
 from hacktheback.forms import utils
-from hacktheback.forms.models import (
-    Answer,
-    AnswerFile,
-    AnswerOption,
-    Form,
-    FormResponse,
-    HackathonApplicant,
-    Question,
-    QuestionOption,
-)
+from hacktheback.forms.models import (Answer, AnswerFile, AnswerOption, Form,
+                                      FormResponse, HackathonApplicant,
+                                      Question, QuestionOption)
 from hacktheback.rest.account.serializers import UserSerializer
 
 
@@ -271,7 +264,7 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
             answer_options = validated_data.get("answer_options", None)
 
             if question.type in Question.NON_OPTION_TYPES:
-                instance.answer = validated_data.get("answer", instance.answer)
+                instance.answer = utils.format_answer(validated_data.get("answer", instance.answer), instance.question.type)
                 instance.save()
             else:
                 # Delete all past answer options
