@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 
 from django.db import transaction
@@ -51,9 +50,7 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         """
         Query by the current user as well.
         """
-        self.queryset = self.queryset.filter(
-            user=self.request.user, created_at__year=datetime.today().year
-        )
+        self.queryset = self.queryset.filter(user=self.request.user)
         return super().get_queryset()
 
     def get_object(self):
