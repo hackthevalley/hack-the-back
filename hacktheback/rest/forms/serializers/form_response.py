@@ -142,7 +142,7 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
                 pnUs = phonenumbers.parse(data.get("answer"), "US")
                 pnCad = phonenumbers.parse(data.get("answer"), "CAD")
                 pn = phonenumbers.parse(data.get("answer"))
-                if not (phonenumbers.is_valid_number(pnUs) or phonenumbers.is_valid_number(pnCad)) and phonenumbers.is_valid_number(pn):
+                if not phonenumbers.is_valid_number(pnUs) or phonenumbers.is_valid_number(pnCad) or phonenumbers.is_valid_number(pn):
                     self.fail_for_field("invalid_phone_number")
             except phonenumbers.NumberParseException:
                 self.fail_for_field("invalid_phone_number")
