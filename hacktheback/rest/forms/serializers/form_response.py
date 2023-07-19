@@ -140,9 +140,13 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
         if question.type == Question.QuestionType.PHONE:
             try:
                 pnUs = phonenumbers.parse(data.get("answer"), "US")
-                pnCad = phonenumbers.parse(data.get("answer"), "CAD")
-                pn = phonenumbers.parse(data.get("answer"))
-                if not phonenumbers.is_valid_number(pnUs) or phonenumbers.is_valid_number(pnCad) or phonenumbers.is_valid_number(pn):
+                if not phonenumbers.is_valid_number(pnUs):
+                    try: 
+                        pn = phonenumbers.parse(data.get("answer"))
+                        if not phonenumbers.is_valid_number(pn):
+                            self.fail_for_field("invalid_phone_number")
+                    except:
+                        self.fail_for_field("invalid_phone_number")
                     self.fail_for_field("invalid_phone_number")
             except phonenumbers.NumberParseException:
                 self.fail_for_field("invalid_phone_number")
