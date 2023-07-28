@@ -9,16 +9,9 @@ from rest_framework import serializers
 
 from hacktheback.core.serializers import ValidationMixin
 from hacktheback.forms import utils
-from hacktheback.forms.models import (
-    Answer,
-    AnswerFile,
-    AnswerOption,
-    Form,
-    FormResponse,
-    HackathonApplicant,
-    Question,
-    QuestionOption,
-)
+from hacktheback.forms.models import (Answer, AnswerFile, AnswerOption, Form,
+                                      FormResponse, HackathonApplicant,
+                                      Question, QuestionOption)
 from hacktheback.rest.account.serializers import UserSerializer
 
 
@@ -145,9 +138,8 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
                         pn = phonenumbers.parse(data.get("answer"))
                         if not phonenumbers.is_valid_number(pn):
                             self.fail_for_field("invalid_phone_number")
-                    except:
+                    except phonenumbers.NumberParseException:
                         self.fail_for_field("invalid_phone_number")
-                    self.fail_for_field("invalid_phone_number")
             except phonenumbers.NumberParseException:
                 self.fail_for_field("invalid_phone_number")
         elif question.type == Question.QuestionType.EMAIL:
@@ -277,7 +269,8 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
             answer_options = validated_data.get("answer_options", None)
 
             if question.type in Question.NON_OPTION_TYPES:
-                instance.answer = validated_data.get("answer", instance.answer)
+                instance.answer = utils.format_answer(validated_data.get(
+                    "answer", instance.answer), instance.question.type)
                 instance.save()
             else:
                 # Delete all past answer options
