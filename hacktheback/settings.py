@@ -115,7 +115,6 @@ INSTALLED_APPS = [
     "hacktheback.forms",
     "hacktheback.graphql",
     "hacktheback.messenger",
-    "hacktheback.qr",
     "hacktheback.rest",
     # External apps
     "django_filters",
