@@ -24,7 +24,7 @@ urlpatterns = [
     ),
     path("", include(router.urls)),
     path(
-        "send_email_using_template",
+       "send_email_using_template",
         SendEmailUsingTemplateAdminAPIView().as_view(),
     ),
 ]
