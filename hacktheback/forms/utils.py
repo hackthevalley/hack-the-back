@@ -1,6 +1,7 @@
 from typing import List
 
 import phonenumbers
+import qrcode
 
 from hacktheback.forms.models import Form, Question
 
@@ -59,3 +60,9 @@ def format_answer(answer: str, ftype: str):
     elif ftype == Question.QuestionType.SHORT_TEXT:
         return format_short_text(answer)
     return answer
+
+def send_rsvp_email(uuid: str, email: str):
+    print(uuid)
+    print(email)
+    qr = qrcode.make(uuid)
+    qr.save("qrcodes/qr.png")

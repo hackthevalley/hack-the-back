@@ -77,3 +77,8 @@ class UsernameResetEmail(BaseEmailMessage):
         context["token"] = default_token_generator.make_token(user)
         context["url"] = settings.USERNAME_RESET_CONFIRM_URL.format(**context)
         return context
+    
+class RSVPEmail(BaseEmailMessage):
+    template_name = ""
+
+    

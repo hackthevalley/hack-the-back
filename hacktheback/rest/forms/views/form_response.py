@@ -1,38 +1,30 @@
 from typing import List
 
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404
 from django.utils.translation import ugettext as _
-from drf_spectacular.utils import (
-    OpenApiResponse,
-    extend_schema,
-    extend_schema_view,
-)
+from drf_spectacular.utils import (OpenApiResponse, extend_schema,
+                                   extend_schema_view)
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from hacktheback.account.models import User
 from hacktheback.forms import utils
-from hacktheback.forms.models import (
-    Form,
-    FormResponse,
-    HackathonApplicant,
-    Question,
-)
+from hacktheback.forms.models import (Form, FormResponse, HackathonApplicant,
+                                      Question)
 from hacktheback.rest.exceptions import ConflictError
 from hacktheback.rest.forms.common import answer_question_in_form_response
-from hacktheback.rest.forms.filters import (
-    HackerApplicationResponsesAdminFilter,
-)
+from hacktheback.rest.forms.filters import \
+    HackerApplicationResponsesAdminFilter
 from hacktheback.rest.forms.serializers import (
-    AnswerSerializer,
-    HackerApplicationBatchStatusUpdateSerializer,
+    AnswerSerializer, HackerApplicationBatchStatusUpdateSerializer,
     HackerApplicationOverviewSerializer,
     HackerApplicationResponseAdminSerializer,
-    HackerApplicationResponseSerializer,
-)
+    HackerApplicationResponseSerializer)
 from hacktheback.rest.pagination import StandardResultsPagination
 from hacktheback.rest.permissions import AdminSiteModelPermissions, IsOwner
 
@@ -355,6 +347,16 @@ class HackerApplicationResponsesAdminViewSet(
                 for response_obj in response_objs:
                     response_obj.is_draft = False
             FormResponse.objects.bulk_update(response_objs, ["is_draft"])
+            # Hackathonapplicant ID
+            if new_status == HackathonApplicant.Status.ACCEPTED:
+                emails = User.objects.filter(
+                    Q(form_responses__applicant__id__in=responses) |
+                    Q(form_responses__applicant__application__id__in=responses)
+                ).values_list("id", "email")
+                print(emails)
+                for t in emails:
+                    utils.send_rsvp_email(str(t[0]), t[1])
+
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
