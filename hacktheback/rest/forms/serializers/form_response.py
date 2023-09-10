@@ -132,9 +132,14 @@ class AnswerSerializer(serializers.ModelSerializer, ValidationMixin):
         # Validate if the `answer` field is in the correct format
         if question.type == Question.QuestionType.PHONE:
             try:
-                pn = phonenumbers.parse(data.get("answer"))
-                if not phonenumbers.is_valid_number(pn):
-                    self.fail_for_field("invalid_phone_number")
+                pnUs = phonenumbers.parse(data.get("answer"), "US")
+                if not phonenumbers.is_valid_number(pnUs):
+                    try: 
+                        pn = phonenumbers.parse(data.get("answer"))
+                        if not phonenumbers.is_valid_number(pn):
+                            self.fail_for_field("invalid_phone_number")
+                    except phonenumbers.NumberParseException:
+                        self.fail_for_field("invalid_phone_number")
             except phonenumbers.NumberParseException:
                 self.fail_for_field("invalid_phone_number")
         elif question.type == Question.QuestionType.EMAIL:

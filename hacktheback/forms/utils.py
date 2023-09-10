@@ -26,7 +26,7 @@ def format_phone_number(number: str) -> str:
     """
     Returns a formatted phone number.
     """
-    pn = phonenumbers.parse(number)
+    pn = phonenumbers.parse(number, "US")
     return phonenumbers.format_number(
         pn, phonenumbers.PhoneNumberFormat.E164
     )
