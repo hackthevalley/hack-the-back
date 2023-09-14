@@ -29,6 +29,11 @@ environ.Env.read_env(env_file=os.path.join(PROJECT_ROOT, ".env"))
 
 SITE_NAME = env.str("SITE_NAME", default="Hack the Back")
 
+# --- RSVP Email Template Settings ---
+EVENT_START = "October 14th"
+EVENT_END = "16th"
+RSVP_DUE = "October 10th"
+
 # SECURITY WARNING: Don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
 
@@ -80,15 +85,17 @@ def media_upload_to_path(instance, filename, sub_dir=None):
     return os.path.join(upload_dir, sub_dir, new_filename)
 
 
-MEDIA_PATHS = {
-    "ANSWER_FILE": lambda _, instance, filename: media_upload_to_path(
-        instance, filename, "form"
-    )
-}
+
 MEDIA_MAX_FILE_SIZE = env.int("MEDIA_MAX_FILE_SIZE", 52428800)
 MEDIA_ROOT = os.path.join(PROJECT_ROOT, "media")
 MEDIA_URL = env.str("MEDIA_URL", default="/media/")
 
+MEDIA_PATHS = {
+    "ANSWER_FILE": lambda _, instance, filename: media_upload_to_path(
+        instance, filename, "form"
+    ),
+    "QR_CODES": os.path.join(MEDIA_ROOT, "qr_code")
+}
 
 ADMINS = getaddresses([env.str("ADMINS", "")])
 
@@ -121,6 +128,7 @@ INSTALLED_APPS = [
     "simple_history",
     "social_django",
     "corsheaders",
+    "qrcode"
 ]
 
 MIDDLEWARE = [

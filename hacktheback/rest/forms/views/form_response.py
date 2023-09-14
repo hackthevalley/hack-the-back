@@ -349,13 +349,17 @@ class HackerApplicationResponsesAdminViewSet(
             FormResponse.objects.bulk_update(response_objs, ["is_draft"])
             # Hackathonapplicant ID
             if new_status == HackathonApplicant.Status.ACCEPTED:
-                emails = User.objects.filter(
-                    Q(form_responses__applicant__id__in=responses) |
-                    Q(form_responses__applicant__application__id__in=responses)
-                ).values_list("id", "email")
-                print(emails)
-                for t in emails:
-                    utils.send_rsvp_email(str(t[0]), t[1])
+                # user_data = User.objects.filter(
+                #     Q(form_responses__applicant__id__in=responses) |
+                #     Q(form_responses__applicant__application__id__in=responses)
+                # ).values_list("hackathonapplicant__id", "first_name", "email")
+
+                ha_data = HackathonApplicant.objects.filter(application__id__in=responses).select_related("application").values_list("id", "application")
+                print(ha_data)
+                for t in ha_data:
+                    user_data = User.objects.filter(form_responses__id=t[1]).values_list("first_name", "email")
+                    print(user_data)
+                    utils.send_rsvp_email(str(t[0]), user_data[0][0], user_data[0][1])
 
 
         return Response(status=status.HTTP_204_NO_CONTENT)
