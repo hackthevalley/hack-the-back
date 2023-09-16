@@ -67,7 +67,7 @@ def format_answer(answer: str, ftype: str):
 
 def send_rsvp_email(hackapp_id: str, first_name: str, email: str):
     dest = settings.MEDIA_PATHS["QR_CODES"]
-    qr_path = os.path.join(dest, "qr_code.png")
+    qr_path = os.path.join(dest, f"{hackapp_id}_code.png")
     if not os.path.exists(dest):
         os.makedirs(dest)
     qr = qrcode.make(hackapp_id)
@@ -82,3 +82,4 @@ def send_rsvp_email(hackapp_id: str, first_name: str, email: str):
     msg = RSVPEmail(context={"start_date" : settings.EVENT_START, "end_date" : settings.EVENT_END, "due_date" : settings.RSVP_DUE, "qr_path": qr_path, "first_name" : first_name})
     msg.attach(qr_image)
     msg.send(to=[email])
+    os.remove(qr_path)

@@ -30,8 +30,8 @@ environ.Env.read_env(env_file=os.path.join(PROJECT_ROOT, ".env"))
 SITE_NAME = env.str("SITE_NAME", default="Hack the Back")
 
 # --- RSVP Email Template Settings ---
-EVENT_START = "October 14th"
-EVENT_END = "16th"
+EVENT_START = "October 13th"
+EVENT_END = "15th"
 RSVP_DUE = "October 10th"
 
 # SECURITY WARNING: Don't run with debug turned on in production!
