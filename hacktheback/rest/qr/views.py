@@ -39,10 +39,11 @@ class QrAdmissionView(generics.GenericAPIView):
         except HackathonApplicant.DoesNotExist as not_found:
             raise NotFound(detail="Applicant does not exist") from not_found
 
-
+        if applicant.status == HackathonApplicant.Status.ACCEPTED:
+            raise ValidationError(detail="Applicant was accepted but did not RSVP")
+        
         if (
             applicant.status != HackathonApplicant.Status.ACCEPTED_INVITE
-            and applicant.status != HackathonApplicant.Status.ACCEPTED
             and applicant.status != HackathonApplicant.Status.SCANNED_IN
         ):
             raise ValidationError(detail="Applicant was not accepted")
