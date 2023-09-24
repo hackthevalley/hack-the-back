@@ -57,5 +57,5 @@ class QrAdmissionView(generics.GenericAPIView):
         serializer = QrAdminSerializer(
             instance=applicant.application
         )
-
-        return Response(data={"message": message, "body": serializer.data})
+        scanned_count = HackathonApplicant.objects.filter(status=HackathonApplicant.Status.SCANNED_IN).count()
+        return Response(data={"message": message, "body": serializer.data, "scanned_count": scanned_count})
