@@ -1,18 +1,18 @@
 
-from django.contrib.auth import get_user_model
 import django.core.exceptions
+from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
-from hacktheback.rest.permissions import AdminSiteModelPermissions
-from hacktheback.forms.models import HackathonApplicant
-from hacktheback.rest.forms.serializers import (
-    HackerApplicationResponseAdminSerializer,
-)
-from .serializers import QrAdminSerializer
-from rest_framework.exceptions import NotFound, ValidationError
 
+from hacktheback.forms.models import HackathonApplicant
+from hacktheback.rest.forms.serializers import \
+    HackerApplicationResponseAdminSerializer
+from hacktheback.rest.permissions import AdminSiteModelPermissions
+
+from .serializers import QrAdminSerializer
 
 
 @extend_schema(
@@ -53,6 +53,8 @@ class QrAdmissionView(generics.GenericAPIView):
             message = "Already Scanned In"
         elif applicant.status == HackathonApplicant.Status.ACCEPTED:
             message = "Applicant was accepted but did not RSVP"
+            applicant.status = HackathonApplicant.Status.SCANNED_IN
+            applicant.save()
         else:
             applicant.status = HackathonApplicant.Status.SCANNED_IN
             applicant.save()
