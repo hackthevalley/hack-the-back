@@ -39,19 +39,20 @@ class QrAdmissionView(generics.GenericAPIView):
         except HackathonApplicant.DoesNotExist as not_found:
             raise NotFound(detail="Applicant does not exist") from not_found
 
-        if applicant.status == HackathonApplicant.Status.ACCEPTED:
-            raise ValidationError(detail="Applicant was accepted but did not RSVP")
         
-        if (
-            applicant.status != HackathonApplicant.Status.ACCEPTED_INVITE
-            and applicant.status != HackathonApplicant.Status.SCANNED_IN
-        ):
+        if applicant.status not in [
+            HackathonApplicant.Status.ACCEPTED_INVITE,
+            HackathonApplicant.Status.ACCEPTED,
+            HackathonApplicant.Status.SCANNED_IN,
+        ]:
             raise ValidationError(detail="Applicant was not accepted")
     
         message = "Applicant Checked In"
 
         if applicant.status == HackathonApplicant.Status.SCANNED_IN:
             message = "Already Scanned In"
+        elif applicant.status == HackathonApplicant.Status.ACCEPTED:
+            message = "Applicant was accepted but did not RSVP"
         else:
             applicant.status = HackathonApplicant.Status.SCANNED_IN
             applicant.save()
