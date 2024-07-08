@@ -19,6 +19,6 @@ class FoodTrackingSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "created_at",
-            "application_id",
-            "serving_id",
+            "application",
+            "serving",
         )
