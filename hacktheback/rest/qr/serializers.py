@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from hacktheback.forms.models import FormResponse, Answer, Question, AnswerOption, QuestionOption
+from hacktheback.forms.models import FormResponse, Answer, Question, AnswerOption, QuestionOption, HackerFoodTracking
 from hacktheback.rest.forms.serializers.form_response import AnswerSerializer, HackathonApplicantSerializer, UserSerializer
+from hacktheback.rest.forms.serializers.food import FoodTrackingSerializer
 
 class QrAnswerAdminSerializer(AnswerSerializer):
     def to_representation(self, instance):
@@ -13,11 +14,11 @@ class QrAnswerAdminSerializer(AnswerSerializer):
         del data["answer_options"]
         return data
 
-
 class QrAdminSerializer(serializers.ModelSerializer):
     applicant = HackathonApplicantSerializer(read_only=True)
     answers = QrAnswerAdminSerializer(many=True, read_only=True)
     user = UserSerializer(read_only=True)
+    food = FoodTrackingSerializer(read_only=True, many=True)
 
     class Meta:
         model = FormResponse
@@ -26,4 +27,5 @@ class QrAdminSerializer(serializers.ModelSerializer):
             "user",
             "answers",
             "applicant",
+            "food",
         )

@@ -6,6 +6,7 @@ from graphql_jwt.decorators import jwt_cookie
 from hacktheback.graphql.schema import schema
 from hacktheback.graphql.views import GraphQLView
 
+
 urlpatterns = [
     path(
         "api/graphql",
