@@ -18,9 +18,11 @@ from hacktheback.rest.account.serializers import (
 
 class FoodViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Food.objects.all()
+    permission_classes = (AdminSiteModelPermissions,)
     serializer_class = FoodSerializer
 
 
 class FoodTrackingViewSet(viewsets.ModelViewSet):
     queryset = HackerFoodTracking.objects.all()
+    permission_classes = (AdminSiteModelPermissions,)
     serializer_class = FoodTrackingSerializer
