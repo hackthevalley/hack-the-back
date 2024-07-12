@@ -4,13 +4,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from ordered_model.models import OrderedModel
 
-from hacktheback.core.models import (
-    CreateTimestampMixin,
-    FileMixin,
-    GenericModel,
-    IntervalMixin,
-    TimestampMixin,
-)
+from hacktheback.core.models import (CreateTimestampMixin, FileMixin,
+                                     GenericModel, IntervalMixin,
+                                     TimestampMixin)
 from hacktheback.forms.managers import FormManager
 
 
@@ -266,3 +262,5 @@ class HackerFoodTracking(GenericModel, CreateTimestampMixin):
         Food, on_delete=models.CASCADE, related_name="servings"
     )
 
+    class Meta:
+        unique_together = ("application", "serving")

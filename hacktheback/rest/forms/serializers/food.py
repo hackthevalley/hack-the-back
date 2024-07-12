@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from hacktheback.forms.models import Food, HackerFoodTracking
+
 
 class FoodSerializer(serializers.ModelSerializer):
 
@@ -13,12 +15,9 @@ class FoodSerializer(serializers.ModelSerializer):
         )
 
 class FoodTrackingSerializer(serializers.ModelSerializer):
-    
+
     class Meta:
         model = HackerFoodTracking
         fields = (
-            "id",
-            "created_at",
-            "application",
             "serving",
         )
