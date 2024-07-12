@@ -1,8 +1,6 @@
 {
     // PEP8: "Limit all lines to a maximum of 79 characters."
-    "editor.rulers": [
-        79
-    ],
+    "editor.rulers": [79],
     // --- Formatting (black) ---
     "editor.formatOnSave": true,
     "editor.formatOnPaste": false,
@@ -14,7 +12,7 @@
     "python.sortImports.args": [],
     "[python]": {
         "editor.codeActionsOnSave": {
-            "source.organizeImports": true
+            "source.organizeImports": "explicit"
         }
     },
     // --- Linting (pylint) ---
@@ -25,5 +23,5 @@
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestEnabled": true,
-    "python.linting.pylintEnabled": true,
+    "python.linting.pylintEnabled": true
 }

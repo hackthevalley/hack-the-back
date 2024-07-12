@@ -1,29 +1,43 @@
+import re
+
 from rest_framework import serializers
-from hacktheback.forms.models import FormResponse, Answer, Question, AnswerOption, QuestionOption
-from hacktheback.rest.forms.serializers.form_response import AnswerSerializer, HackathonApplicantSerializer, UserSerializer
 
-class QrAnswerAdminSerializer(AnswerSerializer):
-    def to_representation(self, instance):
-        data = super(QrAnswerAdminSerializer, self).to_representation(instance)
-        data["question"] = Question.objects.get(pk=data.get("question")).label
-
-        if data.get("answer_options") and len(data.get("answer_options")) > 0:
-            _, option_id = data.get("answer_options")[0].values()
-            data["answer"] = QuestionOption.objects.get(pk=option_id).label
-        del data["answer_options"]
-        return data
+from hacktheback.forms.models import FormResponse
+from hacktheback.rest.forms.serializers.food import FoodTrackingSerializer
 
 
 class QrAdminSerializer(serializers.ModelSerializer):
-    applicant = HackathonApplicantSerializer(read_only=True)
-    answers = QrAnswerAdminSerializer(many=True, read_only=True)
-    user = UserSerializer(read_only=True)
+    application = serializers.UUIDField(read_only=True, source="id")
+    answers = serializers.SerializerMethodField()
+    food = FoodTrackingSerializer(read_only=True, many=True)
 
     class Meta:
         model = FormResponse
         fields = (
             "id",
+            "application",
             "user",
             "answers",
-            "applicant",
+            "food",
         )
+
+
+    def to_camel_case(self, text):
+        # remove non-alphanumeric characters
+
+        s = text.replace("-", " ").replace("_", " ").replace("-", " ")
+        s = [re.sub(r'\W+', '', word) for word in s.split()]
+        if len(text) == 0:
+            return text
+        return s[0].lower() + ''.join(i.capitalize() for i in s[1:])
+
+    def get_answers(self, instance):
+        rep = {}
+        for answer in instance.answers.all():
+            text = answer.answer
+            if not answer.answer:
+                text = answer.answer_options.first().option.label
+            rep[self.to_camel_case(answer.question.label)] = text
+
+        return rep
+

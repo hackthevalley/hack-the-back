@@ -4,13 +4,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from ordered_model.models import OrderedModel
 
-from hacktheback.core.models import (
-    CreateTimestampMixin,
-    FileMixin,
-    GenericModel,
-    IntervalMixin,
-    TimestampMixin,
-)
+from hacktheback.core.models import (CreateTimestampMixin, FileMixin,
+                                     GenericModel, IntervalMixin,
+                                     TimestampMixin)
 from hacktheback.forms.managers import FormManager
 
 
@@ -242,3 +238,29 @@ class HackathonApplicant(GenericModel, CreateTimestampMixin):
     status = models.CharField(
         max_length=15, choices=Status.choices, default=Status.APPLIED
     )
+
+class Food(GenericModel):
+    """
+    Time periods for food serving
+    """
+
+    # Breakfast, lunch, dinner
+    name = models.CharField(max_length=20)
+    # hackathon day
+    day = models.IntegerField()
+    end_time = models.DateTimeField()
+
+class HackerFoodTracking(GenericModel, CreateTimestampMixin):
+    """
+    A food event tracking table for the hackers
+    """
+
+    application = models.ForeignKey(
+        FormResponse, on_delete=models.CASCADE, related_name="food"
+    )
+    serving = models.ForeignKey(
+        Food, on_delete=models.CASCADE, related_name="servings"
+    )
+
+    class Meta:
+        unique_together = ("application", "serving")
