@@ -19,5 +19,6 @@ class FoodTrackingSerializer(serializers.ModelSerializer):
     class Meta:
         model = HackerFoodTracking
         fields = (
+            "application",
             "serving",
         )

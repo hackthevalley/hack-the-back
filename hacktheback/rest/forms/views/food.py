@@ -36,9 +36,9 @@ class FoodTrackingViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     serializer_class = FoodTrackingSerializer
 
     def create(self, request, *args, **kwargs):
-        food = request.data.getlist("food")
+        food = request.data.get("food")
         serializer = self.get_serializer(data=food, many=True)
         if not serializer.is_valid():
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         serializer.save()
-        return Response(data=serializer.data)#
+        return Response(data=serializer.data)
