@@ -14,4 +14,4 @@ class SendCustomUrlAPIView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.send(request=request)
-        return Response(data=serializer.data)
+        return Response(data={"success": True})
