@@ -192,6 +192,8 @@ CORS_ALLOWED_ORIGINS = env.list(
         "http://localhost:8000",
         "http://localhost:3000",
         "http://localhost:4200",
+        "http://localhost:5173",
+        "https://localhost:5173",
     ],
 )
 
@@ -383,6 +385,9 @@ PASSWORD_RESET_CONFIRM_URL = env.str(
 )
 PASSWORD_CHANGED_EMAIL_CONFIRMATION = env.bool(
     "PASSWORD_CHANGED_EMAIL_CONFIRMATION", default=True
+)
+ACCOUNT_SEND_CUSTOM_URL = env.bool(
+  "ACCOUNT_SEND_CUSTOM_URL", default="manual_override?uid={uid}&token={token}",
 )
 
 MJML_API_URL = env.str("MJML_API_URL", default="https://api.mjml.io/v1/render")
