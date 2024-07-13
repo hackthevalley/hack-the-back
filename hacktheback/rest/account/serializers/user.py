@@ -42,12 +42,9 @@ from social_django.utils import load_backend, load_strategy
 from social_django.views import _do_login
 
 from hacktheback.account import utils
-from hacktheback.account.email import (
-    ActivationEmail,
-    ConfirmationEmail,
-    PasswordChangedConfirmationEmail,
-    PasswordResetEmail,
-)
+from hacktheback.account.email import (ActivationEmail, ConfirmationEmail,
+                                       PasswordChangedConfirmationEmail,
+                                       PasswordResetEmail, SendCustomUrl)
 
 User = get_user_model()
 
@@ -391,6 +388,20 @@ class SendEmailResetSerializer(serializers.Serializer, UserFunctionsMixin):
             context = {"user": user}
             to = [utils.get_user_email(user)]
             PasswordResetEmail(request, context).send(to)
+
+class SendCustomUrlSerializer(serializers.Serializer,  UserFunctionsMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.email_field = User.EMAIL_FIELD
+        self.fields[self.email_field] = serializers.EmailField()
+
+    def send(self, request):
+        user = self.get_user()
+        if user:
+            context = {"user": user}
+            to = [utils.get_user_email(user)]
+            SendCustomUrl(request, context).send(to)
 
 
 class ResendActivationSerializer(SendEmailResetSerializer):
