@@ -2,14 +2,10 @@ from django.urls import include, path
 from rest_framework_nested import routers
 
 from hacktheback.rest.forms.views import (
-    FormQuestionOptionsAdminViewSet,
-    FormQuestionsAdminViewSet,
-    FormsAdminViewSet,
+    FoodTrackingViewSet, FoodViewSet, FormQuestionOptionsAdminViewSet,
+    FormQuestionsAdminViewSet, FormsAdminViewSet,
     HackerApplicationAnswerFileAdminViewSet,
-    HackerApplicationResponsesAdminViewSet,
-    FoodViewSet,
-    FoodTrackingViewSet
-)
+    HackerApplicationResponsesAdminViewSet, WalkInAdmissionAPIView)
 
 router = routers.SimpleRouter(trailing_slash=False)
 router.register(
@@ -47,4 +43,5 @@ urlpatterns = [
     path("", include(router.urls)),
     path("", include(forms_router.urls)),
     path("", include(form_questions_router.urls)),
+    path("walkin", WalkInAdmissionAPIView.as_view())
 ]

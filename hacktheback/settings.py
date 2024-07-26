@@ -192,6 +192,8 @@ CORS_ALLOWED_ORIGINS = env.list(
         "http://localhost:8000",
         "http://localhost:3000",
         "http://localhost:4200",
+        "https://localhost:5173",
+        "http://localhost:5173",
     ],
 )
 
