@@ -24,7 +24,7 @@ class WalkInAdmissionAPIView(generics.GenericAPIView):
             raise NotFound(detail="Applicant does not exist") from not_found
         try:
             user = User.objects.get(email=email)
-        except HackathonApplicant.DoesNotExist as not_found:
+        except User.DoesNotExist as not_found:
             raise NotFound(detail="Applicant does not exist") from not_found
         if applicant.status in [
             HackathonApplicant.Status.ACCEPTED_INVITE,
