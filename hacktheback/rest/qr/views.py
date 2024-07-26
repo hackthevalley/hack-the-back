@@ -49,7 +49,7 @@ class QrAdmissionView(generics.GenericAPIView):
 
         message = "Applicant Checked In"
 
-        if applicant.status == HackathonApplicant.Status.SCANNED_IN:
+        if applicant.status == HackathonApplicant.Status.SCANNED_IN or applicant.status == HackathonApplicant.Status.WALK_IN:
             message = "Already Scanned In"
         elif applicant.status == HackathonApplicant.Status.ACCEPTED:
             message = "Applicant was accepted but did not RSVP"
