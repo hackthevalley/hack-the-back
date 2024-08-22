@@ -22,7 +22,7 @@ router.register("forms", FormsAdminViewSet, basename="admin-forms")
 
 router.register("food", FoodViewSet, basename="all-foods")
 
-router.register("foodtracker", FoodTrackingViewSet, basename="all-foods")
+router.register("foodtracker", FoodTrackingViewSet, basename="foodtracker")
 
 forms_router = routers.NestedSimpleRouter(router, "forms", lookup="form")
 forms_router.register(

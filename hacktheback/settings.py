@@ -388,5 +388,5 @@ PASSWORD_CHANGED_EMAIL_CONFIRMATION = env.bool(
 )
 
 MJML_API_URL = env.str("MJML_API_URL", default="https://api.mjml.io/v1/render")
-MJML_APPLICATION_ID = env.str("MJML_APPLICATION_ID")
-MJML_SECRET_KEY = env.str("MJML_SECRET_KEY")
+MJML_APPLICATION_ID = env.str("MJML_APPLICATION_ID", default=None)
+MJML_SECRET_KEY = env.str("MJML_SECRET_KEY", default=None)
