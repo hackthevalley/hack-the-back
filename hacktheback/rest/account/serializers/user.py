@@ -42,12 +42,9 @@ from social_django.utils import load_backend, load_strategy
 from social_django.views import _do_login
 
 from hacktheback.account import utils
-from hacktheback.account.email import (
-    ActivationEmail,
-    ConfirmationEmail,
-    PasswordChangedConfirmationEmail,
-    PasswordResetEmail,
-)
+from hacktheback.account.email import (ActivationEmail, ConfirmationEmail,
+                                       PasswordChangedConfirmationEmail,
+                                       PasswordResetEmail)
 
 User = get_user_model()
 
@@ -376,7 +373,8 @@ class UserFunctionsMixin:
 
 class SendEmailResetSerializer(serializers.Serializer, UserFunctionsMixin):
     default_error_messages = {
-        "email_not_found": "User with given email does not exist."
+        "email_not_found": "User with given email does not exist.",
+        "not_activated": "Account with email hasn't been activated, please contact hello@hackthevalley.io",
     }
 
     def __init__(self, *args, **kwargs):
@@ -386,11 +384,17 @@ class SendEmailResetSerializer(serializers.Serializer, UserFunctionsMixin):
         self.fields[self.email_field] = serializers.EmailField()
 
     def send(self, request):
+        if self.get_user(is_active=False):
+            self.fail("not_activated")
+
         user = self.get_user()
+
         if user:
             context = {"user": user}
             to = [utils.get_user_email(user)]
             PasswordResetEmail(request, context).send(to)
+        else:
+            self.fail("email_not_found")
 
 
 class ResendActivationSerializer(SendEmailResetSerializer):
