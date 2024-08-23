@@ -7,6 +7,9 @@ mjml_api_url = settings.MJML_API_URL
 mjml_app_id = settings.MJML_APPLICATION_ID
 mjml_secret = settings.MJML_SECRET_KEY
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _render_template_with_context(html, context):
     template = Template(html)
@@ -19,6 +22,8 @@ def render_mjml(mjml, context=None):
     Provided MJML, render it to HTML. Render with context if context is
     provided.
     """
+    if mjml_app_id is None:
+        return None
     req = requests.post(
         mjml_api_url,
         auth=(mjml_app_id, mjml_secret),
@@ -37,6 +42,11 @@ def send_emails(subject, recipients, plaintext, html):
     Send individual e-mails to each user in the list of recipients with the
     subject as `subject`, and the body as `plaintext` and `html`.
     """
+    if mjml_app_id is None:
+        logger.info(subject)
+        logger.info(recipients)
+        logger.info(plaintext)
+        return
     conn = mail.get_connection()
     conn.open()
     emails = []
