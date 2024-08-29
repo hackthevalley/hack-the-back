@@ -1,5 +1,6 @@
 import os
 import uuid
+import sentry_sdk
 from datetime import timedelta
 from email.utils import getaddresses
 
@@ -57,6 +58,17 @@ if (
 else:
     DATABASE_CONFIG = env.db("DATABASE_URL")
     DATABASES = {"default": DATABASE_CONFIG}
+
+if not DEBUG or env.bool("DEBUG_AS_PRODUCTION", default=False):
+    sentry_sdk.init(
+        dsn="https://5715f361ee78403b5b505ab5c87b9d7a@o4507535435825152.ingest.us.sentry.io/4507535438249984",
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate=1.0,
+        # Set profiles_sample_rate to 1.0 to profile 100%
+        # of sampled transactions.
+        profiles_sample_rate=0.5,
+    )
 
 if DEBUG and not env.bool("DEBUG_AS_PRODUCTION", default=False):
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
