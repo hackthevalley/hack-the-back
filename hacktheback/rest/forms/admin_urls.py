@@ -20,7 +20,7 @@ router.register(
 )
 router.register("forms", FormsAdminViewSet, basename="admin-forms")
 
-router.register("food", FoodViewSet, basename="all-foods")
+router.register("food", FoodViewSet, basename="food")
 
 router.register("foodtracker", FoodTrackingViewSet, basename="all-foods")
 
