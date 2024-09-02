@@ -79,7 +79,14 @@ def send_rsvp_email(hackapp_id: str, first_name: str, email: str):
     qr_image = MIMEImage(qr_data)
     qr_image.add_header("Content-ID", "<qr_code>")
 
-    msg = RSVPEmail(context={"start_date" : settings.EVENT_START, "end_date" : settings.EVENT_END, "due_date" : settings.RSVP_DUE, "qr_path": qr_path, "first_name" : first_name})
+    msg = RSVPEmail(context={
+        "start_date" : settings.EVENT_START,
+        "end_date" : settings.EVENT_END,
+        "due_date" : settings.RSVP_DUE,
+        "qr_path": qr_path,
+        "apple_url": settings.APPLE_WALLET_PASS_URL_FORMAT.format(id=hackapp_id),
+        "first_name" : first_name}
+    )
     msg.attach(qr_image)
     msg.send(to=[email])
     os.remove(qr_path)
