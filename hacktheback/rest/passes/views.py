@@ -25,7 +25,6 @@ class DownloadApplePass(generics.GenericAPIView):
     def get(self, request: Request) -> Response:
         hacker_id = request.query_params.get('id')
 
-        hacker_id = str(HackathonApplicant.objects.filter(status=HackathonApplicant.Status.SCANNED_IN).first().id)
         applicant = HackathonApplicant.objects.get(id=hacker_id)
         user = applicant.application.user 
 
