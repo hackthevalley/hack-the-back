@@ -31,9 +31,9 @@ environ.Env.read_env(env_file=os.path.join(PROJECT_ROOT, ".env"))
 SITE_NAME = env.str("SITE_NAME", default="Hack the Back")
 
 # --- RSVP Email Template Settings ---
-EVENT_START = "October 13th"
-EVENT_END = "15th"
-RSVP_DUE = "October 10th"
+EVENT_START = "October 4th"
+EVENT_END = "6th"
+RSVP_DUE = "September 30th"
 
 # SECURITY WARNING: Don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
@@ -406,7 +406,10 @@ MJML_SECRET_KEY = env.str("MJML_SECRET_KEY")
 APPLE_TEAM_IDENTIFIER = env.str("APPLE_TEAM_IDENTIFIER", "")
 APPLE_PASS_TYPE_IDENTIFIER = env.str("APPLE_PASS_TYPE_IDENTIFIER", "") # e.g. pass.com.xxxx.yyyy
 
-APPLE_WALLET_CERT_FILE = 'certs/apple/cert.pem'
-APPLE_WALLET_KEY_FILE = 'certs/apple/key.pem'
-APPLE_WWDR_CERT_FILE = 'certs/apple/wwdr.pem'
+APPLE_WALLET_PASS_URL_FORMAT = env.str("APPLE_WALLET_PASS_URL_FORMAT", "api/pass/apple?id={id}")
+
+APPLE_WALLET_CERT_FILE = env.str('APPLE_WALLET_CERT_FILE', 'certs/apple/cert.pem')
+APPLE_WALLET_KEY_FILE = env.str('APPLE_WALLET_KEY_FILE', 'certs/apple/key.pem')
+APPLE_WWDR_CERT_FILE = env.str('APPLE_WWDR_CERT_FILE', 'certs/apple/wwdr.pem')
+
 APPLE_WALLET_KEY_PASSWORD = env.str("APPLE_WALLET_KEY_PASSWORD", "")
