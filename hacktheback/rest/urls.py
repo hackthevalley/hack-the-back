@@ -24,6 +24,7 @@ admin_urlpatterns = [
 
 urlpatterns = [
     path("account/", include("hacktheback.rest.account.urls")),
+    path("pass/", include("hacktheback.rest.passes.urls")),
     path("", include(hacker_urlpatterns)),
     path("admin/", include(admin_urlpatterns)),
     path("schema", SpectacularAPIView.as_view(), name="schema"),

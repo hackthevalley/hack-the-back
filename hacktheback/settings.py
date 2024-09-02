@@ -402,3 +402,11 @@ PASSWORD_CHANGED_EMAIL_CONFIRMATION = env.bool(
 MJML_API_URL = env.str("MJML_API_URL", default="https://api.mjml.io/v1/render")
 MJML_APPLICATION_ID = env.str("MJML_APPLICATION_ID")
 MJML_SECRET_KEY = env.str("MJML_SECRET_KEY")
+
+APPLE_TEAM_IDENTIFIER = env.str("APPLE_TEAM_IDENTIFIER", "")
+APPLE_PASS_TYPE_IDENTIFIER = env.str("APPLE_PASS_TYPE_IDENTIFIER", "") # e.g. pass.com.xxxx.yyyy
+
+APPLE_WALLET_CERT_FILE = 'certs/apple/cert.pem'
+APPLE_WALLET_KEY_FILE = 'certs/apple/key.pem'
+APPLE_WWDR_CERT_FILE = 'certs/apple/wwdr.pem'
+APPLE_WALLET_KEY_PASSWORD = env.str("APPLE_WALLET_KEY_PASSWORD", "")
