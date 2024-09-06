@@ -207,6 +207,30 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
               instance.applicant.save()
               send_rsvp_email(instance.applicant.id, instance.user.first_name, instance.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @action(methods=["POST"], detail=False)
+    def unsubmit(self, request):
+        self._do_form_open_check()
+        instance: FormResponse = self.get_object()
+
+        if instance.applicant.status != HackathonApplicant.Status.APPLIED:
+            raise ConflictError(
+                detail=_(
+                    "Hacker must have applied to unsubmit application"
+                )
+            )
+        with transaction.atomic():
+            # Unsubmit current user's application
+            instance.is_draft = True
+            instance.save()
+
+            # change status back to APPLYING
+            instance.applicant.status = HackathonApplicant.Status.APPLYING
+            instance.applicant.save()
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 
     def _set_applicant_status(self, requirement, new_status) -> Response:
         instance = self.get_object()

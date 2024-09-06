@@ -1,5 +1,6 @@
 import os
 import uuid
+import sentry_sdk
 from datetime import timedelta
 from email.utils import getaddresses
 
@@ -30,9 +31,9 @@ environ.Env.read_env(env_file=os.path.join(PROJECT_ROOT, ".env"))
 SITE_NAME = env.str("SITE_NAME", default="Hack the Back")
 
 # --- RSVP Email Template Settings ---
-EVENT_START = "October 13th"
-EVENT_END = "15th"
-RSVP_DUE = "October 10th"
+EVENT_START = "October 4th"
+EVENT_END = "6th"
+RSVP_DUE = "September 30th"
 
 # SECURITY WARNING: Don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
@@ -57,6 +58,17 @@ if (
 else:
     DATABASE_CONFIG = env.db("DATABASE_URL")
     DATABASES = {"default": DATABASE_CONFIG}
+
+if not DEBUG or env.bool("DEBUG_AS_PRODUCTION", default=False):
+    sentry_sdk.init(
+        dsn="https://5715f361ee78403b5b505ab5c87b9d7a@o4507535435825152.ingest.us.sentry.io/4507535438249984",
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate=1.0,
+        # Set profiles_sample_rate to 1.0 to profile 100%
+        # of sampled transactions.
+        profiles_sample_rate=0.5,
+    )
 
 if DEBUG and not env.bool("DEBUG_AS_PRODUCTION", default=False):
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -390,3 +402,14 @@ PASSWORD_CHANGED_EMAIL_CONFIRMATION = env.bool(
 MJML_API_URL = env.str("MJML_API_URL", default="https://api.mjml.io/v1/render")
 MJML_APPLICATION_ID = env.str("MJML_APPLICATION_ID")
 MJML_SECRET_KEY = env.str("MJML_SECRET_KEY")
+
+APPLE_TEAM_IDENTIFIER = env.str("APPLE_TEAM_IDENTIFIER", "")
+APPLE_PASS_TYPE_IDENTIFIER = env.str("APPLE_PASS_TYPE_IDENTIFIER", "") # e.g. pass.com.xxxx.yyyy
+
+APPLE_WALLET_PASS_URL_FORMAT = env.str("APPLE_WALLET_PASS_URL_FORMAT", "api/pass/apple?id={id}")
+
+APPLE_WALLET_CERT_FILE = env.str('APPLE_WALLET_CERT_FILE', 'certs/apple/cert.pem')
+APPLE_WALLET_KEY_FILE = env.str('APPLE_WALLET_KEY_FILE', 'certs/apple/key.pem')
+APPLE_WWDR_CERT_FILE = env.str('APPLE_WWDR_CERT_FILE', 'certs/apple/wwdr.pem')
+
+APPLE_WALLET_KEY_PASSWORD = env.str("APPLE_WALLET_KEY_PASSWORD", "")
