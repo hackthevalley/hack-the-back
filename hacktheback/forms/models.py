@@ -232,12 +232,13 @@ class HackathonApplicant(GenericModel, CreateTimestampMixin):
         REJECTED_INVITE = "REJECTED_INVITE", _("Rejected Invitation")
         SCANNED_IN = "SCANNED_IN", _("Scanned In")
         WALK_IN = "WALK_IN", _("Walked In")
+        WALK_IN_SUBMITTED = "WALK_IN_SUBMITTED", _("Walked In (Submitted)")
 
     application = models.OneToOneField(
         FormResponse, on_delete=models.CASCADE, related_name="applicant"
     )
     status = models.CharField(
-        max_length=15, choices=Status.choices, default=Status.APPLIED
+        max_length=17, choices=Status.choices, default=Status.APPLIED
     )
 
 class Food(GenericModel):

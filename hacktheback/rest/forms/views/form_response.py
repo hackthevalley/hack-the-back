@@ -200,6 +200,9 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             if (instance.applicant.status != HackathonApplicant.Status.WALK_IN):
               instance.applicant.status = HackathonApplicant.Status.APPLIED
               instance.applicant.save()
+            else:
+              instance.applicant.status = HackathonApplicant.Status.WALK_IN_SUBMITTED
+              instance.applicant.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _set_applicant_status(self, requirement, new_status) -> Response:
