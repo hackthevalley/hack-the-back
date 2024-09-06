@@ -46,7 +46,7 @@ class QrAdmissionView(generics.GenericAPIView):
             HackathonApplicant.Status.SCANNED_IN,
             HackathonApplicant.Status.WALK_IN_SUBMIT
         ]:
-            raise ValidationError(detail="Applicant was not accepted/already scanned")
+            raise ValidationError(detail="Applicant was not accepted")
 
         message = "Applicant Checked In"
 
