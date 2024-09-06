@@ -54,11 +54,13 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
-    @staticmethod
-    def _do_form_open_check() -> None:
+    # @staticmethod
+    def _do_form_open_check(self) -> None:
         try:
             get_object_or_404(Form.objects.open_hacker_application())
         except Http404:
+          form_response: FormResponse = self.get_object()
+          if form_response.applicant.status != HackathonApplicant.Status.WALK_IN:
             raise NotFound(
                 detail=_(
                     "The hacker application form is either closed or does "
@@ -195,8 +197,9 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             instance.is_draft = False
             instance.save()
             # Set the status of the HackerApplicant object to APPLIED
-            instance.applicant.status = HackathonApplicant.Status.APPLIED
-            instance.applicant.save()
+            if (instance.applicant.status != HackathonApplicant.Status.WALK_IN):
+              instance.applicant.status = HackathonApplicant.Status.APPLIED
+              instance.applicant.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _set_applicant_status(self, requirement, new_status) -> Response:
