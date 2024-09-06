@@ -33,20 +33,24 @@ class WalkInAdmissionAPIView(generics.GenericAPIView):
                 raise NotFound(detail="No open hacker application form available")
             print(form.id)
             form_response_data = {
-                # 'user': user.id,
+                'user': str(user.id),
                 'form': str(form.id),
                 'is_draft': True,  # Assuming you want to create a submitted application
-                'answer': [],
+                'answers': [],
             }
             print("we done form_response data");
             print(form_response_data)
-            serializer = HackerApplicationResponseSerializer(context={'request': request, 'format': None, 'view': self}, data=form_response_data)
+            serializer = HackerApplicationResponseSerializer(context={'request': request, 'format': None, 'view': self, 'user': user}, data=form_response_data)
             print("made serializer")
             print(serializer)
             serializer.is_valid(raise_exception=True)
             form_response = serializer.save()
             print(serializer.data)
             print("created a form via walkin")
+            print(form_response.applicant)
+            form_response.applicant.status = HackathonApplicant.Status.WALK_IN
+            form_response.applicant.save()
+            applicant = form_response.applicant
         if applicant.status in [
             HackathonApplicant.Status.ACCEPTED_INVITE,
             HackathonApplicant.Status.ACCEPTED,
