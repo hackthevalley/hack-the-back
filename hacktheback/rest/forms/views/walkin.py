@@ -55,5 +55,4 @@ class WalkInAdmissionAPIView(generics.GenericAPIView):
         else:
           applicant.status = HackathonApplicant.Status.WALK_IN
           applicant.save()
-          send_rsvp_email(applicant.id, user.first_name, email)
         return Response(data={"success": True})

@@ -28,6 +28,8 @@ from hacktheback.rest.forms.serializers import (
 from hacktheback.rest.pagination import StandardResultsPagination
 from hacktheback.rest.permissions import AdminSiteModelPermissions, IsOwner
 
+from ....forms.utils import send_rsvp_email
+
 
 @extend_schema(tags=["Hacker APIs", "Forms"])
 class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
@@ -203,6 +205,7 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             else:
               instance.applicant.status = HackathonApplicant.Status.WALK_IN_SUBMIT
               instance.applicant.save()
+              send_rsvp_email(instance.applicant.id, instance.user.first_name, instance.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _set_applicant_status(self, requirement, new_status) -> Response:
