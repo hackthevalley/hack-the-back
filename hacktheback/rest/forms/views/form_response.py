@@ -201,7 +201,7 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
               instance.applicant.status = HackathonApplicant.Status.APPLIED
               instance.applicant.save()
             else:
-              instance.applicant.status = HackathonApplicant.Status.WALK_IN_SUBMITTED
+              instance.applicant.status = HackathonApplicant.Status.WALK_IN_SUBMIT
               instance.applicant.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
