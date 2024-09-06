@@ -27,27 +27,18 @@ class WalkInAdmissionAPIView(generics.GenericAPIView):
         try:
             applicant = HackathonApplicant.objects.get(application__user__email=email)
         except HackathonApplicant.DoesNotExist as not_found:
-            print("person got no form, we make now")
             form = Form.objects.filter(type=Form.FormType.HACKER_APPLICATION, is_draft=False).first()
             if not form:
                 raise NotFound(detail="No open hacker application form available")
-            print(form.id)
             form_response_data = {
                 'user': str(user.id),
                 'form': str(form.id),
                 'is_draft': True,  # Assuming you want to create a submitted application
                 'answers': [],
             }
-            print("we done form_response data");
-            print(form_response_data)
             serializer = HackerApplicationResponseSerializer(context={'request': request, 'format': None, 'view': self, 'user': user}, data=form_response_data)
-            print("made serializer")
-            print(serializer)
             serializer.is_valid(raise_exception=True)
             form_response = serializer.save()
-            print(serializer.data)
-            print("created a form via walkin")
-            print(form_response.applicant)
             form_response.applicant.status = HackathonApplicant.Status.WALK_IN
             form_response.applicant.save()
             applicant = form_response.applicant
