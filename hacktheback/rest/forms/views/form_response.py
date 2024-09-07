@@ -205,7 +205,7 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             else:
               instance.applicant.status = HackathonApplicant.Status.WALK_IN_SUBMIT
               instance.applicant.save()
-              send_rsvp_email(instance.applicant.id, instance.user.first_name, instance.user)
+              send_rsvp_email(instance.applicant.id, instance.user.first_name, instance.user.email)
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     @action(methods=["POST"], detail=False)

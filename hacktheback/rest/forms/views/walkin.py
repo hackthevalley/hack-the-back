@@ -39,20 +39,26 @@ class WalkInAdmissionAPIView(generics.GenericAPIView):
             serializer = HackerApplicationResponseSerializer(context={'request': request, 'format': None, 'view': self, 'user': user}, data=form_response_data)
             serializer.is_valid(raise_exception=True)
             form_response = serializer.save()
-            form_response.applicant.status = HackathonApplicant.Status.WALK_IN
-            form_response.applicant.save()
             applicant = form_response.applicant
         if applicant.status in [
             HackathonApplicant.Status.ACCEPTED_INVITE,
             HackathonApplicant.Status.ACCEPTED,
             HackathonApplicant.Status.SCANNED_IN,
+            HackathonApplicant.Status.WALK_IN_SUBMIT,
         ]:
           raise ValidationError(detail="Applicant already accepted")
-        if applicant.status in [
-            HackathonApplicant.Status.APPLYING
+        else if applicant.status in [
+            HackathonApplicant.Status.APPLIED,
+            HackathonApplicant.Status.REJECTED,
+            HackathonApplicant.Status.REJECTED_INVITE,
+            HackathonApplicant.Status.WAITLISTED,
         ]:
-          raise ValidationError(detail="Applicant not applied yet")
+            applicant.status = HackathonApplicant.Status.WALK_IN_SUBMIT
+            applicant.save()
+            send_rsvp_email(applicant.id, user.first_name, user.email)
         else:
           applicant.status = HackathonApplicant.Status.WALK_IN
           applicant.save()
+          applicant.application.is_draft = True
+          applicant.application.save()
         return Response(data={"success": True})
