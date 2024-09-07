@@ -421,6 +421,8 @@ class HackerApplicationResponseSerializer(FormResponseSerializer):
         """
         answers = validated_data.pop("answers")
         user = self.context["request"].user
+        if self.context.get("user"):
+          user = self.context.get("user")
         with transaction.atomic():
             form_response_obj = FormResponse.objects.create(
                 user=user, **validated_data
@@ -444,6 +446,7 @@ class HackerApplicationResponseSerializer(FormResponseSerializer):
                             answer=answer_obj, **answer_option
                         )
             if form_response_obj.form.type == Form.FormType.HACKER_APPLICATION:
+                print("we create application")
                 if validated_data.get("is_draft"):
                     HackathonApplicant.objects.create(
                         application=form_response_obj,

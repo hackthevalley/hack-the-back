@@ -232,6 +232,7 @@ class HackathonApplicant(GenericModel, CreateTimestampMixin):
         REJECTED_INVITE = "REJECTED_INVITE", _("Rejected Invitation")
         SCANNED_IN = "SCANNED_IN", _("Scanned In")
         WALK_IN = "WALK_IN", _("Walked In")
+        WALK_IN_SUBMIT = "WALK_IN_SUBMIT", _("Walked In (Submitted)")
 
     application = models.OneToOneField(
         FormResponse, on_delete=models.CASCADE, related_name="applicant"

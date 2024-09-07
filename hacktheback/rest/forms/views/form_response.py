@@ -28,6 +28,8 @@ from hacktheback.rest.forms.serializers import (
 from hacktheback.rest.pagination import StandardResultsPagination
 from hacktheback.rest.permissions import AdminSiteModelPermissions, IsOwner
 
+from ....forms.utils import send_rsvp_email
+
 
 @extend_schema(tags=["Hacker APIs", "Forms"])
 class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
@@ -54,11 +56,13 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
-    @staticmethod
-    def _do_form_open_check() -> None:
+    # @staticmethod
+    def _do_form_open_check(self) -> None:
         try:
             get_object_or_404(Form.objects.open_hacker_application())
         except Http404:
+          form_response: FormResponse = self.get_object()
+          if form_response.applicant.status != HackathonApplicant.Status.WALK_IN:
             raise NotFound(
                 detail=_(
                     "The hacker application form is either closed or does "
@@ -195,8 +199,13 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             instance.is_draft = False
             instance.save()
             # Set the status of the HackerApplicant object to APPLIED
-            instance.applicant.status = HackathonApplicant.Status.APPLIED
-            instance.applicant.save()
+            if (instance.applicant.status != HackathonApplicant.Status.WALK_IN):
+              instance.applicant.status = HackathonApplicant.Status.APPLIED
+              instance.applicant.save()
+            else:
+              instance.applicant.status = HackathonApplicant.Status.WALK_IN_SUBMIT
+              instance.applicant.save()
+              send_rsvp_email(instance.applicant.id, instance.user.first_name, instance.user.email)
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     @action(methods=["POST"], detail=False)

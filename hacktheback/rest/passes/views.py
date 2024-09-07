@@ -32,7 +32,7 @@ class DownloadApplePass(generics.GenericAPIView):
             HackathonApplicant.Status.ACCEPTED,
             HackathonApplicant.Status.ACCEPTED_INVITE,
             HackathonApplicant.Status.SCANNED_IN,
-            HackathonApplicant.Status.WALK_IN,
+            HackathonApplicant.Status.WALK_IN_SUBMIT,
         ]:
             return HttpResponse('not accepted, if you believe this is an error please contact an organizer or hello@hackthevalley.io', status=401)
 
