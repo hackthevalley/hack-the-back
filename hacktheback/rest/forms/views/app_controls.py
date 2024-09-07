@@ -9,8 +9,7 @@ from hacktheback.rest.forms.serializers import FormControllerSerializer
 
 class AppControlsViewSet(viewsets.ModelViewSet):
     queryset = Form.objects.all()
-    # permission_classes = (AdminSiteModelPermissions,)
-    permission_classes = ()
+    permission_classes = (AdminSiteModelPermissions,)
     serializer_class = FormControllerSerializer
 
     def partial_update(self, request, *args, **kwargs):
