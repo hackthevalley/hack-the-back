@@ -21,3 +21,8 @@ class AppControlsViewSet(viewsets.ModelViewSet):
 
         response = super().partial_update(request, *args, **kwargs)
         return Response(data=self.get_serializer(instance).data, status=status.HTTP_200_OK)
+
+    def list(self, request, *args, **kwargs):
+        form = self.get_queryset().first()
+        serializer = self.get_serializer(form)
+        return Response(serializer.data)
