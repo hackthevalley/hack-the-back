@@ -47,7 +47,7 @@ class WalkInAdmissionAPIView(generics.GenericAPIView):
             HackathonApplicant.Status.WALK_IN_SUBMIT,
         ]:
           raise ValidationError(detail="Applicant already accepted")
-        else if applicant.status in [
+        elif applicant.status in [
             HackathonApplicant.Status.APPLIED,
             HackathonApplicant.Status.REJECTED,
             HackathonApplicant.Status.REJECTED_INVITE,
