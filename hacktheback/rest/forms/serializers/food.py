@@ -11,7 +11,7 @@ class FoodSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "day",
-            "end_time",
+            "end_time", # TODO: Change to have a boolean that can be toggled
         )
 
 class FoodTrackingSerializer(serializers.ModelSerializer):
