@@ -29,7 +29,7 @@ class QrAdminSerializer(serializers.ModelSerializer):
     def to_camel_case(self, text):
         # remove non-alphanumeric characters
 
-        s = text.replace("-", " ").replace("_", " ").replace("-", " ")
+        s = text.replace("-", " ").replace("_", " ")
         s = [re.sub(r'\W+', '', word) for word in s.split()]
         if len(text) == 0:
             return text
