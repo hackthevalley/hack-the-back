@@ -4,10 +4,13 @@ from rest_framework import serializers
 
 from hacktheback.forms.models import FormResponse
 from hacktheback.rest.forms.serializers.food import FoodTrackingSerializer
+from hacktheback.rest.forms.serializers.form_response import \
+    HackathonApplicantSerializer
 
 
 class QrAdminSerializer(serializers.ModelSerializer):
     application = serializers.UUIDField(read_only=True, source="id")
+    applicant = HackathonApplicantSerializer()
     answers = serializers.SerializerMethodField()
     food = FoodTrackingSerializer(read_only=True, many=True)
 
@@ -17,6 +20,7 @@ class QrAdminSerializer(serializers.ModelSerializer):
             "id",
             "application",
             "user",
+            "applicant",
             "answers",
             "food",
         )
