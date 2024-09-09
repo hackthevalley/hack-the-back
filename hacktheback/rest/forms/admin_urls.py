@@ -5,7 +5,7 @@ from hacktheback.rest.forms.views import (
     FoodTrackingViewSet, FoodViewSet, FormQuestionOptionsAdminViewSet,
     FormQuestionsAdminViewSet, FormsAdminViewSet,
     HackerApplicationAnswerFileAdminViewSet,
-    HackerApplicationResponsesAdminViewSet, WalkInAdmissionAPIView)
+    HackerApplicationResponsesAdminViewSet, WalkInAdmissionAPIView, AppControlsViewSet)
 
 router = routers.SimpleRouter(trailing_slash=False)
 router.register(
@@ -24,6 +24,8 @@ router.register("food", FoodViewSet, basename="food")
 
 router.register("foodtracker", FoodTrackingViewSet, basename="all-foods")
 
+router.register(r"app-controls", AppControlsViewSet, basename="app-controls")
+
 forms_router = routers.NestedSimpleRouter(router, "forms", lookup="form")
 forms_router.register(
     "questions", FormQuestionsAdminViewSet, basename="admin-form-questions"
@@ -37,7 +39,6 @@ form_questions_router.register(
     FormQuestionOptionsAdminViewSet,
     basename="admin-form-question-options"
 )
-
 
 urlpatterns = [
     path("", include(router.urls)),
