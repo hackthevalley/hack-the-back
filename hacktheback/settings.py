@@ -1,10 +1,10 @@
 import os
 import uuid
-import sentry_sdk
 from datetime import timedelta
 from email.utils import getaddresses
 
 import environ
+import sentry_sdk
 from django.contrib.auth import get_user_model
 
 # WARNING: You should not directly edit this file if you are configuring
@@ -382,7 +382,7 @@ if "social_core.backends.twitter.TwitterOAuth" in SOCIAL_AUTH_BACKENDS:
     SOCIAL_AUTH_TWITTER_SECRET = env.str("SOCIAL_AUTH_TWITTER_SECRET")
 
 AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
+    "django.contrib.auth.backends.AllowAllUsersModelBackend",
     "graphql_jwt.backends.JSONWebTokenBackend",
 ] + SOCIAL_AUTH_BACKENDS
 

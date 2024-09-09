@@ -8,13 +8,9 @@ from rest_framework.response import Response
 
 from hacktheback.rest.account.filters import UserAdminFilter
 from hacktheback.rest.account.serializers import (
-    ActivationSerializer,
-    CompleteUserSerializer,
-    PasswordResetConfirmRetypeSerializer,
-    ResendActivationSerializer,
-    SendEmailResetSerializer,
-    UserCreatePasswordRetypeSerializer,
-)
+    ActivationSerializer, CompleteUserSerializer,
+    PasswordResetConfirmRetypeSerializer, ResendActivationSerializer,
+    SendEmailResetSerializer, UserCreatePasswordRetypeSerializer)
 from hacktheback.rest.pagination import StandardResultsPagination
 from hacktheback.rest.permissions import AdminSiteModelPermissions
 
