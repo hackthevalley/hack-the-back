@@ -20,8 +20,7 @@ from .serializers import QrAdminSerializer
 )
 class QrAdmissionView(generics.GenericAPIView):
     queryset = HackathonApplicant.objects.all()
-    permission_classes = ()
-    # permission_classes = (AdminSiteModelPermissions,)
+    permission_classes = (AdminSiteModelPermissions,)
 
     @extend_schema(summary="Admit user through QR")
     def post(self, request: Request) -> Response:
