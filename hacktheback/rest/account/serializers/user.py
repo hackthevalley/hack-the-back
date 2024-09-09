@@ -94,8 +94,10 @@ class JSONWebTokenBasicAuthSerializer(BaseJSONWebTokenAuthSerializer):
 
             if user:
                 if not user.is_active:
+                    to = [utils.get_user_email(user)]
+                    ActivationEmail(self.context['request'], {"user": user}).send(to)
                     raise serializers.ValidationError(
-                        _("User account is disabled.")
+                        _("User account not activated. Activation email resent, please check your spam/junk/inbox")
                     )
 
                 payload = jwt_payload_handler(user)
@@ -358,23 +360,9 @@ class UserCreatePasswordRetypeSerializer(UserCreateSerializer):
             self.fail("password_mismatch")
 
 
-class UserFunctionsMixin:
-    def get_user(self, is_active=True):
-        try:
-            user = User._default_manager.get(
-                is_active=is_active,
-                **{self.email_field: self.data.get(self.email_field, "")},
-            )
-            if user.has_usable_password():
-                return user
-        except User.DoesNotExist:
-            pass
-
-
-class SendEmailResetSerializer(serializers.Serializer, UserFunctionsMixin):
+class SendEmailResetSerializer(serializers.Serializer):
     default_error_messages = {
         "email_not_found": "User with given email does not exist.",
-        "not_activated": "Account with email hasn't been activated, please contact hello@hackthevalley.io",
     }
 
     def __init__(self, *args, **kwargs):
@@ -383,10 +371,17 @@ class SendEmailResetSerializer(serializers.Serializer, UserFunctionsMixin):
         self.email_field = User.EMAIL_FIELD
         self.fields[self.email_field] = serializers.EmailField()
 
-    def send(self, request):
-        if self.get_user(is_active=False):
-            self.fail("not_activated")
+    def get_user(self):
+        try:
+            user = User._default_manager.get(
+                **{self.email_field: self.data.get(self.email_field, "")},
+            )
+            if user.has_usable_password():
+                return user
+        except User.DoesNotExist:
+            pass
 
+    def send(self, request):
         user = self.get_user()
 
         if user:
@@ -514,7 +509,6 @@ class PasswordRetypeSerializer(PasswordSerializer):
         else:
             self.fail("password_mismatch")
 
-
 class CurrentPasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(style={"input_type": "password"})
 
@@ -585,8 +579,11 @@ class SetPasswordRetypeSerializer(
 class PasswordResetConfirmRetypeSerializer(
     UidAndTokenSerializer, PasswordRetypeSerializer
 ):
-    pass
-
+    def save(self, request, **kwargs):
+        super().save(request, **kwargs)
+        if hasattr(self.user, 'is_active') and not self.user.is_active:
+            self.user.is_active = True
+            self.user.save()
 
 class UsernameResetConfirmRetypeSerializer(
     UidAndTokenSerializer, UsernameRetypeSerializer
