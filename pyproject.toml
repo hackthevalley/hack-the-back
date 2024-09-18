@@ -36,6 +36,7 @@ requests = "^2.26.0"
 qrcode = "^7.4.2"
 phonenumbers = "^8.13.40"
 sentry-sdk = "^2.13.0"
+google-auth = "^2.34.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.8.2"

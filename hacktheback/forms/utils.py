@@ -8,6 +8,7 @@ import qrcode
 from hacktheback import settings
 from hacktheback.account.email import RSVPEmail
 from hacktheback.forms.models import Form, Question
+from hacktheback.rest.passes.utils import generate_google_wallet_link
 
 
 def get_missing_questions(required: List[Question], answered: List[Question]):
@@ -75,7 +76,7 @@ def send_rsvp_email(hackapp_id: str, first_name: str, email: str):
 
     with open(qr_path, "rb") as f:
         qr_data = f.read()
-    
+
     qr_image = MIMEImage(qr_data)
     qr_image.add_header("Content-ID", "<qr_code>")
 
@@ -85,6 +86,7 @@ def send_rsvp_email(hackapp_id: str, first_name: str, email: str):
         "due_date" : settings.RSVP_DUE,
         "qr_path": qr_path,
         "apple_url": settings.APPLE_WALLET_PASS_URL_FORMAT.format(id=hackapp_id),
+        "google_url": generate_google_wallet_link(hackapp_id, email),
         "first_name" : first_name}
     )
     msg.attach(qr_image)
