@@ -413,3 +413,9 @@ APPLE_WALLET_KEY_FILE = env.str('APPLE_WALLET_KEY_FILE', 'certs/apple/key.pem')
 APPLE_WWDR_CERT_FILE = env.str('APPLE_WWDR_CERT_FILE', 'certs/apple/wwdr.pem')
 
 APPLE_WALLET_KEY_PASSWORD = env.str("APPLE_WALLET_KEY_PASSWORD", "")
+
+GOOGLE_WALLET_API_CREDENTIALS = env.str('GOOGLE_WALLET_API_CREDENTIALS', 'certs/google/credentials.json')
+GOOGLE_WALLET_ISSUER_ID = env.str("GOOGLE_WALLET_ISSUER_ID", "")
+GOOGLE_WALLET_CLASS_ID = env.str("GOOGLE_WALLET_CLASS_ID", "")
+GOOGLE_WALLET_API_URL_FORMAT = env.str("GOOGLE_WALLET_API_URL_FORMAT",
+                                       "https://pay.google.com/gp/v/save/{token}")
