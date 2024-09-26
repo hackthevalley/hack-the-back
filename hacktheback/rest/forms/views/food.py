@@ -9,19 +9,34 @@ from hacktheback.rest.forms.serializers import (FoodSerializer,
 from hacktheback.rest.permissions import AdminSiteModelPermissions
 
 
+# class FoodViewSet(viewsets.ReadOnlyModelViewSet):
+#     queryset = Food.objects.all()
+#     permission_classes = (AdminSiteModelPermissions,)
+#     serializer_class = FoodSerializer
+
+#     def list(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(self.get_queryset(), many=True)
+#         current_time = timezone.now()
+#         current_meal = None
+#         for food in Food.objects.all().order_by("end_time"):
+#             if food.end_time >= current_time:
+#                 current_meal = food.id
+#                 break
+
+#         resp = {
+#             "all_food": serializer.data,
+#             "current_meal": current_meal
+#         }
+#         return Response(data=resp)
+
 class FoodViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Food.objects.all()
-    permission_classes = (AdminSiteModelPermissions,)
+    # permission_classes = (AdminSiteModelPermissions,)
     serializer_class = FoodSerializer
 
     def list(self, request, *args, **kwargs):
         serializer = self.get_serializer(self.get_queryset(), many=True)
-        current_time = timezone.now()
-        current_meal = None
-        for food in Food.objects.all().order_by("end_time"):
-            if food.end_time >= current_time:
-                current_meal = food.id
-                break
+        current_meal = Food.objects.filter(serving=True).values_list('id', flat=True)
 
         resp = {
             "all_food": serializer.data,
@@ -29,7 +44,7 @@ class FoodViewSet(viewsets.ReadOnlyModelViewSet):
         }
         return Response(data=resp)
 
-
+    
 class FoodTrackingViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = HackerFoodTracking.objects.all()
     permission_classes = (AdminSiteModelPermissions,)

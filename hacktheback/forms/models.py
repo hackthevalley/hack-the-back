@@ -250,7 +250,7 @@ class Food(GenericModel):
     name = models.CharField(max_length=20)
     # hackathon day
     day = models.IntegerField()
-    end_time = models.DateTimeField()
+    serving = models.BooleanField(default=False)
 
 class HackerFoodTracking(GenericModel, CreateTimestampMixin):
     """
