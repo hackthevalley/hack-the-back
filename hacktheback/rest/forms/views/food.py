@@ -44,6 +44,10 @@ class FoodViewSet(viewsets.ReadOnlyModelViewSet):
         }
         return Response(data=resp)
 
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+
     
 class FoodTrackingViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = HackerFoodTracking.objects.all()

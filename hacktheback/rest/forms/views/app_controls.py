@@ -13,7 +13,17 @@ class AppControlsViewSet(viewsets.ModelViewSet):
     serializer_class = FormControllerSerializer
 
     def partial_update(self, request, *args, **kwargs):
+        """
+        The request from the frontend will be in the form of:
+        {
+            "start_at": "respective ISO time string",
+            "end_at": "respective ISO time string",    
+        }
+        """
         instance = self.get_object()
+
+        new_start_at = request.data.get("start_at")
+        new_end_at = request.data.get("end_at")
 
         response = super().partial_update(request, *args, **kwargs)
         return Response(data=self.get_serializer(instance).data, status=status.HTTP_200_OK)
