@@ -38,10 +38,9 @@ class FoodViewSet(viewsets.ReadOnlyModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         # Get the food object
         instance = self.get_object()
-        
+
         # Setting the current food to be served
         try:
-            # food_serving_update = Food.objects.filter(id=request.query_params.get("food_id"))
             food_serving_update = Food.objects.filter(id=instance.id)
             if not food_serving_update.exists():
                 return Response(data={"error": "Update not successfull"}, status=status.HTTP_404_NOT_FOUND)
@@ -49,7 +48,7 @@ class FoodViewSet(viewsets.ReadOnlyModelViewSet):
             # Update table to have no serving food by setting all to False
             Food.objects.filter(serving=True).update(serving=False)
 
-            food_serving_update.update(serving=True)
+            food_serving_update.update(serving= not instance.serving)
             return Response(data={"message": "Food serving updated successfully."}, status=status.HTTP_200_OK)
 
         except Food.DoesNotExist:
