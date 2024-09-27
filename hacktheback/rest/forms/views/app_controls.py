@@ -20,12 +20,11 @@ class AppControlsViewSet(viewsets.ModelViewSet):
             "end_at": "respective ISO time string",    
         }
         """
-        instance = self.get_object()
-
         new_start_at = request.data.get("start_at")
         new_end_at = request.data.get("end_at")
 
         response = super().partial_update(request, *args, **kwargs)
+        instance = self.get_object()
         return Response(data=self.get_serializer(instance).data, status=status.HTTP_200_OK)
 
     def list(self, request, *args, **kwargs):
