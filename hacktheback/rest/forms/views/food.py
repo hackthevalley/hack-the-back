@@ -1,8 +1,8 @@
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.decorators import action
 
 from hacktheback.forms.models import Food, HackerFoodTracking
 from hacktheback.rest.forms.serializers import (FoodSerializer,
@@ -43,7 +43,7 @@ class FoodViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             food_serving_update = Food.objects.filter(id=instance.id)
             if not food_serving_update.exists():
-                return Response(data={"error": "Update not successfull"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(data={"error": "Update not successful"}, status=status.HTTP_404_NOT_FOUND)
 
             # Update table to have no serving food by setting all to False
             Food.objects.filter(serving=True).update(serving=False)
@@ -52,7 +52,7 @@ class FoodViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(data={"message": "Food serving updated successfully."}, status=status.HTTP_200_OK)
 
         except Food.DoesNotExist:
-            return Response(data={"error": "Update not successfull"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"error": "Update not successful"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class FoodTrackingViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
