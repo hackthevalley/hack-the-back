@@ -11,8 +11,17 @@ class FoodSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "day",
-            "end_time", # TODO: Change to have a boolean that can be toggled
+            "serving",
         )
+
+    def validate(self, data):
+        serving_day = data.get('day')
+        serving_meal = data.get('meal_name')
+
+        if not day or not meal_name:
+            raise serializers.ValidationError("The start date must be earlier than the end date.")
+
+        return data
 
 class FoodTrackingSerializer(serializers.ModelSerializer):
 

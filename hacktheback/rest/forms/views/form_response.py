@@ -205,9 +205,8 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             else:
               instance.applicant.status = HackathonApplicant.Status.WALK_IN_SUBMIT
               instance.applicant.save()
-              send_rsvp_email(instance.applicant.id, instance.user.first_name, instance.user.email)
+              send_rsvp_email(str(instance.applicant.id), instance.user.first_name, instance.user.email)
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
     @action(methods=["POST"], detail=False)
     def unsubmit(self, request):
         self._do_form_open_check()
@@ -227,7 +226,6 @@ class HackerApplicationResponsesViewSet(viewsets.GenericViewSet):
             # change status back to APPLYING
             instance.applicant.status = HackathonApplicant.Status.APPLYING
             instance.applicant.save()
-        
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
