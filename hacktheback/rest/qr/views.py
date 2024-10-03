@@ -67,4 +67,5 @@ class QrAdmissionView(generics.GenericAPIView):
             instance=applicant.application
         )
         scanned_count = HackathonApplicant.objects.filter(status=HackathonApplicant.Status.SCANNED_IN).count()
-        return Response(data={"message": message, "body": serializer.data, "scanned_count": scanned_count})
+        walkin_count = HackathonApplicant.objects.filter(status=HackathonApplicant.Status.WALK_IN_SUBMIT).count()
+        return Response(data={"message": message, "body": serializer.data, "scanned_count": scanned_count, "walkin_count": walkin_count})
