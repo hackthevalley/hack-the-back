@@ -1,0 +1,15 @@
+[project]
+name = "hacktheback"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.14.0",
+    "fastapi[standard]>=0.115.6",
+    "passlib>=1.7.4",
+    "psycopg2-binary>=2.9.10",
+    "pyjwt>=2.10.1",
+    "python-dotenv>=1.0.1",
+    "sqlmodel>=0.0.22",
+]
