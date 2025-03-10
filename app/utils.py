@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
+import requests
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -25,6 +26,7 @@ from app.models.user import Account_User
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
+POSTMARK_API_KEY = os.getenv("POSTMARK_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
@@ -138,3 +140,26 @@ async def isValidSubmissionTime(session: SessionDep):
     if time is None:
         return False
     return time.start_at < datetime.now(timezone.utc) < time.end_at
+
+
+async def sendEmail(
+    session: SessionDep, template: str, receiver: str, subject: str, textbody: str
+):
+    POSTMARK_URL = "https://api.postmarkapp.com/email"
+    with open(template, "r", encoding="utf-8") as file:
+        html_content = file.read()
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-Postmark-Server-Token": POSTMARK_API_KEY,
+    }
+    data = {
+        "From": "do-not-reply@hackthevalley.io",
+        "To": receiver,
+        "Subject": subject,
+        "HtmlBody": html_content,
+        "TextBody": textbody,
+        "MessageStream": "outbound",
+    }
+    response = requests.post(POSTMARK_URL, json=data, headers=headers)
+    return (response.status_code, response.json())
