@@ -1,7 +1,8 @@
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 
 from sqlmodel import Field, Relationship, SQLModel
+from app.models.food_tracking import Food_Tracking
 
 if TYPE_CHECKING:
     from app.models.forms import Forms_Application
@@ -22,7 +23,7 @@ class Account_User(UserBase, table=True):
     role: str
     is_active: bool
     application: Optional["Forms_Application"] = Relationship(back_populates="user")
-
+    meals: Optional["Food_Tracking"] = Relationship(back_populates="user")
 
 class UserCreate(UserBase):
     password: str
