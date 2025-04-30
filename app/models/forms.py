@@ -125,6 +125,21 @@ class Forms_AnswerFileUpdate(SQLModel):
     file: bytes | None = Field(sa_column=Column(LargeBinary))
 
 
+class Forms_ApplicationTimeRange(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    start_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    end_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    
+
+
 class ApplicationResponse(BaseModel):
     application: Forms_Application
     form_answers: list[Forms_Answer]
