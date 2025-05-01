@@ -27,12 +27,20 @@ class StatusEnum(str, Enum):
 class Forms_Form(SQLModel, table=True):
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
-        primary_key=True,
+        primary_key=True
+    )
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     start_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
-    end_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    end_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
 
 
 class Forms_Application(SQLModel, table=True):
@@ -123,21 +131,6 @@ class Forms_AnswerFile(SQLModel, table=True):
 class Forms_AnswerFileUpdate(SQLModel):
     original_filename: str | None = None
     file: bytes | None = Field(sa_column=Column(LargeBinary))
-
-
-class Forms_ApplicationTimeRange(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
-    updated_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
-    start_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
-    end_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
-    
 
 
 class ApplicationResponse(BaseModel):

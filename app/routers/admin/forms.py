@@ -6,14 +6,14 @@ from fastapi import APIRouter, HTTPException, Body, status
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.forms import Forms_ApplicationTimeRange
+from app.models.forms import Forms_Form
 
 router = APIRouter()
 
-@router.get("/getregtimerange", response_model=Forms_ApplicationTimeRange)
+@router.get("/getregtimerange", response_model=Forms_Form)
 async def get_reg_time_range(
     session: SessionDep
-) -> Forms_ApplicationTimeRange:
+) -> Forms_Form:
     """
     Retrieve the current hackathon registration time range.
 
@@ -21,18 +21,18 @@ async def get_reg_time_range(
         session (SessionDep): Database session dependency.
 
     Returns:
-        Forms_ApplicationTimeRange: The current registration time range for Hack the Valley Hackathon.
+        Forms_Form: The current registration time range for Hack the Valley Hackathon.
     """
-    time_range = session.exec(select(Forms_ApplicationTimeRange)).first()
+    time_range = session.exec(select(Forms_Form)).first()
     return time_range
 
 
-@router.post("/setregtimerange", response_model=Forms_ApplicationTimeRange)
+@router.post("/setregtimerange", response_model=Forms_Form)
 async def set_reg_time_range(
     session: SessionDep,
     start_at: Annotated[str, Body()],
     end_at: Annotated[str, Body()],
-) -> Forms_ApplicationTimeRange:
+) -> Forms_Form:
     """
     Update the hackathon registration time range.
 
@@ -42,30 +42,26 @@ async def set_reg_time_range(
         end_at (str): End date for hackathon registration.
 
     Returns:
-        Forms_ApplicationTimeRange: The current registration time range for Hack the Valley Hackathon.
+        Forms_Form: The current registration time range for Hack the Valley Hackathon.
     """
     current_est_time = datetime.now(ZoneInfo("America/New_York"))
     try:
         new_start_date = datetime.strptime(start_at, "%Y-%m-%d").replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("America/New_York"))
         new_end_date = datetime.strptime(end_at, "%Y-%m-%d").replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("America/New_York"))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date format, should be YYYY-MM-DD")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date format")
     
+    # Sanity check for valid correct new time range 
     if (new_start_date >= new_end_date):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Start date must be before end date")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time range")
 
-    current_time_range = session.exec(select(Forms_ApplicationTimeRange)).first()
+    current_time_range = session.exec(select(Forms_Form)).first()
     if not current_time_range:
-        current_time_range = Forms_ApplicationTimeRange(
-            created_at= current_est_time,
-            updated_at= current_est_time,
-            start_at= new_start_date,
-            end_at= new_end_date
-        )
-    else:
-        current_time_range.updated_at = current_est_time
-        current_time_range.start_at = new_start_date
-        current_time_range.end_at = new_end_date
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data not found")
+
+    current_time_range.updated_at = current_est_time
+    current_time_range.start_at = new_start_date
+    current_time_range.end_at = new_end_date
 
     session.add(current_time_range)
     session.commit()
