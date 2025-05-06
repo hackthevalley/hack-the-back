@@ -1,0 +1,9 @@
+fastapi==0.115.12
+uvicorn
+sqlmodel
+python-dotenv
+psycopg2-binary
+passlib
+PyJWT
+requests
+python-multipart

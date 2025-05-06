@@ -2,12 +2,18 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List
 
+from dotenv import load_dotenv
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.models.forms import Forms_Form, Forms_Question
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+load_dotenv()
+
+# DATABASE_URL = os.getenv("DATABASE_URL")
+
+DATABASE_URL = "sqlite:///:memory:"
+print(f"Using local database: {DATABASE_URL}")
 
 engine = create_engine(DATABASE_URL)
 

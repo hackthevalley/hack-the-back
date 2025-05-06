@@ -6,6 +6,7 @@ from app.models.token import TokenData
 from app.routers.account import router as account
 from app.routers.admin import router as admin
 from app.routers.forms import router as forms
+from app.routers.qrscanner import router as qrscanner
 from app.utils import decode_jwt
 
 router = APIRouter()
@@ -23,6 +24,7 @@ def is_admin(
 
 router.include_router(account, prefix="/account", tags=["account"])
 router.include_router(forms, prefix="/forms", tags=["forms"])
+router.include_router(qrscanner, prefix="/qrscanner", tags=["qrscanner"])
 router.include_router(
     admin, prefix="/admin", tags=["admin"], dependencies=[Depends(is_admin)]
 )
