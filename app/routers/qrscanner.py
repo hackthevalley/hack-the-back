@@ -42,10 +42,6 @@ async def scan_event(
     session: SessionDep,
     current_user: Annotated[Account_User, Depends(get_current_user)],
 ):
-    """
-    Record a scan for the current hacker.
-    Each (hacker_id, event_id) is unique, so re‐scans don't grant more points.
-    """
     # 1. Find event by token
     statement = select(Event).where(Event.token == token)
     event = session.exec(statement).first()
@@ -85,9 +81,8 @@ async def my_points(
     session: SessionDep,
     current_user: Annotated[Account_User, Depends(get_current_user)],
 ):
-    """
-    Return your total points and list of event names you've scanned.
-    """
+    # Return your total points and list of event names you've scanned.
+ 
     total = await _get_points(session, current_user.id)
     scans = session.exec(
         select(Event.name)
@@ -102,9 +97,9 @@ async def leaderboard(
     session: SessionDep,  # Required parameter comes first
     limit: int = 10,      # Optional parameter with default value comes second
 ):
-    """
-    Top‐N hackers by scanned events.
-    """
+    
+    # Top‐N hackers by scanned events.
+    
     # Rest of the function remains the same
     results = session.exec(
         select(

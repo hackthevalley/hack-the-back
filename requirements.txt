@@ -1,9 +1,9 @@
 fastapi==0.115.12
-uvicorn
-sqlmodel
-python-dotenv
-psycopg2-binary
-passlib
-PyJWT
-requests
-python-multipart
+uvicorn==0.34.2
+sqlmodel==0.0.24
+python-dotenv==1.1.0
+psycopg2-binary==2.9.10
+passlib==1.7.4
+PyJWT==2.10.1
+equests==2.32.3
+python-multipart==0.0.20
