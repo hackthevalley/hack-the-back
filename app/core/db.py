@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Annotated, List
 
 from fastapi import Depends
@@ -44,9 +45,13 @@ def seed_questions(questions: List, session: Session):
 def seed_form_time(session: Session):
     row = session.exec(select(Forms_Form).limit(1)).first()
     if row is None:
+        current_time = datetime.now(ZoneInfo("America/New_York"))
+        created_at = current_time
+        updated_at = current_time
         start_at = datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone(timedelta(hours=-4)))
         end_at = datetime(2025, 9, 1, 0, 0, 0, tzinfo=timezone(timedelta(hours=-4)))
-        db_forms_form = Forms_Form(start_at=start_at, end_at=end_at)
+        db_forms_form = Forms_Form(created_at=created_at, updated_at=updated_at, start_at=start_at, end_at=end_at)
+        
         session.add(db_forms_form)
         session.commit()
         session.refresh(db_forms_form)
