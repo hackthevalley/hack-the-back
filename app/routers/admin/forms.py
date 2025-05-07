@@ -1,0 +1,50 @@
+from typing import Annotated
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from fastapi import APIRouter, HTTPException, Body, status
+from sqlmodel import select
+
+from app.core.db import SessionDep
+from app.models.forms import Forms_Form
+
+router = APIRouter()
+
+@router.get("/getregtimerange", response_model=Forms_Form)
+async def get_reg_time_range(
+    session: SessionDep
+) -> Forms_Form:
+    time_range = session.exec(select(Forms_Form)).first()
+    return time_range
+
+
+@router.post("/setregtimerange", response_model=Forms_Form)
+async def set_reg_time_range(
+    session: SessionDep,
+    start_at: Annotated[str, Body()],
+    end_at: Annotated[str, Body()],
+) -> Forms_Form:
+    current_est_time = datetime.now(ZoneInfo("America/New_York"))
+    try:
+        new_start_date = datetime.strptime(start_at, "%Y-%m-%d").replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("America/New_York"))
+        new_end_date = datetime.strptime(end_at, "%Y-%m-%d").replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("America/New_York"))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date format")
+
+
+    if (new_start_date >= new_end_date):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time range")
+
+    current_time_range = session.exec(select(Forms_Form)).first()
+    if not current_time_range:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data not found")
+
+    current_time_range.updated_at = current_est_time
+    current_time_range.start_at = new_start_date
+    current_time_range.end_at = new_end_date
+
+    session.add(current_time_range)
+    session.commit()
+    session.refresh(current_time_range)
+
+    return current_time_range
