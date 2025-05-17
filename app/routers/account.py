@@ -8,7 +8,13 @@ from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.token import Token, TokenData
-from app.models.user import Account_User, PasswordReset, UserCreate, UserPublic
+from app.models.user import (
+    Account_User,
+    PasswordReset,
+    UserCreate,
+    UserPublic,
+    UserUpdate,
+)
 from app.utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
@@ -111,15 +117,26 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
         "templates/password_reset.html",
         user.email,
         "Hack The Valley Account Password Reset",
-        f"Go to this link to reset your password: https://hackthevalley.io/{access_token}",
+        f"Go to this link to reset your password: https://hackthevalley.io/reset-password?token={access_token}",
         {"url": access_token},
     )
     return response
 
 
-@router.get("/reset_password")
-async def reset_password():
-    return {"username": "fakecurrentuser"}
+@router.post("/reset_password")
+async def reset_password(user: UserUpdate, session: SessionDep):
+    token_data = await decode_jwt(user.token)
+    if "reset_password" not in token_data.scopes:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Wrong token type"
+        )
+    statement = select(Account_User).where(Account_User.email == token_data.email)
+    selected_user = session.exec(statement).first()
+    selected_user.password = pbkdf2_sha256.hash(user.password)
+    session.add(selected_user)
+    session.commit()
+    session.refresh(selected_user)
+    return True
 
 
 @router.post("/activate")

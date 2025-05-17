@@ -38,8 +38,9 @@ class UserPublic(UserBase):
     is_active: bool
 
 
-class UserUpdate(SQLModel):
-    password: str | None = None
+class UserUpdate(BaseModel):
+    token: str
+    password: str
 
 
 class PasswordReset(BaseModel):
