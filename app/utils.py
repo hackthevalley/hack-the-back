@@ -7,6 +7,7 @@ import requests
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
 from sqlmodel import select
 
@@ -70,6 +71,8 @@ async def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
 async def get_current_user(
     token_data: Annotated[TokenData, Depends(decode_jwt)], session: SessionDep
 ) -> Account_User:
+    if "reset_password" in token_data.scopes:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
     statement = select(Account_User).where(Account_User.email == token_data.email)
     user = session.exec(statement).first()
     if user is None:
@@ -143,11 +146,13 @@ async def isValidSubmissionTime(session: SessionDep):
 
 
 async def sendEmail(
-    session: SessionDep, template: str, receiver: str, subject: str, textbody: str
+    template: str, receiver: str, subject: str, textbody: str, context: str
 ):
     POSTMARK_URL = "https://api.postmarkapp.com/email"
     with open(template, "r", encoding="utf-8") as file:
-        html_content = file.read()
+        raw_html = file.read()
+        html_template = Template(raw_html)
+        html_content = html_template.render(context)
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",

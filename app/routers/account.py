@@ -8,7 +8,7 @@ from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.token import Token, TokenData
-from app.models.user import Account_User, UserCreate, UserPublic
+from app.models.user import Account_User, PasswordReset, UserCreate, UserPublic
 from app.utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
@@ -16,6 +16,7 @@ from app.utils import (
     create_access_token,
     decode_jwt,
     get_current_user,
+    sendEmail,
 )
 
 router = APIRouter()
@@ -83,6 +84,39 @@ async def read_users_me(
     return current_user
 
 
+@router.post("/send_reset_password")
+async def send_reset_password(user: PasswordReset, session: SessionDep):
+    statement = select(Account_User).where(Account_User.email == user.email)
+    selected_user = session.exec(statement).first()
+    if not selected_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
+        )
+    scopes = []
+    scopes.append("reset_password")
+    access_token_expires = timedelta(minutes=15)
+    access_token = create_access_token(
+        data={
+            "sub": str(selected_user.email),
+            "fullName": f"{selected_user.first_name} {selected_user.last_name}",
+            "firstName": selected_user.first_name,
+            "lastName": selected_user.last_name,
+            "scopes": scopes,
+        },
+        SECRET_KEY=SECRET_KEY,
+        ALGORITHM=ALGORITHM,
+        expires_delta=access_token_expires,
+    )
+    response = await sendEmail(
+        "templates/password_reset.html",
+        user.email,
+        "Hack The Valley Account Password Reset",
+        f"Go to this link to reset your password: https://hackthevalley.io/{access_token}",
+        {"url": access_token},
+    )
+    return response
+
+
 @router.get("/reset_password")
 async def reset_password():
     return {"username": "fakecurrentuser"}
@@ -95,6 +129,8 @@ async def activate():
 
 @router.post("/refresh")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
+    if "reset_password" in token_data.scopes:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(token_data.email), "scopes": token_data.scopes},
