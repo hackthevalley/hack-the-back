@@ -92,7 +92,7 @@ class Forms_HackathonApplicantUpdate(SQLModel):
 
 class Forms_Question(SQLModel, table=True):
     question_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    order: int = Field(index=True)
+    question_order: int = Field(index=True)
     label: str = Field(index=True)
     required: bool
 
