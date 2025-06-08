@@ -1,12 +1,14 @@
 import uuid
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING, Optional
 
+from pydantic import BaseModel
 from sqlmodel import Field, Relationship, SQLModel
+
 from app.models.food_tracking import Food_Tracking
 
 if TYPE_CHECKING:
     from app.models.forms import Forms_Application
-   
+
 
 class UserBase(SQLModel):
     first_name: str = Field(index=True)
@@ -25,6 +27,7 @@ class Account_User(UserBase, table=True):
     application: Optional["Forms_Application"] = Relationship(back_populates="user")
     meals: Optional["Food_Tracking"] = Relationship(back_populates="user")
 
+
 class UserCreate(UserBase):
     password: str
 
@@ -35,5 +38,14 @@ class UserPublic(UserBase):
     is_active: bool
 
 
-class UserUpdate(SQLModel):
-    password: str | None = None
+class UserUpdate(BaseModel):
+    token: str
+    password: Optional[str] = None
+
+
+class PasswordReset(BaseModel):
+    email: str
+
+
+class AccountActivate(BaseModel):
+    email: str

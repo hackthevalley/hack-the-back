@@ -1,7 +1,7 @@
-<!-- {% block subject %} Hack The Valley - Your account has been
-successfully created and activated!{% endblock %} {% block
-text_body %} Hello Hacker! Your account has been created and is ready to use! {%
-endblock text_body %} {% block html_body %} -->
+<!-- {% block subject %} Account activation - Hack The Valley {% endblock subject %} {% block text_body %} Hello Hacker!
+You're receiving this email because you need to finish activation process.
+Please go to the following page to activate account: https://hackthevalley.io/{{
+url|safe }} {% endblock text_body %} {% block html_body %} -->
 <!doctype html>
 <html
     xmlns="http://www.w3.org/1999/xhtml"
@@ -300,9 +300,44 @@ endblock text_body %} {% block html_body %} -->
                                                             color: #000000;
                                                         "
                                                     >
-                                                        Your account has been
-                                                        created and is ready to
-                                                        use!
+                                                        You're receiving this
+                                                        email because you need
+                                                        to finish activation
+                                                        process.
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td
+                                                    align="left"
+                                                    style="
+                                                        font-size: 0px;
+                                                        padding: 10px 25px;
+                                                        word-break: break-word;
+                                                    "
+                                                >
+                                                    <div
+                                                        style="
+                                                            font-family:
+                                                                Ubuntu,
+                                                                Helvetica,
+                                                                Arial,
+                                                                sans-serif;
+                                                            font-size: 13px;
+                                                            line-height: 1.25;
+                                                            text-align: left;
+                                                            color: #000000;
+                                                        "
+                                                    >
+                                                        Please go to the
+                                                        following page to
+                                                        activate account:
+                                                        <a
+                                                            href="https://hackthevalley.io/account-activate?token={{ url|safe }}"
+                                                            target="_blank"
+                                                            >https://hackthevalley.io/account-activate?token={{
+                                                            url|safe }}</a
+                                                        >
                                                     </div>
                                                 </td>
                                             </tr>
