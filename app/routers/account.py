@@ -81,6 +81,13 @@ async def signup(user: UserCreate, session: SessionDep):
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
+    response = await sendEmail(
+        "templates/confirmation.html",
+        user.email,
+        "Account Creation",
+        "You have successfully created your account",
+        {},
+    )
     return db_user
 
 
@@ -178,15 +185,19 @@ async def send_activate(user: AccountActivate, session: SessionDep):
 
 
 @router.post("/activate")
-async def activate():
-    # response = await sendEmail(
-    #     "templates/password_reset.html",
-    #     user.email,
-    #     "Account Password Reset",
-    #     f"Go to this link to reset your password: https://hackthevalley.io/reset-password?token={access_token}",
-    #     {"url": access_token},
-    # )
-    return "hi"
+async def activate(user: UserUpdate, session: SessionDep):
+    token_data = await decode_jwt(user.token)
+    if "account_activate" not in token_data.scopes:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Wrong token type"
+        )
+    statement = select(Account_User).where(Account_User.email == token_data.email)
+    selected_user = session.exec(statement).first()
+    selected_user.is_active = True
+    session.add(selected_user)
+    session.commit()
+    session.refresh(selected_user)
+    return True
 
 
 @router.post("/refresh")

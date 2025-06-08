@@ -40,7 +40,7 @@ class UserPublic(UserBase):
 
 class UserUpdate(BaseModel):
     token: str
-    password: str
+    password: Optional[str] = None
 
 
 class PasswordReset(BaseModel):
