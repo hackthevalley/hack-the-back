@@ -10,6 +10,7 @@ from app.core.db import SessionDep
 from app.models.token import Token, TokenData
 from app.models.user import (
     Account_User,
+    AccountActivate,
     PasswordReset,
     UserCreate,
     UserPublic,
@@ -116,7 +117,7 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
     response = await sendEmail(
         "templates/password_reset.html",
         user.email,
-        "Hack The Valley Account Password Reset",
+        "Account Password Reset",
         f"Go to this link to reset your password: https://hackthevalley.io/reset-password?token={access_token}",
         {"url": access_token},
     )
@@ -139,14 +140,58 @@ async def reset_password(user: UserUpdate, session: SessionDep):
     return True
 
 
+@router.post("/send_activate")
+async def send_activate(user: AccountActivate, session: SessionDep):
+    statement = select(Account_User).where(Account_User.email == user.email)
+    selected_user = session.exec(statement).first()
+    if not selected_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
+        )
+    if selected_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User already activated"
+        )
+    scopes = []
+    scopes.append("account_activate")
+    access_token_expires = timedelta(minutes=15)
+    access_token = create_access_token(
+        data={
+            "sub": str(selected_user.email),
+            "fullName": f"{selected_user.first_name} {selected_user.last_name}",
+            "firstName": selected_user.first_name,
+            "lastName": selected_user.last_name,
+            "scopes": scopes,
+        },
+        SECRET_KEY=SECRET_KEY,
+        ALGORITHM=ALGORITHM,
+        expires_delta=access_token_expires,
+    )
+    response = await sendEmail(
+        "templates/activation.html",
+        user.email,
+        "Account Activation",
+        f"Go to this link to activate your account: https://hackthevalley.io/account-activate?token={access_token}",
+        {"url": access_token},
+    )
+    return response
+
+
 @router.post("/activate")
 async def activate():
-    return {"username": "fakecurrentuser"}
+    # response = await sendEmail(
+    #     "templates/password_reset.html",
+    #     user.email,
+    #     "Account Password Reset",
+    #     f"Go to this link to reset your password: https://hackthevalley.io/reset-password?token={access_token}",
+    #     {"url": access_token},
+    # )
+    return "hi"
 
 
 @router.post("/refresh")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
-    if "reset_password" in token_data.scopes:
+    if "reset_password" or "account_activate" in token_data.scopes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(

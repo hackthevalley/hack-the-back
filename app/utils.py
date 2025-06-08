@@ -71,7 +71,7 @@ async def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
 async def get_current_user(
     token_data: Annotated[TokenData, Depends(decode_jwt)], session: SessionDep
 ) -> Account_User:
-    if "reset_password" in token_data.scopes:
+    if "reset_password" or "account_activate" in token_data.scopes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
     statement = select(Account_User).where(Account_User.email == token_data.email)
     user = session.exec(statement).first()

@@ -45,3 +45,7 @@ class UserUpdate(BaseModel):
 
 class PasswordReset(BaseModel):
     email: str
+
+
+class AccountActivate(BaseModel):
+    email: str
