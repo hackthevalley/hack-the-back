@@ -10,21 +10,25 @@ questions = [
     {"label": "Last Name", "required": True},
     {"label": "Email", "required": True},
     {"label": "Phone Number", "required": True},
+
     {"label": "Country", "required": True},
     {"label": "School Name", "required": True},
-    {"label": "Current Level of Study", "required": True},
     {"label": "Major", "required": True},
+    {"label": "Current Level of Study", "required": True},
     {"label": "Expected Graduation Year", "required": True},
+
     {"label": "Age", "required": True},
     {"label": "Gender", "required": True},
+    {"label": "Race/Ethnicity", "required": True},
     {"label": "Part of the LGBTQ+ Community", "required": True},
     {"label": "Person with Disabilities?", "required": True},
-    {"label": "Race/Ethnicity", "required": True},
+
     {"label": "Hackathon Count?", "required": True},
     {"label": "Github", "required": False},
     {"label": "LinkedIn", "required": False},
     {"label": "Portfolio", "required": False},
     {"label": "Attach Your Resume", "required": True},
+
     {"label": "UI/UX Design", "required": False},
     {"label": "Frontend Development", "required": False},
     {"label": "Backend Development", "required": False},
@@ -33,11 +37,13 @@ questions = [
     {"label": "Web, Crypto, Blockchain", "required": False},
     {"label": "Cybersecurity", "required": False},
     {"label": "Machine Learning", "required": False},
+
     {"label": "Dietary Restrictions", "required": True},
     {"label": "T-Shirt Size", "required": True},
+    
     {"label": "MLH Code of Conduct", "required": True},
     {"label": "MLH Privacy Policy, MLH Contest Terms and Conditions", "required": True},
-    {"label": "MLH Event Email", "required": True},
+    {"label": "MLH Event Communication", "required": True},
     {"label": "Hack the Valley Consent Form Agreement", "required": True}
 ]
 
