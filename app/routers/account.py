@@ -202,7 +202,7 @@ async def activate(user: UserUpdate, session: SessionDep):
 
 @router.post("/refresh")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
-    if "reset_password" or "account_activate" in token_data.scopes:
+    if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
