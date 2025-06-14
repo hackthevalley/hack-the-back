@@ -97,9 +97,7 @@ async def read_users_me(
 ):
     application_status = None
     if current_user.application:
-        print("found application")
         if current_user.application.hackathonapplicant:
-            print("found application status")
             application_status = current_user.application.hackathonapplicant.status
     return UserPublic(
         uid=current_user.uid,
