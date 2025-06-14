@@ -95,7 +95,21 @@ async def signup(user: UserCreate, session: SessionDep):
 async def read_users_me(
     current_user: Annotated[Account_User, Depends(get_current_user)],
 ):
-    return current_user
+    application_status = None
+    if current_user.application:
+        print("found application")
+        if current_user.application.hackathonapplicant:
+            print("found application status")
+            application_status = current_user.application.hackathonapplicant.status
+    return UserPublic(
+        uid=current_user.uid,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        email=current_user.email,
+        role=current_user.role,
+        is_active=current_user.is_active,
+        application_status=application_status,
+    )
 
 
 @router.post("/send_reset_password")
