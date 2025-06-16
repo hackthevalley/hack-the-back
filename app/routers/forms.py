@@ -69,6 +69,35 @@ async def save(
     else:
         raise HTTPException(status_code=404, detail="Form Application not found")
 
+@router.post("/saveAnswers")
+async def saveAnswers(
+    forms_batchupdate: list[Forms_AnswerUpdate],
+    current_user: Annotated[Account_User, Depends(get_current_user)],
+    session: SessionDep,
+):
+
+    if not await isValidSubmissionTime(session):
+        raise HTTPException(
+            status_code=404, detail="Submitting outside submission time"
+        )
+
+    if current_user.application is None:
+        current_user.application = await createapplication(current_user, session)
+
+    answer_map = {str(ans.question_id): ans for ans in current_user.application.form_answers}
+
+    for update in forms_batchupdate:
+        form_answer = answer_map.get(update.question_id)
+        if form_answer:
+            form_answer.answer = update.answer
+            session.add(form_answer)
+        else:
+           raise HTTPException(status_code=404, detail=f"Form Application not found for question_id: {update.question_id}")
+
+    current_user.application.updated_at = datetime.now(timezone.utc)
+    session.add(current_user.application)
+    session.commit()
+    session.refresh(current_user.application)
 
 @router.post("/uploadresume")
 async def uploadresume(
