@@ -206,15 +206,15 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.14.0" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.115.6" },
-    { name = "jinja2", specifier = ">=3.1.5" },
+    { name = "alembic", specifier = ">=1.16.1" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.115.12" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "passlib", specifier = ">=1.7.4" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
     { name = "pyjwt", specifier = ">=2.10.1" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "requests", specifier = ">=2.32.3" },
-    { name = "sqlmodel", specifier = ">=0.0.22" },
+    { name = "python-dotenv", specifier = ">=1.1.0" },
+    { name = "requests", specifier = ">=2.32.4" },
+    { name = "sqlmodel", specifier = ">=0.0.24" },
 ]
 
 [[package]]
