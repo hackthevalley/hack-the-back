@@ -35,7 +35,7 @@ def seed_questions(questions: List, session: Session):
         selected_question = session.exec(statement).first()
         if not selected_question:
             db_question = Forms_Question.model_validate(
-                question, update={"order": index}
+                question, update={"question_order": index}
             )
             session.add(db_question)
             session.commit()
