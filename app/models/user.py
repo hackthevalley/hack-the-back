@@ -36,7 +36,7 @@ class UserPublic(UserBase):
     uid: uuid.UUID
     role: str
     is_active: bool
-    application_status: str
+    application_status: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
