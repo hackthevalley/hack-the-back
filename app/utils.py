@@ -168,3 +168,54 @@ async def sendEmail(
     }
     response = requests.post(POSTMARK_URL, json=data, headers=headers)
     return (response.status_code, response.json())
+
+
+async def sendActivate(email: str, session: SessionDep):
+    statement = select(Account_User).where(Account_User.email == email)
+    selected_user = session.exec(statement).first()
+    if not selected_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
+        )
+    if selected_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User already activated"
+        )
+    now = datetime.now(timezone.utc)
+    cooldown = timedelta(minutes=120)
+
+    if (
+        selected_user.last_activation_email_sent
+        and now - selected_user.last_activation_email_sent < cooldown
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Activation email already sent recently. Please wait a few minutes.",
+        )
+
+    selected_user.last_activation_email_sent = now
+    session.add(selected_user)
+    session.commit()
+    scopes = []
+    scopes.append("account_activate")
+    access_token_expires = timedelta(minutes=60)
+    access_token = create_access_token(
+        data={
+            "sub": str(selected_user.email),
+            "fullName": f"{selected_user.first_name} {selected_user.last_name}",
+            "firstName": selected_user.first_name,
+            "lastName": selected_user.last_name,
+            "scopes": scopes,
+        },
+        SECRET_KEY=SECRET_KEY,
+        ALGORITHM=ALGORITHM,
+        expires_delta=access_token_expires,
+    )
+    response = await sendEmail(
+        "templates/activation.html",
+        email,
+        "Account Activation",
+        f"Go to this link to activate your account: https://hackthevalley.io/account-activate?token={access_token}",
+        {"url": access_token},
+    )
+    return response
