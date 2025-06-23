@@ -181,6 +181,21 @@ async def sendActivate(email: str, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User already activated"
         )
+    now = datetime.now(timezone.utc)
+    cooldown = timedelta(minutes=120)
+
+    if (
+        selected_user.last_activation_email_sent
+        and now - selected_user.last_activation_email_sent < cooldown
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Activation email already sent recently. Please wait a few minutes.",
+        )
+
+    selected_user.last_activation_email_sent = now
+    session.add(selected_user)
+    session.commit()
     scopes = []
     scopes.append("account_activate")
     access_token_expires = timedelta(minutes=60)

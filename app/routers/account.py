@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -120,6 +120,19 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
         )
+    now = datetime.now(timezone.utc)
+    cooldown = timedelta(minutes=60)
+    if (
+        selected_user.last_password_reset_request
+        and now - selected_user.last_password_reset_request < cooldown
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Sent too many emails, please wait before requesting another password reset email.",
+        )
+    selected_user.last_password_reset_request = now
+    session.add(selected_user)
+    session.commit()
     scopes = []
     scopes.append("reset_password")
     access_token_expires = timedelta(minutes=15)
