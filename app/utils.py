@@ -183,15 +183,17 @@ async def sendActivate(email: str, session: SessionDep):
         )
     now = datetime.now(timezone.utc)
     cooldown = timedelta(minutes=120)
+    if selected_user.last_activation_email_sent:
+        last_sent = selected_user.last_activation_email_sent
 
-    if (
-        selected_user.last_activation_email_sent
-        and now - selected_user.last_activation_email_sent < cooldown
-    ):
-        raise HTTPException(
-            status_code=429,
-            detail="Activation email already sent recently. Please wait a few minutes.",
-        )
+        # Convert naive datetime to aware if needed
+        if last_sent.tzinfo is None:
+            last_sent = last_sent.replace(tzinfo=timezone.utc)
+        if now - last_sent < cooldown:
+            raise HTTPException(
+                status_code=429,
+                detail="Activation email already sent recently. Please wait a few minutes.",
+            )
 
     selected_user.last_activation_email_sent = now
     session.add(selected_user)
