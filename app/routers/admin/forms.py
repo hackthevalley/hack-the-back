@@ -10,23 +10,6 @@ from app.models.forms import Forms_Form
 
 router = APIRouter()
 
-@router.get("/getregtimerange", response_model=Forms_Form)
-async def get_reg_time_range(
-    session: SessionDep
-) -> Forms_Form:
-    """
-    Retrieve the current hackathon registration time range.
-
-    Args:
-        session (SessionDep): Database session dependency.
-
-    Returns:
-        Forms_Form: The current registration time range for Hack the Valley Hackathon.
-    """
-    time_range = session.exec(select(Forms_Form)).first()
-    return time_range
-
-
 @router.post("/setregtimerange", response_model=Forms_Form)
 async def set_reg_time_range(
     session: SessionDep,

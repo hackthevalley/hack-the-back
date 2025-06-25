@@ -10,6 +10,7 @@ from app.models.forms import (
     Forms_AnswerUpdate,
     Forms_Question,
     StatusEnum,
+    Forms_Form,
 )
 from app.models.user import Account_User
 from app.utils import createapplication, get_current_user, isValidSubmissionTime
@@ -144,3 +145,19 @@ async def submit(
 @router.get("/submissiontime")
 async def submissiontime(session: SessionDep):
     return await isValidSubmissionTime(session)
+
+@router.get("/getregtimerange", response_model=Forms_Form)
+async def get_reg_time_range(
+    session: SessionDep
+) -> Forms_Form:
+    """
+    Retrieve the current hackathon registration time range.
+
+    Args:
+        session (SessionDep): Database session dependency.
+
+    Returns:
+        Forms_Form: The current registration time range for Hack the Valley Hackathon.
+    """
+    time_range = session.exec(select(Forms_Form)).first()
+    return time_range
