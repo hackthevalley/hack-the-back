@@ -82,13 +82,6 @@ async def signup(user: UserCreate, session: SessionDep):
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    await sendEmail(
-        "templates/confirmation.html",
-        user.email,
-        "Account Creation",
-        "You have successfully created your account",
-        {},
-    )
     await sendActivate(user.email, session)
     return db_user
 
@@ -188,6 +181,13 @@ async def activate(user: UserUpdate, session: SessionDep):
     session.add(selected_user)
     session.commit()
     session.refresh(selected_user)
+    await sendEmail(
+        "templates/confirmation.html",
+        user.email,
+        "Account Creation",
+        "You have successfully created your account",
+        {},
+    )
     return True
 
 

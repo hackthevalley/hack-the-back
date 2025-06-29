@@ -136,12 +136,12 @@ async def submit(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        if answer.answer is None or answer.answer is False:
+        if not answer.answer or answer.answer.strip() == "":
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )
             selected_question = session.exec(statement).first()
-            if selected_question.required:
+            if selected_question and selected_question.required:
                 raise HTTPException(
                     status_code=404, detail=f"{selected_question.label} not answered"
                 )
