@@ -122,14 +122,15 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
         )
     now = datetime.now(timezone.utc)
     cooldown = timedelta(minutes=60)
-    if (
-        selected_user.last_password_reset_request
-        and now - selected_user.last_password_reset_request < cooldown
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Sent too many emails, please wait before requesting another password reset email.",
-        )
+    if selected_user.last_password_reset_request:
+        last_sent = selected_user.last_password_reset_request
+        if last_sent.tzinfo is None:
+            last_sent = last_sent.replace(tzinfo=timezone.utc)
+        if now - selected_user.last_password_reset_request < cooldown:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Sent too many emails, please wait before requesting another password reset email.",
+            )
     selected_user.last_password_reset_request = now
     session.add(selected_user)
     session.commit()

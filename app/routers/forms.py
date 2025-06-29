@@ -1,5 +1,8 @@
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import select
@@ -8,6 +11,7 @@ from app.core.db import SessionDep
 from app.models.forms import (
     ApplicationResponse,
     Forms_AnswerUpdate,
+    Forms_Form,
     Forms_Question,
     StatusEnum,
 )
@@ -15,6 +19,9 @@ from app.models.user import Account_User
 from app.utils import createapplication, get_current_user, isValidSubmissionTime
 
 router = APIRouter()
+
+UPLOAD_DIR = os.getenv("UPLOAD_DIR")
+MAX_FILE_SIZE = 5 * 1024 * 1024
 
 
 @router.get("/getquestions")
@@ -87,19 +94,35 @@ async def uploadresume(
         raise HTTPException(
             status_code=404, detail="Submitting outside submission time"
         )
-    if file.filename.endswith(".pdf"):
-        file_data = await file.read()
-        current_user.application.form_answersfile.original_filename = file.filename
-        current_user.application.form_answersfile.file = file_data
-        current_user.application.updated_at = datetime.now(timezone.utc)
-        session.add(current_user.application.form_answersfile)
-        session.add(current_user.application)
-        session.commit()
-        session.refresh(current_user.application.form_answersfile)
-        session.refresh(current_user.application)
-        return current_user.application.form_answersfile.original_filename
-    else:
+    if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=404, detail="File not pdf")
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File exceeds 5MB limit")
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    answer_file = current_user.application.form_answersfile
+    if answer_file and answer_file.file_path:
+        try:
+            old_path = Path(answer_file.file_path)
+            if old_path.exists():
+                old_path.unlink()  # deletes file
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to delete old resume: {e}"
+            )
+    filename = f"{uuid4()}.pdf"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(await file.read())
+    answer_file = current_user.application.form_answersfile
+    answer_file.original_filename = file.filename
+    answer_file.file_path = filepath
+    current_user.application.updated_at = datetime.now(timezone.utc)
+    session.add(answer_file)
+    session.add(current_user.application)
+    session.commit()
+    session.refresh(answer_file)
+    return answer_file.original_filename
 
 
 @router.post("/submit")
@@ -144,3 +167,18 @@ async def submit(
 @router.get("/submissiontime")
 async def submissiontime(session: SessionDep):
     return await isValidSubmissionTime(session)
+
+
+@router.get("/getregtimerange", response_model=Forms_Form)
+async def get_reg_time_range(session: SessionDep) -> Forms_Form:
+    """
+    Retrieve the current hackathon registration time range.
+
+    Args:
+        session (SessionDep): Database session dependency.
+
+    Returns:
+        Forms_Form: The current registration time range for Hack the Valley Hackathon.
+    """
+    time_range = session.exec(select(Forms_Form)).first()
+    return time_range
