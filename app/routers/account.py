@@ -183,7 +183,7 @@ async def activate(user: UserUpdate, session: SessionDep):
     session.refresh(selected_user)
     await sendEmail(
         "templates/confirmation.html",
-        user.email,
+        selected_user.email,
         "Account Creation",
         "You have successfully created your account",
         {},
