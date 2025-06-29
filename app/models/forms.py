@@ -25,10 +25,7 @@ class StatusEnum(str, Enum):
 
 
 class Forms_Form(SQLModel, table=True):
-    id: uuid.UUID = Field(
-        default_factory=uuid.uuid4,
-        primary_key=True
-    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
@@ -38,9 +35,7 @@ class Forms_Form(SQLModel, table=True):
     start_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
-    end_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
+    end_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
 
 
 class Forms_Application(SQLModel, table=True):
@@ -120,8 +115,8 @@ class Forms_AnswerFile(SQLModel, table=True):
     application_id: uuid.UUID | None = Field(
         default=None, index=True, foreign_key="forms_application.application_id"
     )
-    original_filename: str | None = None
-    file: bytes | None = Field(sa_column=Column(LargeBinary))
+    original_filename: Optional[str] = None
+    file_path: Optional[str] = None
     question_id: uuid.UUID = Field(index=True)
     applicant: Optional["Forms_Application"] = Relationship(
         back_populates="form_answersfile"

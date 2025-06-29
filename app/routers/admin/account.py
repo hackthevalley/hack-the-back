@@ -1,9 +1,9 @@
-from io import BytesIO
+import os
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -49,16 +49,17 @@ async def get_resume(
         Forms_AnswerFile.application_id == application_id
     )
     resume = session.exec(statement).first()
-    if resume is None:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    file_stream = BytesIO(resume.file)
 
-    return StreamingResponse(
-        file_stream,
+    if resume is None or not resume.file_path:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if not os.path.exists(resume.file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(
+        path=resume.file_path,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"attachment; filename={resume.original_filename}"
-        },
+        filename=resume.original_filename,
     )
 
 
