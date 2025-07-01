@@ -113,7 +113,7 @@ async def uploadresume(
     filename = f"{uuid4()}.pdf"
     filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as f:
-        f.write(await file.read())
+        f.write(contents)
     answer_file = current_user.application.form_answersfile
     answer_file.original_filename = file.filename
     answer_file.file_path = filepath
