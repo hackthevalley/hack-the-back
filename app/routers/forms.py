@@ -96,9 +96,26 @@ async def uploadresume(
         )
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=404, detail="File not pdf")
-    contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
+
+
+
+    if file.size is not None and file.size > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File exceeds 5MB limit")
+
+
+    contents = b""
+    chunk_size = 1024 * 1024
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        contents += chunk
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File exceeds 5MB limit")
+
+
+    await file.seek(0)
+
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     answer_file = current_user.application.form_answersfile
     if answer_file and answer_file.file_path:
