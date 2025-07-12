@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import select
@@ -23,14 +22,6 @@ router = APIRouter()
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 MAX_FILE_SIZE = 5 * 1024 * 1024
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger(__name__)
-
 
 @router.get("/getquestions")
 async def getquestions(session: SessionDep) -> list[Forms_Question]:
@@ -161,13 +152,11 @@ async def submit(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        logger.info("ANSWER:", answer)
         if answer.answer.strip() == "" or answer.answer == 'false':
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )
             selected_question = session.exec(statement).first()
-            # logger.info("QUESTION ID:", selected_question)
             if selected_question and selected_question.required:
                 raise HTTPException(
                     status_code=404, detail=f"{selected_question.label} not answered"
