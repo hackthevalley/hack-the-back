@@ -1,6 +1,6 @@
 <!-- {% block subject %} Account activation - Hack The Valley {% endblock subject %} {% block text_body %} Hello Hacker!
 You're receiving this email because you need to finish the activation process.
-Please go to the following page to activate account: https://hackthevalley.io/{{
+Please go to the following page to activate your account: https://hackthevalley.io/{{
 url|safe }} {% endblock text_body %} {% block html_body %} -->
 <!DOCTYPE html>
 <html
@@ -311,7 +311,8 @@ url|safe }} {% endblock text_body %} {% block html_body %} -->
                               color: #000000;
                             "
                           >
-                            Please go to the following page to activate account:
+                            Please go to the following page to activate your
+                            account:
                             <a
                               href="https://hackthevalley.io/activate?token={{ url|safe }}"
                               target="_blank"
