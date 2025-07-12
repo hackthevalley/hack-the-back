@@ -16,12 +16,18 @@ from app.models.forms import (
     StatusEnum,
 )
 from app.models.user import Account_User
-from app.utils import createapplication, get_current_user, isValidSubmissionTime
+from app.utils import (
+    createapplication,
+    get_current_user,
+    isValidSubmissionTime,
+    sendEmail,
+)
 
 router = APIRouter()
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 MAX_FILE_SIZE = 5 * 1024 * 1024
+
 
 @router.get("/getquestions")
 async def getquestions(session: SessionDep) -> list[Forms_Question]:
@@ -152,7 +158,7 @@ async def submit(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        if answer.answer.strip() == "" or answer.answer == 'false':
+        if answer.answer.strip() == "" or answer.answer == "false":
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )
@@ -177,6 +183,13 @@ async def submit(
     session.commit()
     session.refresh(current_user.application.hackathonapplicant)
     session.refresh(current_user.application)
+    await sendEmail(
+        "templates/confirmation.html",
+        current_user.email,
+        "Application Submitted",
+        "You have successfully submitted your application",
+        {},
+    )
     return "Success"
 
 
