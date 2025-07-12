@@ -23,7 +23,6 @@ router = APIRouter()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 MAX_FILE_SIZE = 5 * 1024 * 1024
 
-
 @router.get("/getquestions")
 async def getquestions(session: SessionDep) -> list[Forms_Question]:
     statement = select(Forms_Question)
@@ -153,7 +152,7 @@ async def submit(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        if not answer.answer or answer.answer.strip() == "":
+        if answer.answer.strip() == "" or answer.answer == 'false':
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )
