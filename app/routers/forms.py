@@ -16,7 +16,12 @@ from app.models.forms import (
     StatusEnum,
 )
 from app.models.user import Account_User
-from app.utils import createapplication, get_current_user, isValidSubmissionTime
+from app.utils import (
+    createapplication,
+    get_current_user,
+    isValidSubmissionTime,
+    sendEmail,
+)
 
 router = APIRouter()
 
@@ -96,9 +101,26 @@ async def uploadresume(
         )
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=404, detail="File not pdf")
-    contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
+
+    # Check file size before reading
+    # Method 1: Try to get size from headers if available
+    if file.size is not None and file.size > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File exceeds 5MB limit")
+
+    # Method 2: Read file in chunks to check size without loading entire file into memory
+    contents = b""
+    chunk_size = 1024 * 1024  # 1MB chunks
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        contents += chunk
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File exceeds 5MB limit")
+
+    # Reset file position to beginning after reading
+    await file.seek(0)
+
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     answer_file = current_user.application.form_answersfile
     if answer_file and answer_file.file_path:
@@ -113,7 +135,7 @@ async def uploadresume(
     filename = f"{uuid4()}.pdf"
     filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as f:
-        f.write(await file.read())
+        f.write(contents)
     answer_file = current_user.application.form_answersfile
     answer_file.original_filename = file.filename
     answer_file.file_path = filepath
@@ -136,7 +158,7 @@ async def submit(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        if not answer.answer or answer.answer.strip() == "":
+        if answer.answer.strip() == "" or answer.answer == "false":
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )
@@ -161,6 +183,13 @@ async def submit(
     session.commit()
     session.refresh(current_user.application.hackathonapplicant)
     session.refresh(current_user.application)
+    await sendEmail(
+        "templates/confirmation.html",
+        current_user.email,
+        "Application Submitted",
+        "You have successfully submitted your application",
+        {},
+    )
     return "Success"
 
 
