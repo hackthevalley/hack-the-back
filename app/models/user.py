@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel
@@ -24,6 +25,8 @@ class Account_User(UserBase, table=True):
     password: str
     role: str
     is_active: bool
+    last_password_reset_request: Optional[datetime] = None
+    last_activation_email_sent: Optional[datetime] = None
     application: Optional["Forms_Application"] = Relationship(back_populates="user")
     meals: Optional["Food_Tracking"] = Relationship(back_populates="user")
 
@@ -36,6 +39,7 @@ class UserPublic(UserBase):
     uid: uuid.UUID
     role: str
     is_active: bool
+    application_status: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -44,8 +48,4 @@ class UserUpdate(BaseModel):
 
 
 class PasswordReset(BaseModel):
-    email: str
-
-
-class AccountActivate(BaseModel):
     email: str

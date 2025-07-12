@@ -43,7 +43,7 @@ questions = [
     
     {"label": "MLH Code of Conduct", "required": True},
     {"label": "MLH Privacy Policy, MLH Contest Terms and Conditions", "required": True},
-    {"label": "MLH Event Communication", "required": True},
+    {"label": "MLH Event Communication", "required": False},
     {"label": "Hack the Valley Consent Form Agreement", "required": True}
 ]
 

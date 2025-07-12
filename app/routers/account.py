@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,7 +10,6 @@ from app.core.db import SessionDep
 from app.models.token import Token, TokenData
 from app.models.user import (
     Account_User,
-    AccountActivate,
     PasswordReset,
     UserCreate,
     UserPublic,
@@ -23,6 +22,7 @@ from app.utils import (
     create_access_token,
     decode_jwt,
     get_current_user,
+    sendActivate,
     sendEmail,
 )
 
@@ -45,6 +45,7 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect"
         )
     if not selected_user.is_active:
+        await sendActivate(selected_user.email, session)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not activated"
         )
@@ -81,13 +82,7 @@ async def signup(user: UserCreate, session: SessionDep):
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    response = await sendEmail(
-        "templates/confirmation.html",
-        user.email,
-        "Account Creation",
-        "You have successfully created your account",
-        {},
-    )
+    await sendActivate(user.email, session)
     return db_user
 
 
@@ -95,7 +90,19 @@ async def signup(user: UserCreate, session: SessionDep):
 async def read_users_me(
     current_user: Annotated[Account_User, Depends(get_current_user)],
 ):
-    return current_user
+    application_status = None
+    if current_user.application:
+        if current_user.application.hackathonapplicant:
+            application_status = current_user.application.hackathonapplicant.status
+    return UserPublic(
+        uid=current_user.uid,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        email=current_user.email,
+        role=current_user.role,
+        is_active=current_user.is_active,
+        application_status=application_status,
+    )
 
 
 @router.post("/send_reset_password")
@@ -106,6 +113,20 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
         )
+    now = datetime.now(timezone.utc)
+    cooldown = timedelta(minutes=60)
+    if selected_user.last_password_reset_request:
+        last_sent = selected_user.last_password_reset_request
+        if last_sent.tzinfo is None:
+            last_sent = last_sent.replace(tzinfo=timezone.utc)
+        if now - selected_user.last_password_reset_request < cooldown:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Sent too many emails, please wait before requesting another password reset email.",
+            )
+    selected_user.last_password_reset_request = now
+    session.add(selected_user)
+    session.commit()
     scopes = []
     scopes.append("reset_password")
     access_token_expires = timedelta(minutes=15)
@@ -145,43 +166,6 @@ async def reset_password(user: UserUpdate, session: SessionDep):
     session.commit()
     session.refresh(selected_user)
     return True
-
-
-@router.post("/send_activate")
-async def send_activate(user: AccountActivate, session: SessionDep):
-    statement = select(Account_User).where(Account_User.email == user.email)
-    selected_user = session.exec(statement).first()
-    if not selected_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
-        )
-    if selected_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User already activated"
-        )
-    scopes = []
-    scopes.append("account_activate")
-    access_token_expires = timedelta(minutes=15)
-    access_token = create_access_token(
-        data={
-            "sub": str(selected_user.email),
-            "fullName": f"{selected_user.first_name} {selected_user.last_name}",
-            "firstName": selected_user.first_name,
-            "lastName": selected_user.last_name,
-            "scopes": scopes,
-        },
-        SECRET_KEY=SECRET_KEY,
-        ALGORITHM=ALGORITHM,
-        expires_delta=access_token_expires,
-    )
-    response = await sendEmail(
-        "templates/activation.html",
-        user.email,
-        "Account Activation",
-        f"Go to this link to activate your account: https://hackthevalley.io/account-activate?token={access_token}",
-        {"url": access_token},
-    )
-    return response
 
 
 @router.post("/activate")
