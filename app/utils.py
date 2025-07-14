@@ -105,12 +105,27 @@ async def createapplication(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
+
+    if not all([current_user.first_name, current_user.last_name, current_user.email]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User profile incomplete - missing first name, last name, or email",
+        )
+
+
     application = Forms_Application(
         user=current_user,
         is_draft=True,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
+
+
+    session.add(application)
+    session.commit()
+    session.refresh(application)
+
+
     hackathon_applicant = Forms_HackathonApplicant(
         applicant=application, status=StatusEnum.APPLYING
     )
@@ -139,11 +154,11 @@ async def createapplication(
 
 
             label_lower = question.label.lower()
-            if "first name" in label_lower:
+            if "first name" in label_lower and current_user.first_name:
                 answer_data["answer"] = current_user.first_name
-            elif "last name" in label_lower:
+            elif "last name" in label_lower and current_user.last_name:
                 answer_data["answer"] = current_user.last_name
-            elif "email" in label_lower:
+            elif "email" in label_lower and current_user.email:
                 answer_data["answer"] = current_user.email
 
             answers_to_insert.append(answer_data)
@@ -167,7 +182,7 @@ async def createapplication(
         )
         session.add(answerfile)
 
-    session.add(application)
+
     session.commit()
 
 
