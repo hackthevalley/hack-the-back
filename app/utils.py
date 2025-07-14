@@ -9,8 +9,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
-from sqlmodel import select
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.forms import (
@@ -102,9 +102,9 @@ def create_access_token(
 
 
 async def createapplication(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Account_User,
     session: SessionDep,
-):
+) -> Forms_Application:
 
     if not all([current_user.first_name, current_user.last_name, current_user.email]):
         raise HTTPException(
@@ -119,71 +119,63 @@ async def createapplication(
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
-
-
     session.add(application)
     session.commit()
     session.refresh(application)
 
 
     hackathon_applicant = Forms_HackathonApplicant(
-        applicant=application, status=StatusEnum.APPLYING
+        applicant=application,
+        status=StatusEnum.APPLYING,
     )
-    db_hackathon_applicant = Forms_HackathonApplicant.model_validate(
-        hackathon_applicant
-    )
-    session.add(db_hackathon_applicant)
+    session.add(hackathon_applicant)
     session.commit()
-    session.refresh(db_hackathon_applicant)
+    session.refresh(hackathon_applicant)
 
 
-    statement = select(Forms_Question).order_by(Forms_Question.question_order)
-    questions = session.exec(statement).all()
+    questions = session.exec(
+        select(Forms_Question).order_by(Forms_Question.question_order)
+    ).all()
 
-
-    answers_to_insert = []
+    answers = []
     resume_question = None
+    for q in questions:
+        if "resume" not in q.label.lower():
+            answer_value = None
+            if "first name" in q.label.lower():
+                answer_value = current_user.first_name
+            elif "last name" in q.label.lower():
+                answer_value = current_user.last_name
+            elif "email" in q.label.lower():
+                answer_value = current_user.email
 
-    for question in questions:
-        if "resume" not in question.label.lower():
-            answer_data = {
-                "application_id": application.application_id,
-                "question_id": question.question_id,
-                "answer": None,
-            }
-
-
-            label_lower = question.label.lower()
-            if "first name" in label_lower and current_user.first_name:
-                answer_data["answer"] = current_user.first_name
-            elif "last name" in label_lower and current_user.last_name:
-                answer_data["answer"] = current_user.last_name
-            elif "email" in label_lower and current_user.email:
-                answer_data["answer"] = current_user.email
-
-            answers_to_insert.append(answer_data)
+            answers.append(
+                Forms_Answer(
+                    application_id=application.application_id,
+                    question_id=q.question_id,
+                    answer=answer_value,
+                )
+            )
         else:
-            resume_question = question
+            resume_question = q
 
 
-    if answers_to_insert:
-
-        for answer_data in answers_to_insert:
-            db_answer = Forms_Answer(**answer_data)
-            session.add(db_answer)
+    session.add_all(answers)
 
 
     if resume_question:
-        answerfile = Forms_AnswerFile(
+        resume_answer = Forms_AnswerFile(
             application_id=application.application_id,
             original_filename=None,
             file_path=None,
             question_id=resume_question.question_id,
         )
-        session.add(answerfile)
-
+        session.add(resume_answer)
 
     session.commit()
+
+
+    session.refresh(current_user)
 
 
     statement = (
