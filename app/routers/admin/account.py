@@ -75,5 +75,7 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
     return {
         "application": application,
         "form_answers": application.form_answers,
-        "form_answersfile": application.form_answersfile.original_filename,
+        "form_answersfile": application.form_answersfile.original_filename
+        if application.form_answersfile
+        else None,
     }
