@@ -10,6 +10,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
 from sqlmodel import select
+from sqlalchemy.orm import selectinload
 
 from app.core.db import SessionDep
 from app.models.forms import (
@@ -73,8 +74,15 @@ async def get_current_user(
 ) -> Account_User:
     if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
-    statement = select(Account_User).where(Account_User.email == token_data.email)
+
+    # Optimize: Use eager loading to fetch user with application relationship
+    statement = (
+        select(Account_User)
+        .where(Account_User.email == token_data.email)
+        .options(selectinload(Account_User.application))
+    )
     user = session.exec(statement).first()
+
     if user is None:
         raise credentials_exception
     return user
@@ -112,30 +120,67 @@ async def createapplication(
     session.add(db_hackathon_applicant)
     session.commit()
     session.refresh(db_hackathon_applicant)
-    statement = select(Forms_Question)
-    questions = session.exec(statement)
+
+    # Optimize: Fetch all questions at once and prepare bulk insert data
+    statement = select(Forms_Question).order_by(Forms_Question.question_order)
+    questions = session.exec(statement).all()
+
+    # Prepare bulk insert data
+    answers_to_insert = []
+    resume_question = None
+
     for question in questions:
         if "resume" not in question.label.lower():
-            answer = Forms_Answer(answer=None, question_id=question.question_id)
-            if "first name" in question.label.lower():
-                answer.answer = current_user.first_name
-            elif "last name" in question.label.lower():
-                answer.answer = current_user.last_name
-            elif "email" in question.label.lower():
-                answer.answer = current_user.email
-            db_answer = Forms_Answer.model_validate(answer)
-            application.form_answers.append(db_answer)
+            answer_data = {
+                "application_id": application.application_id,
+                "question_id": question.question_id,
+                "answer": None,
+            }
+
+            # Pre-fill known answers
+            label_lower = question.label.lower()
+            if "first name" in label_lower:
+                answer_data["answer"] = current_user.first_name
+            elif "last name" in label_lower:
+                answer_data["answer"] = current_user.last_name
+            elif "email" in label_lower:
+                answer_data["answer"] = current_user.email
+
+            answers_to_insert.append(answer_data)
         else:
-            answerfile = Forms_AnswerFile(
-                original_filename=None,
-                file=None,
-                question_id=question.question_id,
-            )
-            db_answerfile = Forms_AnswerFile.model_validate(answerfile)
-            application.form_answersfile = db_answerfile
+            resume_question = question
+
+    # Bulk insert all answers
+    if answers_to_insert:
+        # Use SQLModel's bulk insert
+        for answer_data in answers_to_insert:
+            db_answer = Forms_Answer(**answer_data)
+            session.add(db_answer)
+
+    # Handle file answer separately
+    if resume_question:
+        answerfile = Forms_AnswerFile(
+            application_id=application.application_id,
+            original_filename=None,
+            file_path=None,
+            question_id=resume_question.question_id,
+        )
+        session.add(answerfile)
+
     session.add(application)
     session.commit()
-    return current_user.application
+
+    # Refresh with eager loading to return complete data
+    statement = (
+        select(Forms_Application)
+        .where(Forms_Application.uid == current_user.uid)
+        .options(
+            selectinload(Forms_Application.form_answers),
+            selectinload(Forms_Application.form_answersfile),
+            selectinload(Forms_Application.hackathonapplicant),
+        )
+    )
+    return session.exec(statement).first()
 
 
 async def isValidSubmissionTime(session: SessionDep):

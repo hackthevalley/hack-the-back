@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import select
+from sqlalchemy.orm import selectinload
+from sqlalchemy import update
 
 from app.core.db import SessionDep
 from app.models.forms import (
@@ -14,6 +16,8 @@ from app.models.forms import (
     Forms_Form,
     Forms_Question,
     StatusEnum,
+    Forms_Application,
+    Forms_Answer,
 )
 from app.models.user import Account_User
 from app.utils import (
@@ -44,13 +48,29 @@ async def getapplication(
         raise HTTPException(
             status_code=404, detail="Submitting outside submission time"
         )
-    application = current_user.application
-    if application is None:
+
+    # Optimize: Use eager loading to fetch everything in one query
+    if current_user.application is None:
         application = await createapplication(current_user, session)
+    else:
+        # Fetch application with all related data in a single query
+        statement = (
+            select(Forms_Application)
+            .where(Forms_Application.uid == current_user.uid)
+            .options(
+                selectinload(Forms_Application.form_answers),
+                selectinload(Forms_Application.form_answersfile),
+                selectinload(Forms_Application.hackathonapplicant),
+            )
+        )
+        application = session.exec(statement).first()
+
     return {
         "application": application,
         "form_answers": application.form_answers,
-        "form_answersfile": application.form_answersfile.original_filename,
+        "form_answersfile": application.form_answersfile.original_filename
+        if application.form_answersfile
+        else None,
     }
 
 
@@ -68,25 +88,42 @@ async def saveAnswers(
     if current_user.application is None:
         current_user.application = await createapplication(current_user, session)
 
-    answer_map = {
-        str(ans.question_id): ans for ans in current_user.application.form_answers
-    }
+    # Optimize: Fetch all answers in one query with eager loading
+    statement = (
+        select(Forms_Application)
+        .where(Forms_Application.uid == current_user.uid)
+        .options(selectinload(Forms_Application.form_answers))
+    )
+    application = session.exec(statement).first()
 
+    answer_map = {str(ans.question_id): ans for ans in application.form_answers}
+
+    # Collect updates for bulk operation
+    bulk_updates = []
     for update in forms_batchupdate:
         form_answer = answer_map.get(update.question_id)
         if form_answer:
-            form_answer.answer = update.answer
-            session.add(form_answer)
+            bulk_updates.append({"id": form_answer.id, "answer": update.answer})
         else:
             raise HTTPException(
                 status_code=404,
                 detail=f"Form Application not found for question_id: {update.question_id}",
             )
 
-    current_user.application.updated_at = datetime.now(timezone.utc)
-    session.add(current_user.application)
+    # Perform bulk update if there are updates
+    if bulk_updates:
+        # Use SQLAlchemy's bulk update for better performance
+        session.exec(update(Forms_Answer).where(Forms_Answer.id.in_(bulk_updates)))
+
+    # Update application timestamp
+    application.updated_at = datetime.now(timezone.utc)
+    session.add(application)
     session.commit()
-    session.refresh(current_user.application)
+
+    # Refresh only the application object instead of individual answers
+    session.refresh(application)
+
+    return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
 
 
 @router.post("/uploadresume")
