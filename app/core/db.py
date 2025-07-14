@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 from typing import Annotated, List
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -22,8 +22,6 @@ engine = create_engine(
     connect_args={
         "connect_timeout": 10,
         "application_name": "hack-the-back",
-        # Enable prepared statements for better performance
-        "prepare_threshold": 5,
         # Connection pooling at the driver level
         "keepalives": 1,
         "keepalives_idle": 30,
