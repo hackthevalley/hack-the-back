@@ -105,11 +105,21 @@ async def createapplication(
     current_user: Account_User,
     session: SessionDep,
 ) -> Forms_Application:
-    # Ensure user has required fields BEFORE anything else
     if not all([current_user.first_name, current_user.last_name, current_user.email]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User profile incomplete - missing first name, last name, or email",
+        )
+    if not all(
+        [
+            current_user.first_name.strip(),
+            current_user.last_name.strip(),
+            current_user.email.strip(),
+        ]
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User profile incomplete - first name, last name, or email cannot be empty",
         )
 
     # Create application object
@@ -142,11 +152,12 @@ async def createapplication(
     for q in questions:
         if "resume" not in q.label.lower():
             answer_value = None
-            if "first name" in q.label.lower():
+            label_lower = q.label.lower().strip()
+            if label_lower == "first name":
                 answer_value = current_user.first_name
-            elif "last name" in q.label.lower():
+            elif label_lower == "last name":
                 answer_value = current_user.last_name
-            elif "email" in q.label.lower():
+            elif label_lower == "email":
                 answer_value = current_user.email
 
             answers.append(
@@ -159,10 +170,8 @@ async def createapplication(
         else:
             resume_question = q
 
-    # Bulk insert answers
     session.add_all(answers)
 
-    # Add resume answer file if needed
     if resume_question:
         resume_answer = Forms_AnswerFile(
             application_id=application.application_id,
