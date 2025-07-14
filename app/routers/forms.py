@@ -5,19 +5,18 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from sqlmodel import select
 from sqlalchemy.orm import selectinload
-from sqlalchemy import update
+from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.forms import (
     ApplicationResponse,
+    Forms_Answer,
     Forms_AnswerUpdate,
+    Forms_Application,
     Forms_Form,
     Forms_Question,
     StatusEnum,
-    Forms_Application,
-    Forms_Answer,
 )
 from app.models.user import Account_User
 from app.utils import (
@@ -98,7 +97,6 @@ async def saveAnswers(
 
     answer_map = {str(ans.question_id): ans for ans in application.form_answers}
 
-    # Collect updates for bulk operation
     bulk_updates = []
     for update in forms_batchupdate:
         form_answer = answer_map.get(update.question_id)
@@ -110,10 +108,9 @@ async def saveAnswers(
                 detail=f"Form Application not found for question_id: {update.question_id}",
             )
 
-    # Perform bulk update if there are updates
     if bulk_updates:
-        # Use SQLAlchemy's bulk update for better performance
-        session.exec(update(Forms_Answer).where(Forms_Answer.id.in_(bulk_updates)))
+        session.bulk_update_mappings(Forms_Answer, bulk_updates)
+        session.commit()
 
     # Update application timestamp
     application.updated_at = datetime.now(timezone.utc)
