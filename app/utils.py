@@ -9,8 +9,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
-from sqlmodel import select
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.forms import (
@@ -102,90 +102,82 @@ def create_access_token(
 
 
 async def createapplication(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Account_User,
     session: SessionDep,
-):
-    # Ensure user has required fields
+) -> Forms_Application:
+    # Ensure user has required fields BEFORE anything else
     if not all([current_user.first_name, current_user.last_name, current_user.email]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User profile incomplete - missing first name, last name, or email",
         )
 
-    # Create application with explicit uid
+    # Create application object
     application = Forms_Application(
         user=current_user,
         is_draft=True,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
-
-    # Add and commit the application first to ensure it gets an ID
     session.add(application)
     session.commit()
     session.refresh(application)
 
-    # Now create the hackathon applicant with the committed application
+    # Create hackathon applicant entry
     hackathon_applicant = Forms_HackathonApplicant(
-        applicant=application, status=StatusEnum.APPLYING
+        applicant=application,
+        status=StatusEnum.APPLYING,
     )
-    db_hackathon_applicant = Forms_HackathonApplicant.model_validate(
-        hackathon_applicant
-    )
-    session.add(db_hackathon_applicant)
+    session.add(hackathon_applicant)
     session.commit()
-    session.refresh(db_hackathon_applicant)
+    session.refresh(hackathon_applicant)
 
-    # Optimize: Fetch all questions at once and prepare bulk insert data
-    statement = select(Forms_Question).order_by(Forms_Question.question_order)
-    questions = session.exec(statement).all()
+    # Preload all form questions
+    questions = session.exec(
+        select(Forms_Question).order_by(Forms_Question.question_order)
+    ).all()
 
-    # Prepare bulk insert data
-    answers_to_insert = []
+    answers = []
     resume_question = None
+    for q in questions:
+        if "resume" not in q.label.lower():
+            answer_value = None
+            if "first name" in q.label.lower():
+                answer_value = current_user.first_name
+            elif "last name" in q.label.lower():
+                answer_value = current_user.last_name
+            elif "email" in q.label.lower():
+                answer_value = current_user.email
 
-    for question in questions:
-        if "resume" not in question.label.lower():
-            answer_data = {
-                "application_id": application.application_id,
-                "question_id": question.question_id,
-                "answer": None,
-            }
-
-            # Pre-fill known answers with null checks
-            label_lower = question.label.lower()
-            if "first name" in label_lower and current_user.first_name:
-                answer_data["answer"] = current_user.first_name
-            elif "last name" in label_lower and current_user.last_name:
-                answer_data["answer"] = current_user.last_name
-            elif "email" in label_lower and current_user.email:
-                answer_data["answer"] = current_user.email
-
-            answers_to_insert.append(answer_data)
+            answers.append(
+                Forms_Answer(
+                    application_id=application.application_id,
+                    question_id=q.question_id,
+                    answer=answer_value,
+                )
+            )
         else:
-            resume_question = question
+            resume_question = q
 
-    # Bulk insert all answers
-    if answers_to_insert:
-        # Use SQLModel's bulk insert
-        for answer_data in answers_to_insert:
-            db_answer = Forms_Answer(**answer_data)
-            session.add(db_answer)
+    # Bulk insert answers
+    session.add_all(answers)
 
-    # Handle file answer separately
+    # Add resume answer file if needed
     if resume_question:
-        answerfile = Forms_AnswerFile(
+        resume_answer = Forms_AnswerFile(
             application_id=application.application_id,
             original_filename=None,
             file_path=None,
             question_id=resume_question.question_id,
         )
-        session.add(answerfile)
+        session.add(resume_answer)
 
-    # Commit all answers
     session.commit()
 
-    # Refresh with eager loading to return complete data
+    # REFRESH current_user (to reflect .application relationship)
+    session.refresh(current_user)
+
+    # REFRESH application with all relationships
     statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)
