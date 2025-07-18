@@ -5,11 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlmodel import select
-
+import logging
 from app.core.db import SessionDep
 from app.models.forms import Forms_AnswerFile
 from app.models.requests import UIDRequest
 from app.models.user import Account_User, UserPublic
+from app.models.forms import Forms_Application, Forms_HackathonApplicant, StatusEnum
 
 router = APIRouter()
 
@@ -77,3 +78,24 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
         "form_answers": application.form_answers,
         "form_answersfile": application.form_answersfile.original_filename,
     }
+
+@router.get("/getallapps")
+async def get_all_apps(session: SessionDep):
+    statement = select(Account_User)
+    users = session.exec(statement).all()
+    
+    if users is None:
+        raise HTTPException(status_code=404, detail="Statement error...")
+
+    response = []
+    for user in users:
+        user_app = user.application    
+        response.append({
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "status": user_app.hackathonapplicant.status,
+            "created_at": user.application.created_at if user_app else None,
+            "updated_at": user.application.updated_at if user_app else None,
+        })
+    return {"application": response}
