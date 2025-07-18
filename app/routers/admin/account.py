@@ -94,7 +94,13 @@ async def get_all_apps(session: SessionDep):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "email": user.email,
-            "status": user_app.hackathonapplicant.status,
+            "status": (
+                StatusEnum.ACCOUNT_INACTIVE 
+                if not user.is_active else 
+                StatusEnum.NOT_APPLIED
+                if user_app is None else
+                user_app.hackathonapplicant.status
+            ),
             "created_at": user.application.created_at if user_app else None,
             "updated_at": user.application.updated_at if user_app else None,
         })
