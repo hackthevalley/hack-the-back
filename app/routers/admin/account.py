@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlmodel import select
-import logging
+
 from app.core.db import SessionDep
 from app.models.forms import Forms_AnswerFile
 from app.models.requests import UIDRequest
