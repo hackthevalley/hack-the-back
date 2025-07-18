@@ -29,7 +29,6 @@ from app.utils import (
 router = APIRouter()
 
 
-
 @router.post("/login")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
@@ -189,7 +188,6 @@ async def activate(user: UserUpdate, session: SessionDep):
         {},
     )
     return True
-
 
 @router.post("/refresh")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
