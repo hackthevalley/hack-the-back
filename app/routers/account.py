@@ -28,7 +28,6 @@ from app.utils import (
 
 router = APIRouter()
 
-
 # Uses type application/x-www-form-urlencoded for response body, not JSON
 @router.post("/login")
 async def login(
@@ -182,7 +181,6 @@ async def activate(user: UserUpdate, session: SessionDep):
     session.commit()
     session.refresh(selected_user)
     return True
-
 
 @router.post("/refresh")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:

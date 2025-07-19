@@ -10,6 +10,7 @@ from app.core.db import SessionDep
 from app.models.forms import Forms_AnswerFile
 from app.models.requests import UIDRequest
 from app.models.user import Account_User, UserPublic
+from app.models.forms import Forms_Application, Forms_HackathonApplicant, StatusEnum
 
 router = APIRouter()
 
@@ -79,3 +80,30 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
         if application.form_answersfile
         else None,
     }
+
+@router.get("/getallapps")
+async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 15):
+    statement = select(Account_User).offset(ofs).limit(limit)
+    users = session.exec(statement).all()
+    
+    if users is None:
+        raise HTTPException(status_code=404, detail="Statement error...")
+
+    response = []
+    for user in users:
+        user_app = user.application    
+        response.append({
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "status": (
+                StatusEnum.ACCOUNT_INACTIVE 
+                if not user.is_active else 
+                StatusEnum.NOT_APPLIED
+                if user_app is None else
+                user_app.hackathonapplicant.status
+            ),
+            "created_at": user.application.created_at if user_app else None,
+            "updated_at": user.application.updated_at if user_app else None,
+        })
+    return {"application": response, "offset": ofs, "limit": limit}
