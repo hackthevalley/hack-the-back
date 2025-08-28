@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlmodel import select
+from datetime import datetime, timezone
 
 from app.core.db import SessionDep
 from app.models.forms import Forms_AnswerFile
@@ -107,3 +108,27 @@ async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 15):
             "updated_at": user.application.updated_at if user_app else None,
         })
     return {"application": response, "offset": ofs, "limit": limit}
+
+@router.put("/updatestatus/{application_id}")
+async def update_application_status(application_id: str, request: StatusEnum, session: SessionDep):
+    application_statement = select(Forms_Application).where(Forms_Application.application_id == application_id)
+    application = session.exec(application_statement).first()
+    
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    application.hackathonapplicant.status = request.value
+    
+    application.updated_at = datetime.now(timezone.utc)
+
+    session.add(application.hackathonapplicant)
+    session.add(application)
+    session.commit()
+    session.refresh(application.hackathonapplicant)
+    session.refresh(application)
+    
+    return {
+        "application_id": application_id,
+        "new_status": request.value,
+        "updated_at": application.updated_at
+    }
