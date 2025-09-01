@@ -1,17 +1,16 @@
 import os
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlmodel import select
-from datetime import datetime, timezone
 
 from app.core.db import SessionDep
-from app.models.forms import Forms_AnswerFile
+from app.models.forms import Forms_AnswerFile, Forms_Application, StatusEnum
 from app.models.requests import UIDRequest
 from app.models.user import Account_User, UserPublic
-from app.models.forms import Forms_Application, Forms_HackathonApplicant, StatusEnum
 
 router = APIRouter()
 
@@ -82,43 +81,47 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
         else None,
     }
 
+
 @router.get("/getallapps")
 async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 15):
     statement = select(Account_User).offset(ofs).limit(limit)
     users = session.exec(statement).all()
-    
+
     if users is None:
         raise HTTPException(status_code=404, detail="Statement error...")
 
     response = []
     for user in users:
-        user_app = user.application    
-        response.append({
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "email": user.email,
-            "status": (
-                StatusEnum.ACCOUNT_INACTIVE 
-                if not user.is_active else 
-                StatusEnum.NOT_APPLIED
-                if user_app is None else
-                user_app.hackathonapplicant.status
-            ),
-            "created_at": user.application.created_at if user_app else None,
-            "updated_at": user.application.updated_at if user_app else None,
-        })
+        user_app = user.application
+        if not user.is_active or user_app is None:
+            continue
+        response.append(
+            {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "status": user_app.hackathonapplicant.status,
+                "created_at": user.application.created_at if user_app else None,
+                "updated_at": user.application.updated_at if user_app else None,
+            }
+        )
     return {"application": response, "offset": ofs, "limit": limit}
 
+
 @router.put("/updatestatus/{application_id}")
-async def update_application_status(application_id: str, request: StatusEnum, session: SessionDep):
-    application_statement = select(Forms_Application).where(Forms_Application.application_id == application_id)
+async def update_application_status(
+    application_id: str, request: StatusEnum, session: SessionDep
+):
+    application_statement = select(Forms_Application).where(
+        Forms_Application.application_id == application_id
+    )
     application = session.exec(application_statement).first()
-    
+
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
 
     application.hackathonapplicant.status = request.value
-    
+
     application.updated_at = datetime.now(timezone.utc)
 
     session.add(application.hackathonapplicant)
@@ -126,9 +129,9 @@ async def update_application_status(application_id: str, request: StatusEnum, se
     session.commit()
     session.refresh(application.hackathonapplicant)
     session.refresh(application)
-    
+
     return {
         "application_id": application_id,
         "new_status": request.value,
-        "updated_at": application.updated_at
+        "updated_at": application.updated_at,
     }
