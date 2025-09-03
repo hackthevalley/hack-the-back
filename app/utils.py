@@ -288,7 +288,7 @@ async def sendActivate(email: str, session: SessionDep):
 async def createQRCode(application_id: str):
     qr = qrcode.QRCode(
         version=3,
-        box_size=20,
+        box_size=5,
         border=10,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
     )
