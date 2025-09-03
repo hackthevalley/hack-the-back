@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
+import qrcode
 import requests
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
@@ -282,3 +283,16 @@ async def sendActivate(email: str, session: SessionDep):
         {"url": access_token},
     )
     return response
+
+
+async def createQRCode(application_id: str):
+    qr = qrcode.QRCode(
+        version=3,
+        box_size=20,
+        border=10,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+    )
+    qr.add_data(application_id)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    return img

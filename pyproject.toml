@@ -12,6 +12,7 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.1.0",
+    "qrcode>=8.2",
     "requests>=2.32.4",
     "sqlmodel>=0.0.24",
 ]
