@@ -85,6 +85,7 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
 @router.get("/getallapps")
 async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 15):
     statement = select(Account_User).offset(ofs).limit(limit)
+
     users = session.exec(statement).all()
 
     if users is None:
@@ -101,6 +102,7 @@ async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 15):
                 "last_name": user.last_name,
                 "email": user.email,
                 "status": user_app.hackathonapplicant.status,
+                "app_id": user_app.hackathonapplicant.application_id,
                 "created_at": user.application.created_at if user_app else None,
                 "updated_at": user.application.updated_at if user_app else None,
             }
