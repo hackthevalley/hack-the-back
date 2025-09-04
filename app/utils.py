@@ -1,3 +1,4 @@
+import base64
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -208,7 +209,12 @@ async def isValidSubmissionTime(session: SessionDep):
 
 
 async def sendEmail(
-    template: str, receiver: str, subject: str, textbody: str, context: str
+    template: str,
+    receiver: str,
+    subject: str,
+    textbody: str,
+    context: str,
+    attachments: list = None,
 ):
     POSTMARK_URL = "https://api.postmarkapp.com/email"
     with open(template, "r", encoding="utf-8") as file:
@@ -228,6 +234,20 @@ async def sendEmail(
         "TextBody": textbody,
         "MessageStream": "outbound",
     }
+    if attachments:
+        data["Attachments"] = []
+        for cid, file_bytes, mime_type in attachments:
+            if hasattr(file_bytes, "read"):
+                file_bytes = file_bytes.read()
+            encoded = base64.b64encode(file_bytes).decode("utf-8")
+            data["Attachments"].append(
+                {
+                    "Name": f"{cid}.png",
+                    "Content": encoded,
+                    "ContentType": mime_type,
+                    "ContentID": f"cid:{cid}",
+                }
+            )
     response = requests.post(POSTMARK_URL, json=data, headers=headers)
     return (response.status_code, response.json())
 
