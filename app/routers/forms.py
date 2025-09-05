@@ -192,7 +192,7 @@ async def submit(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        if answer.answer.strip() == "" or answer.answer == "false":
+        if answer.answer is not None and (answer.answer.strip() == "" or answer.answer == "false"):
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )
