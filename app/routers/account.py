@@ -15,6 +15,7 @@ from app.models.user import (
     UserPublic,
     UserUpdate,
 )
+from app.models.forms import Forms_Application, StatusEnum
 from app.utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
@@ -194,3 +195,27 @@ async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Toke
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
+
+@router.put("/rsvpstatusupdate/{uid}")
+async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
+    application_statement = select(Forms_Application).where(
+        Forms_Application.uid == uid
+    )
+    application = session.exec(application_statement).first()
+
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    if application.hackathonapplicant.status != StatusEnum.ACCEPTED:
+        raise HTTPException(status_code=404, detail="Application was not accepted...")
+    
+    application.hackathonapplicant.status = status.value
+    application.updated_at = datetime.now(timezone.utc)
+
+    session.add(application.hackathonapplicant)
+    session.add(application)
+    session.commit()
+    session.refresh(application.hackathonapplicant)
+    session.refresh(application)
+
+    return { "new_status": status.value }
