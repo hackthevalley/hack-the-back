@@ -83,7 +83,7 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
 
 
 @router.get("/getallapps")
-async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 15):
+async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 25):
     statement = select(Account_User).offset(ofs).limit(limit)
 
     users = session.exec(statement).all()
