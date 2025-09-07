@@ -1,5 +1,5 @@
-import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -9,7 +9,6 @@ from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.forms import Forms_AnswerFile, Forms_Application, StatusEnum
-from app.models.requests import UIDRequest
 from app.models.user import Account_User, UserPublic
 
 router = APIRouter()
@@ -46,27 +45,31 @@ async def get_resume(
     application_id: UUID,
     session: SessionDep,
 ):
+    # Fetch the file entry for this application
     statement = select(Forms_AnswerFile).where(
         Forms_AnswerFile.application_id == application_id
     )
     resume = session.exec(statement).first()
 
-    if resume is None or not resume.file_path:
+    if not resume or not resume.file_path:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    if not os.path.exists(resume.file_path):
+    file_path = Path(resume.file_path)
+    if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
     return FileResponse(
-        path=resume.file_path,
+        path=str(file_path),
         media_type="application/pdf",
-        filename=resume.original_filename,
+        filename=resume.original_filename or "resume.pdf",
     )
+
 
 @router.get("/getapplication")
 async def get_application(application_id: UUID, session: SessionDep):
-
-    statement = select(Forms_Application).where(Forms_Application.application_id == application_id )
+    statement = select(Forms_Application).where(
+        Forms_Application.application_id == application_id
+    )
     application = session.exec(statement).first()
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
