@@ -87,27 +87,21 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
 async def get_all_apps(
     session: SessionDep, ofs: int = 0, limit: int = 25, search: str = ""
 ):
-    statement = (
-        select(Account_User).where(
-            Account_User.is_active, Account_User.application != None
-        )  # noqa: E711
+    statement = select(Account_User).where(
+        Account_User.is_active,
+        Account_User.application != None,  # noqa: E711
     )
-
     if search:
-        search = f"%{search}%"
+        search_pattern = f"%{search}%"
         statement = statement.where(
             or_(
-                Account_User.first_name.ilike(search),
-                Account_User.last_name.ilike(search),
-                Account_User.email.ilike(search),
+                Account_User.first_name.ilike(search_pattern),
+                Account_User.last_name.ilike(search_pattern),
+                Account_User.email.ilike(search_pattern),
             )
         )
     statement = statement.offset(ofs).limit(limit)
     users = session.exec(statement).all()
-
-    if users is None:
-        raise HTTPException(status_code=404, detail="Statement error...")
-
     response = []
     for user in users:
         user_app = user.application
@@ -116,10 +110,12 @@ async def get_all_apps(
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email,
-                "status": user_app.hackathonapplicant.status,
-                "app_id": user_app.hackathonapplicant.application_id,
-                "created_at": user.application.created_at if user_app else None,
-                "updated_at": user.application.updated_at if user_app else None,
+                "status": user_app.hackathonapplicant.status if user_app else None,
+                "app_id": user_app.hackathonapplicant.application_id
+                if user_app
+                else None,
+                "created_at": user_app.created_at if user_app else None,
+                "updated_at": user_app.updated_at if user_app else None,
             }
         )
     return {"application": response, "offset": ofs, "limit": limit}
