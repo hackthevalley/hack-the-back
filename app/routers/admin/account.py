@@ -86,7 +86,7 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
 async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 25):
     statement = (
         select(Account_User)
-        .where(Account_User.is_active, Account_User.application is not None)
+        .where(Account_User.is_active, Account_User.application != None)  # noqa: E711
         .offset(ofs)
         .limit(limit)
     )
