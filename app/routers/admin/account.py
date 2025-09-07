@@ -84,7 +84,12 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
 
 @router.get("/getallapps")
 async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 25):
-    statement = select(Account_User).offset(ofs).limit(limit)
+    statement = (
+        select(Account_User)
+        .where(Account_User.is_active, Account_User.application is not None)
+        .offset(ofs)
+        .limit(limit)
+    )
 
     users = session.exec(statement).all()
 
@@ -94,8 +99,6 @@ async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 25):
     response = []
     for user in users:
         user_app = user.application
-        if not user.is_active or user_app is None:
-            continue
         response.append(
             {
                 "first_name": user.first_name,
