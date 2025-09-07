@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
+from sqlalchemy import or_
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -83,14 +84,25 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
 
 
 @router.get("/getallapps")
-async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 25):
+async def get_all_apps(
+    session: SessionDep, ofs: int = 0, limit: int = 25, search: str = ""
+):
     statement = (
-        select(Account_User)
-        .where(Account_User.is_active, Account_User.application != None)  # noqa: E711
-        .offset(ofs)
-        .limit(limit)
+        select(Account_User).where(
+            Account_User.is_active, Account_User.application != None
+        )  # noqa: E711
     )
 
+    if search:
+        search = f"%{search}%"
+        statement = statement.where(
+            or_(
+                Account_User.first_name.ilike(search),
+                Account_User.last_name.ilike(search),
+                Account_User.email.ilike(search),
+            )
+        )
+    statement = statement.offset(ofs).limit(limit)
     users = session.exec(statement).all()
 
     if users is None:
