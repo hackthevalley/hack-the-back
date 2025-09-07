@@ -63,14 +63,11 @@ async def get_resume(
         filename=resume.original_filename,
     )
 
-
 @router.get("/getapplication")
-async def getapplication(uid: UIDRequest, session: SessionDep):
-    statement = select(Account_User).where(Account_User.uid == uid.uid)
-    selected_user = session.exec(statement).first()
-    if selected_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    application = selected_user.application
+async def get_application(application_id: UUID, session: SessionDep):
+
+    statement = select(Forms_Application).where(Forms_Application.application_id == application_id )
+    application = session.exec(statement).first()
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
     return {
