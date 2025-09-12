@@ -1,11 +1,13 @@
 import base64
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
 import qrcode
 import requests
+from applepassgenerator.client import ApplePassGeneratorClient
+from applepassgenerator.models import Barcode, BarcodeFormat, EventTicket
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -316,3 +318,42 @@ async def createQRCode(application_id: str):
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     return img
+
+
+def generate_pkpass(user_name: str, application_id: str):
+    start_date = date(2025, 10, 3)
+    end_date = date(2025, 10, 5)
+    date_range_str = f"{start_date.strftime('%b %d')} - {end_date.strftime('%d, %Y')}"
+    card_info = EventTicket()
+    card_info.add_primary_field("role", "Hacker", "Role")
+    card_info.add_secondary_field("name", user_name, "Name")
+    card_info.add_secondary_field("date", date_range_str, "Date")
+    card_info.add_auxiliary_field(
+        "location", "IA building, UofT Scarborough", "Location"
+    )
+    client = ApplePassGeneratorClient(
+        team_identifier=os.getenv("APPLE_TEAM_IDENTIFIER"),
+        pass_type_identifier=os.getenv("APPLE_PASS_TYPE_IDENTIFIER"),
+        organization_name="Hack the Valley",
+    )
+    apple_pass = client.get_pass(card_info)
+    apple_pass.logo_text = "Hack the Valley X"
+    apple_pass.background_color = "rgb(25, 24, 32)"
+    apple_pass.foreground_color = "rgb(255,255,255)"
+    apple_pass.label_color = "rgb(255, 255, 255)"
+    apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
+
+    # Add required graphics (must exist in pass)
+    apple_pass.add_file("icon.png", open("images/icon-29x29.png", "rb"))
+    apple_pass.add_file("logo.png", open("images/logo-50x50.png", "rb"))
+
+    # Create signed .pkpass (bytes in memory, not written to disk)
+    package = apple_pass.create(
+        "certs/apple/cert.pem",
+        "certs/apple/key.pem",
+        "certs/apple/wwdr.pem",
+        os.getenv("APPLE_WALLET_KEY_PASSWORD"),
+        None,  # ⚡ keep in memory
+    )
+
+    return package
