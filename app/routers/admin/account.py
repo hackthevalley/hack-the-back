@@ -98,6 +98,7 @@ async def get_all_apps(
                 Account_User.first_name.ilike(search_pattern),
                 Account_User.last_name.ilike(search_pattern),
                 Account_User.email.ilike(search_pattern),
+                (Account_User.first_name + " " + Account_User.last_name).ilike(search_pattern),
             )
         )
     statement = statement.offset(ofs).limit(limit)
