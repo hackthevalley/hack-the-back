@@ -155,7 +155,15 @@ async def uploadresume(
 
     await file.seek(0)
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    try:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to prepare upload directory: {e}")
+
+
+    if current_user.application is None:
+        current_user.application = await createapplication(current_user, session)
     answer_file = current_user.application.form_answersfile
     if answer_file and answer_file.file_path:
         try:
@@ -171,6 +179,10 @@ async def uploadresume(
     with open(filepath, "wb") as f:
         f.write(contents)
     answer_file = current_user.application.form_answersfile
+    if answer_file is None:
+
+
+        raise HTTPException(status_code=400, detail="Resume record not initialized for application")
     answer_file.original_filename = file.filename
     answer_file.file_path = filepath
     current_user.application.updated_at = datetime.now(timezone.utc)
