@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from sqlalchemy import Integer, and_, func, or_
+from sqlalchemy import Integer, String, and_, cast, func, or_
 from sqlalchemy.orm import aliased
 from sqlmodel import select
 
@@ -15,6 +15,7 @@ from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
     Forms_Application,
+    Forms_HackathonApplicant,
     Forms_Question,
     StatusEnum,
 )
@@ -102,6 +103,7 @@ async def get_all_apps(
     gender: str = "",
     school: str = "",
     date_sort: str = "",
+    role: str = "",
 ):
     # Get question IDs for age and gender
     age_question = session.exec(
@@ -131,6 +133,16 @@ async def get_all_apps(
                     search_pattern
                 ),
             )
+        )
+
+    fa = aliased(Forms_Application)
+
+    statement = statement.join(fa, Account_User.uid == fa.uid)
+
+    if role:
+        fha = aliased(Forms_HackathonApplicant)
+        statement = statement.join(fha, fha.application_id == fa.application_id).where(
+            func.lower(cast(Forms_HackathonApplicant.status, String)) == role.lower()
         )
 
     # Join with Forms_Application first (only once)
