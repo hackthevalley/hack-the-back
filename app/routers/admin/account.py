@@ -101,7 +101,7 @@ async def get_all_apps(
     age: str = "",
     gender: str = "",
     school: str = "",
-    date_sort: str = ""
+    date_sort: str = "",
 ):
 
     age_question = session.exec(
@@ -195,16 +195,17 @@ async def get_all_apps(
 
         school_answer = aliased(Forms_Answer)
 
-        statement = statement.join(school_answer,
+        statement = statement.join(
+            school_answer,
             and_(
                 school_answer.application_id == Forms_Application.application_id,
-                school_answer.question_id == school_question.question_id
-            )
+                school_answer.question_id == school_question.question_id,
+            ),
         ).where(
             and_(
                 school_answer.answer.isnot(None),
                 school_answer.answer != "",
-                func.lower(school_answer.answer) == school.lower()
+                func.lower(school_answer.answer) == school.lower(),
             )
         )
 
@@ -249,7 +250,7 @@ async def get_all_apps(
                 select(Forms_Answer).where(
                     and_(
                         Forms_Answer.application_id == user_app.application_id,
-                        Forms_Answer.question_id == school_question.question_id
+                        Forms_Answer.question_id == school_question.question_id,
                     )
                 )
             ).first()
@@ -278,34 +279,31 @@ async def get_all_apps(
 async def update_application_status(
     application_id: str, request: StatusEnum, session: SessionDep
 ):
-    application_statement = select(Forms_Application).where(
-        Forms_Application.application_id == application_id
+    statement = (
+        select(Forms_Application, Account_User)
+        .join(Account_User, Forms_Application.uid == Account_User.uid)
+        .where(Forms_Application.application_id == application_id)
     )
-    application = session.exec(application_statement).first()
+    result = session.exec(statement).first()
 
-    if not application:
+    if not result:
         raise HTTPException(status_code=404, detail="Application not found")
 
+    application, user = result
+
     application.hackathonapplicant.status = request.value
+    application.updated_at = datetime.now(timezone.utc)
     if request.value == "ACCEPTED":
         img = await createQRCode(application_id)
         img_bytes = io.BytesIO()
         img.save(img_bytes, format="PNG")
         img_bytes.seek(0)
-        statement = (
-            select(Account_User.first_name, Account_User.last_name, Account_User.email)
-            .join(Forms_Application, Forms_Application.uid == Account_User.uid)
-            .where(Forms_Application.application_id == application_id)
-        )
-        result = session.exec(statement).first()
-        if not result:
-            return None
         google_link = generate_google_wallet_pass(
-            f"{result[0]} {result[1]}", application_id
+            f"{user.first_name} {user.last_name}", application_id
         )
         await sendEmail(
             "templates/rsvp.html",
-            result[2],
+            user.email,
             "RSVP for Hack the Valley X",
             "RSVP at hackthevalley.io",
             {
@@ -317,7 +315,6 @@ async def update_application_status(
             },
             attachments=[("qr_code", img_bytes, "image/png")],
         )
-    application.updated_at = datetime.now(timezone.utc)
 
     session.add(application.hackathonapplicant)
     session.add(application)
