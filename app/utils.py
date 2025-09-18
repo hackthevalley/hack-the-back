@@ -1,12 +1,18 @@
+import base64
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
+import google.auth.jwt
 import jwt
+import qrcode
 import requests
+from applepassgenerator.client import ApplePassGeneratorClient
+from applepassgenerator.models import Barcode, BarcodeFormat, EventTicket
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from google.oauth2 import service_account
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import selectinload
@@ -207,7 +213,12 @@ async def isValidSubmissionTime(session: SessionDep):
 
 
 async def sendEmail(
-    template: str, receiver: str, subject: str, textbody: str, context: str
+    template: str,
+    receiver: str,
+    subject: str,
+    textbody: str,
+    context: str,
+    attachments: list = None,
 ):
     POSTMARK_URL = "https://api.postmarkapp.com/email"
     with open(template, "r", encoding="utf-8") as file:
@@ -227,6 +238,20 @@ async def sendEmail(
         "TextBody": textbody,
         "MessageStream": "outbound",
     }
+    if attachments:
+        data["Attachments"] = []
+        for cid, file_bytes, mime_type in attachments:
+            if hasattr(file_bytes, "read"):
+                file_bytes = file_bytes.read()
+            encoded = base64.b64encode(file_bytes).decode("utf-8")
+            data["Attachments"].append(
+                {
+                    "Name": f"{cid}.png",
+                    "Content": encoded,
+                    "ContentType": mime_type,
+                    "ContentID": f"cid:{cid}",
+                }
+            )
     response = requests.post(POSTMARK_URL, json=data, headers=headers)
     return (response.status_code, response.json())
 
@@ -282,3 +307,102 @@ async def sendActivate(email: str, session: SessionDep):
         {"url": access_token},
     )
     return response
+
+
+async def createQRCode(application_id: str):
+    qr = qrcode.QRCode(
+        version=3,
+        box_size=5,
+        border=10,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+    )
+    qr.add_data(application_id)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    return img
+
+
+def generate_apple_wallet_pass(user_name: str, application_id: str):
+    start_date = date(2025, 10, 3)
+    end_date = date(2025, 10, 5)
+    date_range_str = f"{start_date.strftime('%b %d')} - {end_date.strftime('%d, %Y')}"
+    card_info = EventTicket()
+    card_info.add_primary_field("role", "Hacker", "Role")
+    card_info.add_secondary_field("name", user_name, "Name")
+    card_info.add_secondary_field("date", date_range_str, "Date")
+    card_info.add_auxiliary_field(
+        "location", "IA building, UofT Scarborough", "Location"
+    )
+    client = ApplePassGeneratorClient(
+        team_identifier=os.getenv("APPLE_TEAM_IDENTIFIER"),
+        pass_type_identifier=os.getenv("APPLE_PASS_TYPE_IDENTIFIER"),
+        organization_name="Hack the Valley",
+    )
+    apple_pass = client.get_pass(card_info)
+    apple_pass.logo_text = "Hack the Valley X"
+    apple_pass.background_color = "rgb(25, 24, 32)"
+    apple_pass.foreground_color = "rgb(255,255,255)"
+    apple_pass.label_color = "rgb(255, 255, 255)"
+    apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
+
+    # Add required graphics (must exist in pass)
+    apple_pass.add_file("icon.png", open("images/icon-29x29.png", "rb"))
+    apple_pass.add_file("logo.png", open("images/logo-50x50.png", "rb"))
+
+    # Create signed .pkpass (bytes in memory, not written to disk)
+    package = apple_pass.create(
+        "certs/apple/cert.pem",
+        "certs/apple/key.pem",
+        "certs/apple/wwdr.pem",
+        os.getenv("APPLE_WALLET_KEY_PASSWORD"),
+        None,  # ⚡ keep in memory
+    )
+
+    return package
+
+
+def generate_google_wallet_pass(user_name: str, application_id: str):
+    GOOGLE_CREDENTIALS_FILE = "certs/google/credentials.json"
+    creds = service_account.Credentials.from_service_account_file(
+        GOOGLE_CREDENTIALS_FILE,
+        scopes=["https://www.googleapis.com/auth/wallet_object.issuer"],
+    )
+
+    issuer_id = os.getenv("GOOGLE_WALLET_ISSUER_ID")
+    if not issuer_id:
+        raise RuntimeError("GOOGLE_WALLET_ISSUER_ID not set")
+
+    class_id = f"{issuer_id}.{os.getenv('GOOGLE_WALLET_CLASS_ID')}"
+    object_id = f"{issuer_id}.{application_id}"
+
+    payload = {
+        "iss": creds.service_account_email,
+        "aud": "google",
+        "typ": "savetowallet",
+        "origins": [],
+        "payload": {
+            "eventTicketObjects": [
+                {
+                    "id": object_id,
+                    "classId": class_id,
+                    "ticketHolderName": user_name,
+                    "state": "ACTIVE",
+                    "barcode": {
+                        "type": "QR_CODE",
+                        "value": application_id,
+                        "alternateText": "Present when signing in/getting food!",
+                    },
+                    "eventId": "hackthevalleyx",
+                    "venue": {"name": "UofT Scarborough"},
+                    "textModulesData": [{"header": "Name", "body": user_name}],
+                }
+            ]
+        },
+    }
+
+    # google.auth.jwt.encode accepts the signer object (creds.signer) and returns bytes
+    token_bytes = google.auth.jwt.encode(creds.signer, payload)
+    # decode to str
+    token = token_bytes.decode("utf-8")
+    save_url = f"https://pay.google.com/gp/v/save/{token}"
+    return save_url

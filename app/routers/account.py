@@ -2,11 +2,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.hash import pbkdf2_sha256
 from sqlmodel import select
 
 from app.core.db import SessionDep
+from app.models.forms import Forms_Application, StatusEnum
 from app.models.token import Token, TokenData
 from app.models.user import (
     Account_User,
@@ -15,19 +17,20 @@ from app.models.user import (
     UserPublic,
     UserUpdate,
 )
-from app.models.forms import Forms_Application, StatusEnum
 from app.utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
     SECRET_KEY,
     create_access_token,
     decode_jwt,
+    generate_apple_wallet_pass,
     get_current_user,
     sendActivate,
     sendEmail,
 )
 
 router = APIRouter()
+
 
 # Uses type application/x-www-form-urlencoded for response body, not JSON
 @router.post("/login")
@@ -183,6 +186,7 @@ async def activate(user: UserUpdate, session: SessionDep):
     session.refresh(selected_user)
     return True
 
+
 @router.post("/refresh")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
     if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
@@ -196,6 +200,34 @@ async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Toke
     )
     return Token(access_token=access_token, token_type="bearer")
 
+
+@router.get("/apple_wallet/{application_id}")
+async def apple_wallet(application_id: str, session: SessionDep):
+    statement = (
+        select(Account_User.first_name, Account_User.last_name)
+        .join(Forms_Application, Forms_Application.uid == Account_User.uid)
+        .where(Forms_Application.application_id == application_id)
+    )
+    result = session.exec(statement).first()
+    if not result:
+        return None
+    pkpass_bytes_io = generate_apple_wallet_pass(
+        f"{result[0]} {result[1]}", application_id
+    )
+    if hasattr(pkpass_bytes_io, "getvalue"):
+        pkpass_bytes = pkpass_bytes_io.getvalue()
+    else:
+        pkpass_bytes = pkpass_bytes_io  # already bytes
+
+    return Response(
+        content=pkpass_bytes,
+        media_type="application/vnd.apple.pkpass",
+        headers={
+            "Content-Disposition": f'attachment; filename="ticket_{application_id}.pkpass"'
+        },
+    )
+
+
 @router.put("/rsvpstatusupdate/{uid}")
 async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
     application_statement = select(Forms_Application).where(
@@ -208,7 +240,7 @@ async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
 
     if application.hackathonapplicant.status != StatusEnum.ACCEPTED:
         raise HTTPException(status_code=404, detail="Application was not accepted...")
-    
+
     application.hackathonapplicant.status = status.value
     application.updated_at = datetime.now(timezone.utc)
 
@@ -218,4 +250,4 @@ async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
     session.refresh(application.hackathonapplicant)
     session.refresh(application)
 
-    return { "new_status": status.value }
+    return {"new_status": status.value}
