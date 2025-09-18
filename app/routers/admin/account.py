@@ -248,7 +248,7 @@ async def update_application_status(
         raise HTTPException(status_code=404, detail="Application not found")
 
     application.hackathonapplicant.status = request.value
-    if request.value == "accepted":
+    if request.value == "ACCEPTED":
         img = await createQRCode(application_id)
         img_bytes = io.BytesIO()
         img.save(img_bytes, format="PNG")
