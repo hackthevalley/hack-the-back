@@ -1,12 +1,15 @@
+import io
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.hash import pbkdf2_sha256
 from sqlmodel import select
 
 from app.core.db import SessionDep
+from app.models.forms import Forms_Application
 from app.models.token import Token, TokenData
 from app.models.user import (
     Account_User,
@@ -20,13 +23,17 @@ from app.utils import (
     ALGORITHM,
     SECRET_KEY,
     create_access_token,
+    createQRCode,
     decode_jwt,
+    generate_apple_wallet_pass,
+    generate_google_wallet_pass,
     get_current_user,
     sendActivate,
     sendEmail,
 )
 
 router = APIRouter()
+
 
 # Uses type application/x-www-form-urlencoded for response body, not JSON
 @router.post("/login")
@@ -182,6 +189,7 @@ async def activate(user: UserUpdate, session: SessionDep):
     session.refresh(selected_user)
     return True
 
+
 @router.post("/refresh")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
     if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
@@ -194,3 +202,70 @@ async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Toke
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get("/generateqrcode/{application_id}")
+async def generate_qr_code(application_id: str):
+    img = await createQRCode(application_id)
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format="PNG")
+    img_bytes.seek(0)
+    await sendEmail(
+        "templates/rsvp.html",
+        "",  # email here
+        "RSVP for Hack the Valley X",
+        "RSVP at hackthevalley.io",
+        {
+            "start_date": "October 3rd 2025",
+            "end_date": "October 5th 2025",
+            "due_date": "September 26th 2025",
+            "apple_url": f"apple_wallet/{application_id}",
+            "google_url": f"https://google.com/wallet/{application_id}",
+        },
+        attachments=[("qr_code", img_bytes, "image/png")],
+    )
+    return {"status": "email sent"}
+
+
+@router.get("/apple_wallet/{application_id}")
+async def apple_wallet(application_id: str, session: SessionDep):
+    statement = (
+        select(Account_User.first_name, Account_User.last_name)
+        .join(Forms_Application, Forms_Application.uid == Account_User.uid)
+        .where(Forms_Application.application_id == application_id)
+    )
+    result = session.exec(statement).first()
+    if not result:
+        return None
+    pkpass_bytes_io = generate_apple_wallet_pass(
+        f"{result[0]} {result[1]}", application_id
+    )
+    if hasattr(pkpass_bytes_io, "getvalue"):
+        pkpass_bytes = pkpass_bytes_io.getvalue()
+    else:
+        pkpass_bytes = pkpass_bytes_io  # already bytes
+
+    return Response(
+        content=pkpass_bytes,
+        media_type="application/vnd.apple.pkpass",
+        headers={
+            "Content-Disposition": f'attachment; filename="ticket_{application_id}.pkpass"'
+        },
+    )
+
+
+@router.get("/google_wallet/{application_id}")
+async def google_wallet(application_id: str, session: SessionDep):
+    statement = (
+        select(Account_User.first_name, Account_User.last_name)
+        .join(Forms_Application, Forms_Application.uid == Account_User.uid)
+        .where(Forms_Application.application_id == application_id)
+    )
+    result = session.exec(statement).first()
+    if not result:
+        return None
+    google_link = generate_google_wallet_pass(
+        f"{result[0]} {result[1]}", application_id
+    )
+
+    return google_link

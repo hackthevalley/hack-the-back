@@ -3,6 +3,7 @@ import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
+import google.auth.jwt
 import jwt
 import qrcode
 import requests
@@ -11,6 +12,7 @@ from applepassgenerator.models import Barcode, BarcodeFormat, EventTicket
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from google.oauth2 import service_account
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import selectinload
@@ -320,7 +322,7 @@ async def createQRCode(application_id: str):
     return img
 
 
-def generate_pkpass(user_name: str, application_id: str):
+def generate_apple_wallet_pass(user_name: str, application_id: str):
     start_date = date(2025, 10, 3)
     end_date = date(2025, 10, 5)
     date_range_str = f"{start_date.strftime('%b %d')} - {end_date.strftime('%d, %Y')}"
@@ -357,3 +359,49 @@ def generate_pkpass(user_name: str, application_id: str):
     )
 
     return package
+
+
+def generate_google_wallet_pass(user_name: str, application_id: str):
+    GOOGLE_CREDENTIALS_FILE = "certs/google/credentials.json"
+    creds = service_account.Credentials.from_service_account_file(
+        GOOGLE_CREDENTIALS_FILE,
+        scopes=["https://www.googleapis.com/auth/wallet_object.issuer"],
+    )
+
+    issuer_id = os.getenv("GOOGLE_WALLET_ISSUER_ID")
+    if not issuer_id:
+        raise RuntimeError("GOOGLE_WALLET_ISSUER_ID not set")
+
+    class_id = f"{issuer_id}.{os.getenv('GOOGLE_WALLET_CLASS_ID')}"
+    object_id = f"{issuer_id}.{application_id}"
+
+    payload = {
+        "iss": creds.service_account_email,
+        "aud": "google",
+        "typ": "savetowallet",
+        "origins": [],
+        "payload": {
+            "eventTicketObjects": [
+                {
+                    "id": object_id,
+                    "classId": class_id,
+                    "ticketHolderName": user_name,
+                    "state": "ACTIVE",
+                    "barcode": {
+                        "type": "QR_CODE",
+                        "value": application_id,
+                        "alternateText": "Present when signing in/getting food!",
+                    },
+                    "eventId": "hackthevalleyx",
+                    "venue": {"name": "UofT Scarborough"},
+                }
+            ]
+        },
+    }
+
+    # google.auth.jwt.encode accepts the signer object (creds.signer) and returns bytes
+    token_bytes = google.auth.jwt.encode(creds.signer, payload)
+    # decode to str
+    token = token_bytes.decode("utf-8")
+    save_url = f"https://pay.google.com/gp/v/save/{token}"
+    return save_url
