@@ -155,7 +155,15 @@ async def uploadresume(
     # Reset file position to beginning after reading
     await file.seek(0)
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    # Ensure upload directory exists and is a valid path
+    try:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to prepare upload directory: {e}")
+
+    # Ensure application exists (parity with saveAnswers)
+    if current_user.application is None:
+        current_user.application = await createapplication(current_user, session)
     answer_file = current_user.application.form_answersfile
     if answer_file and answer_file.file_path:
         try:
@@ -171,6 +179,10 @@ async def uploadresume(
     with open(filepath, "wb") as f:
         f.write(contents)
     answer_file = current_user.application.form_answersfile
+    if answer_file is None:
+        # We cannot create a new Forms_AnswerFile without a question_id here.
+        # Return a clear error instead of throwing an AttributeError.
+        raise HTTPException(status_code=400, detail="Resume record not initialized for application")
     answer_file.original_filename = file.filename
     answer_file.file_path = filepath
     current_user.application.updated_at = datetime.now(timezone.utc)
@@ -192,7 +204,7 @@ async def submit(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        if answer.answer.strip() == "" or answer.answer == "false":
+        if answer.answer is not None and (answer.answer.strip() == "" or answer.answer == "false"):
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )

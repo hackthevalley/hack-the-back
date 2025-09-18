@@ -1,16 +1,18 @@
 import io
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
+from sqlalchemy import or_, and_, Integer, func
+from sqlalchemy.orm import aliased
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.forms import Forms_AnswerFile, Forms_Application, StatusEnum
-from app.models.requests import UIDRequest
+from app.models.forms import Forms_AnswerFile, Forms_Application, StatusEnum, Forms_Answer, Forms_Question
 from app.models.user import Account_User, UserPublic
 from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
 
@@ -48,31 +50,32 @@ async def get_resume(
     application_id: UUID,
     session: SessionDep,
 ):
+    # Fetch the file entry for this application
     statement = select(Forms_AnswerFile).where(
         Forms_AnswerFile.application_id == application_id
     )
     resume = session.exec(statement).first()
 
-    if resume is None or not resume.file_path:
+    if not resume or not resume.file_path:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    if not os.path.exists(resume.file_path):
+    file_path = Path(resume.file_path)
+    if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
     return FileResponse(
-        path=resume.file_path,
+        path=str(file_path),
         media_type="application/pdf",
-        filename=resume.original_filename,
+        filename=resume.original_filename or "resume.pdf",
     )
 
 
 @router.get("/getapplication")
-async def getapplication(uid: UIDRequest, session: SessionDep):
-    statement = select(Account_User).where(Account_User.uid == uid.uid)
-    selected_user = session.exec(statement).first()
-    if selected_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    application = selected_user.application
+async def get_application(application_id: UUID, session: SessionDep):
+    statement = select(Forms_Application).where(
+        Forms_Application.application_id == application_id
+    )
+    application = session.exec(statement).first()
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
     return {
@@ -85,26 +88,137 @@ async def getapplication(uid: UIDRequest, session: SessionDep):
 
 
 @router.get("/getallapps")
-async def get_all_apps(session: SessionDep, ofs: int = 0, limit: int = 15):
-    statement = select(Account_User).offset(ofs).limit(limit)
+async def get_all_apps(
+    session: SessionDep, 
+    ofs: int = 0, 
+    limit: int = 25, 
+    search: str = "",
+    age: str = "",
+    gender: str = ""
+):
+    # Get question IDs for age and gender
+    age_question = session.exec(
+        select(Forms_Question).where(Forms_Question.label == "Age")
+    ).first()
+    gender_question = session.exec(
+        select(Forms_Question).where(Forms_Question.label == "Gender")
+    ).first()
+
+    statement = select(Account_User).where(
+        Account_User.is_active,
+        Account_User.application != None,  # noqa: E711
+    )
+    
+    # Apply search filter
+    if search:
+        search_pattern = f"%{search}%"
+        statement = statement.where(
+            or_(
+                Account_User.first_name.ilike(search_pattern),
+                Account_User.last_name.ilike(search_pattern),
+                Account_User.email.ilike(search_pattern),
+                (Account_User.first_name + " " + Account_User.last_name).ilike(search_pattern),
+            )
+        )
+    
+    # Join with Forms_Application first (only once)
+    statement = statement.join(Forms_Application, Account_User.uid == Forms_Application.uid)
+    
+    # Apply age filter
+    if age and age_question:
+        # Use alias to avoid conflicts with gender join
+        age_answer = aliased(Forms_Answer)
+        
+        statement = statement.join(age_answer, 
+            and_(
+                age_answer.application_id == Forms_Application.application_id,
+                age_answer.question_id == age_question.question_id
+            )
+        )
+        
+        MAX_AGE = 40
+        # Handle age range filtering
+        if age == f"{MAX_AGE}+":
+            # UI only supports until 40 so this handles 40+
+            statement = statement.where(
+                and_(
+                    age_answer.answer.isnot(None),
+                    age_answer.answer != "",
+                    age_answer.answer.cast(Integer) >= MAX_AGE
+                )
+            )
+        elif "-" in age:
+            # Handle range. E.g. (18-20)
+            min_age, max_age = age.split("-")
+            statement = statement.where(
+                and_(
+                    age_answer.answer.isnot(None),
+                    age_answer.answer != "",
+                    age_answer.answer.cast(Integer) >= int(min_age),
+                    age_answer.answer.cast(Integer) <= int(max_age)
+                )
+            )
+        else:
+            # Fallback to exact match for any other format
+            statement = statement.where(age_answer.answer.ilike(f"%{age}%"))
+    
+    # Apply gender filter
+    if gender and gender_question:
+        # Use alias to avoid conflicts with age join
+        gender_answer = aliased(Forms_Answer)
+        
+        statement = statement.join(gender_answer, 
+            and_(
+                gender_answer.application_id == Forms_Application.application_id,
+                gender_answer.question_id == gender_question.question_id
+            )
+        ).where(func.lower(gender_answer.answer) == gender.lower())
+    
+    statement = statement.offset(ofs).limit(limit)
     users = session.exec(statement).all()
-
-    if users is None:
-        raise HTTPException(status_code=404, detail="Statement error...")
-
     response = []
     for user in users:
         user_app = user.application
-        if not user.is_active or user_app is None:
-            continue
+        
+        # Fetch age and gender answers for this user
+        user_age = None
+        user_gender = None
+        
+        if user_app and age_question:
+            age_answer = session.exec(
+                select(Forms_Answer).where(
+                    and_(
+                        Forms_Answer.application_id == user_app.application_id,
+                        Forms_Answer.question_id == age_question.question_id
+                    )
+                )
+            ).first()
+            user_age = age_answer.answer if age_answer else None
+            
+        if user_app and gender_question:
+            gender_answer = session.exec(
+                select(Forms_Answer).where(
+                    and_(
+                        Forms_Answer.application_id == user_app.application_id,
+                        Forms_Answer.question_id == gender_question.question_id
+                    )
+                )
+            ).first()
+            user_gender = gender_answer.answer if gender_answer else None
+        
         response.append(
             {
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email,
-                "status": user_app.hackathonapplicant.status,
-                "created_at": user.application.created_at if user_app else None,
-                "updated_at": user.application.updated_at if user_app else None,
+                "status": user_app.hackathonapplicant.status if user_app else None,
+                "app_id": user_app.hackathonapplicant.application_id
+                if user_app
+                else None,
+                "created_at": user_app.created_at if user_app else None,
+                "updated_at": user_app.updated_at if user_app else None,
+                "age": user_age,
+                "gender": user_gender,
             }
         )
     return {"application": response, "offset": ofs, "limit": limit}
