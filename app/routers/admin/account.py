@@ -100,6 +100,8 @@ async def get_all_apps(
     search: str = "",
     age: str = "",
     gender: str = "",
+    school: str = "",
+    date_sort: str = ""
 ):
     # Get question IDs for age and gender
     age_question = session.exec(
@@ -107,6 +109,9 @@ async def get_all_apps(
     ).first()
     gender_question = session.exec(
         select(Forms_Question).where(Forms_Question.label == "Gender")
+    ).first()
+    school_question = session.exec(
+        select(Forms_Question).where(Forms_Question.label == "School Name")
     ).first()
 
     statement = select(Account_User).where(
@@ -184,17 +189,39 @@ async def get_all_apps(
                 gender_answer.question_id == gender_question.question_id,
             ),
         ).where(func.lower(gender_answer.answer) == gender.lower())
-
+    
+    # Apply school filter
+    if school and school_question:
+        # Use alias to avoid conflicts with other joins
+        school_answer = aliased(Forms_Answer)
+        
+        statement = statement.join(school_answer, 
+            and_(
+                school_answer.application_id == Forms_Application.application_id,
+                school_answer.question_id == school_question.question_id
+            )
+        ).where(
+            and_(
+                school_answer.answer.isnot(None),
+                school_answer.answer != "",
+                func.lower(school_answer.answer) == school.lower()
+            )
+        )
+    
+    # Apply date sorting
+    if date_sort:
+        if date_sort == "oldest":
+            statement = statement.order_by(Forms_Application.updated_at.asc())
+        elif date_sort == "latest":
+            statement = statement.order_by(Forms_Application.updated_at.desc())
     statement = statement.offset(ofs).limit(limit)
     users = session.exec(statement).all()
     response = []
     for user in users:
         user_app = user.application
-
-        # Fetch age and gender answers for this user
         user_age = None
         user_gender = None
-
+        user_school = None
         if user_app and age_question:
             age_answer = session.exec(
                 select(Forms_Answer).where(
@@ -216,7 +243,18 @@ async def get_all_apps(
                 )
             ).first()
             user_gender = gender_answer.answer if gender_answer else None
-
+            
+        if user_app and school_question:
+            school_answer = session.exec(
+                select(Forms_Answer).where(
+                    and_(
+                        Forms_Answer.application_id == user_app.application_id,
+                        Forms_Answer.question_id == school_question.question_id
+                    )
+                )
+            ).first()
+            user_school = school_answer.answer if school_answer else None
+        
         response.append(
             {
                 "first_name": user.first_name,
@@ -230,6 +268,7 @@ async def get_all_apps(
                 "updated_at": user_app.updated_at if user_app else None,
                 "age": user_age,
                 "gender": user_gender,
+                "school": user_school,
             }
         )
     return {"application": response, "offset": ofs, "limit": limit}
