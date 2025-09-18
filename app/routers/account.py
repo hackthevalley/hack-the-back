@@ -8,7 +8,7 @@ from passlib.hash import pbkdf2_sha256
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.forms import Forms_Application
+from app.models.forms import Forms_Application, StatusEnum
 from app.models.token import Token, TokenData
 from app.models.user import (
     Account_User,
@@ -17,7 +17,6 @@ from app.models.user import (
     UserPublic,
     UserUpdate,
 )
-from app.models.forms import Forms_Application, StatusEnum
 from app.utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
@@ -201,6 +200,7 @@ async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Toke
     )
     return Token(access_token=access_token, token_type="bearer")
 
+
 @router.get("/apple_wallet/{application_id}")
 async def apple_wallet(application_id: str, session: SessionDep):
     statement = (
@@ -226,6 +226,8 @@ async def apple_wallet(application_id: str, session: SessionDep):
             "Content-Disposition": f'attachment; filename="ticket_{application_id}.pkpass"'
         },
     )
+
+
 @router.put("/rsvpstatusupdate/{uid}")
 async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
     application_statement = select(Forms_Application).where(
@@ -238,7 +240,7 @@ async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
 
     if application.hackathonapplicant.status != StatusEnum.ACCEPTED:
         raise HTTPException(status_code=404, detail="Application was not accepted...")
-    
+
     application.hackathonapplicant.status = status.value
     application.updated_at = datetime.now(timezone.utc)
 
@@ -248,4 +250,4 @@ async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
     session.refresh(application.hackathonapplicant)
     session.refresh(application)
 
-    return { "new_status": status.value }
+    return {"new_status": status.value}
