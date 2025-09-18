@@ -1,3 +1,4 @@
+import io
 import os
 from datetime import datetime, timezone
 from typing import Annotated
@@ -11,6 +12,7 @@ from app.core.db import SessionDep
 from app.models.forms import Forms_AnswerFile, Forms_Application, StatusEnum
 from app.models.requests import UIDRequest
 from app.models.user import Account_User, UserPublic
+from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
 
 router = APIRouter()
 
@@ -121,7 +123,36 @@ async def update_application_status(
         raise HTTPException(status_code=404, detail="Application not found")
 
     application.hackathonapplicant.status = request.value
-
+    if request.value == "accepted":
+        img = await createQRCode(application_id)
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+        statement = (
+            select(Account_User.first_name, Account_User.last_name, Account_User.email)
+            .join(Forms_Application, Forms_Application.uid == Account_User.uid)
+            .where(Forms_Application.application_id == application_id)
+        )
+        result = session.exec(statement).first()
+        if not result:
+            return None
+        google_link = generate_google_wallet_pass(
+            f"{result[0]} {result[1]}", application_id
+        )
+        await sendEmail(
+            "templates/rsvp.html",
+            result[2],
+            "RSVP for Hack the Valley X",
+            "RSVP at hackthevalley.io",
+            {
+                "start_date": "October 3rd 2025",
+                "end_date": "October 5th 2025",
+                "due_date": "September 26th 2025",
+                "apple_url": f"apple_wallet/{application_id}",
+                "google_url": f"{google_link}",
+            },
+            attachments=[("qr_code", img_bytes, "image/png")],
+        )
     application.updated_at = datetime.now(timezone.utc)
 
     session.add(application.hackathonapplicant)

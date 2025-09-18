@@ -394,6 +394,7 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
                     },
                     "eventId": "hackthevalleyx",
                     "venue": {"name": "UofT Scarborough"},
+                    "textModulesData": [{"header": "Name", "body": user_name}],
                 }
             ]
         },
