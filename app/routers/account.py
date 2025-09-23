@@ -117,7 +117,7 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
             status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
         )
     now = datetime.now(timezone.utc)
-    cooldown = timedelta(minutes=60)
+    cooldown = timedelta(minutes=15)
     if selected_user.last_password_reset_request:
         last_sent = selected_user.last_password_reset_request
         if last_sent.tzinfo is None:
