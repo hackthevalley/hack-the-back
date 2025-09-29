@@ -11,15 +11,15 @@ if TYPE_CHECKING:
     from app.models.food_tracking import Food_Tracking
 
 class MealType(str, enum.Enum):
-    BREAKFAST = "BREAKFAST"
-    LUNCH = "LUNCH"
-    DINNER = "DINNER"
-    SNACK = "SNACK"
+    BREAKFAST = "breakfast"
+    LUNCH = "lunch"
+    DINNER = "dinner"
+    SNACK = "snack"
 
 class WeekDay(str, enum.Enum):
-    FRIDAY = "FRIDAY"
-    SATURDAY = "SATURDAY"
-    SUNDAY = "SUNDAY"
+    FRIDAY = "friday"
+    SATURDAY = "saturday"
+    SUNDAY = "sunday"
 
 class MealBase(SQLModel):
     day: WeekDay
