@@ -43,7 +43,7 @@ async def getapplication(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not await isValidSubmissionTime(session):
+    if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=404, detail="Submitting outside submission time"
         )
@@ -79,7 +79,7 @@ async def saveAnswers(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not await isValidSubmissionTime(session):
+    if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=404, detail="Submitting outside submission time"
         )
@@ -129,7 +129,7 @@ async def uploadresume(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not await isValidSubmissionTime(session):
+    if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=404, detail="Submitting outside submission time"
         )
@@ -159,7 +159,9 @@ async def uploadresume(
     try:
         os.makedirs(UPLOAD_DIR, exist_ok=True)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to prepare upload directory: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to prepare upload directory: {e}"
+        )
 
     # Ensure application exists (parity with saveAnswers)
     if current_user.application is None:
@@ -182,7 +184,9 @@ async def uploadresume(
     if answer_file is None:
         # We cannot create a new Forms_AnswerFile without a question_id here.
         # Return a clear error instead of throwing an AttributeError.
-        raise HTTPException(status_code=400, detail="Resume record not initialized for application")
+        raise HTTPException(
+            status_code=400, detail="Resume record not initialized for application"
+        )
     answer_file.original_filename = file.filename
     answer_file.file_path = filepath
     current_user.application.updated_at = datetime.now(timezone.utc)
@@ -199,12 +203,14 @@ async def submit(
     session: SessionDep,
 ):
     # Check if all mandatory ones are ok + is applying + isdraft + is within the application time
-    if not await isValidSubmissionTime(session):
+    if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=404, detail="Submitting outside submission time"
         )
     for answer in current_user.application.form_answers:
-        if answer.answer is not None and (answer.answer.strip() == "" or answer.answer == "false"):
+        if answer.answer is not None and (
+            answer.answer.strip() == "" or answer.answer == "false"
+        ):
             statement = select(Forms_Question).where(
                 Forms_Question.question_id == answer.question_id
             )
@@ -215,10 +221,23 @@ async def submit(
                 )
     if current_user.application.form_answersfile.original_filename is None:
         raise HTTPException(status_code=404, detail="Resume not uploaded")
-    if not current_user.application.hackathonapplicant.status == StatusEnum.APPLYING:
-        raise HTTPException(status_code=404, detail="User not applying")
-    else:
+
+    current_status = current_user.application.hackathonapplicant.status
+
+    # Check if user is in a valid state to submit
+    is_walk_in_submission = False
+
+    if current_status == StatusEnum.APPLYING:
         current_user.application.hackathonapplicant.status = StatusEnum.APPLIED
+    elif current_status == StatusEnum.WALK_IN:
+        current_user.application.hackathonapplicant.status = (
+            StatusEnum.WALK_IN_SUBMITTED
+        )
+        is_walk_in_submission = True
+    elif current_status in [StatusEnum.APPLIED, StatusEnum.WALK_IN_SUBMITTED]:
+        raise HTTPException(status_code=400, detail="Application already submitted")
+    else:
+        raise HTTPException(status_code=400, detail="User not in valid state to submit")
     if not current_user.application.is_draft:
         raise HTTPException(status_code=404, detail="Application not draft")
     else:
@@ -229,13 +248,48 @@ async def submit(
     session.commit()
     session.refresh(current_user.application.hackathonapplicant)
     session.refresh(current_user.application)
-    await sendEmail(
-        "templates/confirmation.html",
-        current_user.email,
-        "Application Submitted",
-        "You have successfully submitted your application",
-        {},
-    )
+
+    # Send appropriate email based on submission type
+    if is_walk_in_submission:
+        # Walk-in submission - send RSVP email with QR code
+        import io
+
+        from app.utils import createQRCode, generate_google_wallet_pass
+
+        application_id = str(current_user.application.application_id)
+        img = await createQRCode(application_id)
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+
+        google_link = generate_google_wallet_pass(
+            f"{current_user.first_name} {current_user.last_name}", application_id
+        )
+
+        await sendEmail(
+            "templates/rsvp.html",
+            current_user.email,
+            "RSVP for Hack the Valley X",
+            "RSVP at hackthevalley.io",
+            {
+                "start_date": "October 3rd 2025",
+                "end_date": "October 5th 2025",
+                "due_date": "September 26th 2025",
+                "apple_url": f"apple_wallet/{application_id}",
+                "google_url": f"{google_link}",
+            },
+            attachments=[("qr_code", img_bytes, "image/png")],
+        )
+    else:
+        # Regular submission - send confirmation email
+        await sendEmail(
+            "templates/confirmation.html",
+            current_user.email,
+            "Application Submitted",
+            "You have successfully submitted your application",
+            {},
+        )
+
     return "Success"
 
 
