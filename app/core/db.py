@@ -4,6 +4,7 @@ from typing import Annotated, List
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -48,18 +49,34 @@ def create_db_and_tables():
 
 
 def seed_questions(questions: List, session: Session):
-    for index, question in enumerate(questions):
-        statement = select(Forms_Question).where(
-            Forms_Question.label == question["label"]
-        )
-        selected_question = session.exec(statement).first()
-        if not selected_question:
-            db_question = Forms_Question.model_validate(
-                question, update={"question_order": index}
+    # Use advisory lock to ensure only one worker seeds at a time
+    lock_id = 123456788  # Unique ID for question seeding
+
+    try:
+        # Acquire a PostgreSQL advisory lock - this blocks other workers
+        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+
+        for index, question in enumerate(questions):
+            statement = select(Forms_Question).where(
+                Forms_Question.label == question["label"]
             )
-            session.add(db_question)
-            session.commit()
-            session.refresh(db_question)
+            selected_question = session.exec(statement).first()
+            if not selected_question:
+                try:
+                    db_question = Forms_Question.model_validate(
+                        question, update={"question_order": index}
+                    )
+                    session.add(db_question)
+                    session.commit()
+                    session.refresh(db_question)
+                except IntegrityError:
+                    # Question was inserted by another worker, rollback and continue
+                    session.rollback()
+    finally:
+        # Release the advisory lock
+        session.execute(
+            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
+        )
 
 
 def seed_form_time(session: Session):
@@ -84,22 +101,35 @@ def seed_form_time(session: Session):
 
 def seed_meals(meals: List, session: Session):
     """Seed meals into the database if they don't exist"""
-    for meal_data in meals:
-        # Check if meal already exists
-        statement = select(Meal).where(
-            Meal.day == meal_data["day"], Meal.meal_type == meal_data["meal_type"]
-        )
-        existing_meal = session.exec(statement).first()
+    # Use advisory lock to ensure only one worker seeds at a time
+    # Lock ID: arbitrary number to identify this specific seeding operation
+    lock_id = 123456789  # Unique ID for meal seeding
 
-        if not existing_meal:
-            try:
-                db_meal = Meal(
-                    day=meal_data["day"],
-                    meal_type=meal_data["meal_type"],
-                    is_active=meal_data.get("is_active", False),
-                )
-                session.add(db_meal)
-                session.commit()
-            except IntegrityError:
-                # Meal was inserted by another worker, rollback and continue
-                session.rollback()
+    try:
+        # Acquire a PostgreSQL advisory lock - this blocks other workers
+        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+
+        for meal_data in meals:
+            # Check if meal already exists
+            statement = select(Meal).where(
+                Meal.day == meal_data["day"], Meal.meal_type == meal_data["meal_type"]
+            )
+            existing_meal = session.exec(statement).first()
+
+            if not existing_meal:
+                try:
+                    db_meal = Meal(
+                        day=meal_data["day"],
+                        meal_type=meal_data["meal_type"],
+                        is_active=meal_data.get("is_active", False),
+                    )
+                    session.add(db_meal)
+                    session.commit()
+                except IntegrityError:
+                    # Meal was inserted by another worker, rollback and continue
+                    session.rollback()
+    finally:
+        # Release the advisory lock
+        session.execute(
+            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
+        )
