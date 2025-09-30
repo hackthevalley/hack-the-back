@@ -4,6 +4,7 @@ from typing import Annotated, List
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.models.forms import Forms_Form, Forms_Question
@@ -91,11 +92,14 @@ def seed_meals(meals: List, session: Session):
         existing_meal = session.exec(statement).first()
 
         if not existing_meal:
-            db_meal = Meal(
-                day=meal_data["day"],
-                meal_type=meal_data["meal_type"],
-                is_active=meal_data.get("is_active", False),
-            )
-            session.add(db_meal)
-            session.commit()
-            session.refresh(db_meal)
+            try:
+                db_meal = Meal(
+                    day=meal_data["day"],
+                    meal_type=meal_data["meal_type"],
+                    is_active=meal_data.get("is_active", False),
+                )
+                session.add(db_meal)
+                session.commit()
+            except IntegrityError:
+                # Meal was inserted by another worker, rollback and continue
+                session.rollback()
