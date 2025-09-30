@@ -19,6 +19,7 @@ from app.models.forms import (
     Forms_Question,
     StatusEnum,
 )
+from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
 from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
 
@@ -338,4 +339,84 @@ async def update_application_status(
         "application_id": application_id,
         "new_status": request.value,
         "updated_at": application.updated_at,
+    }
+
+
+@router.post("/send_bulk_email")
+async def send_bulk_email(request: BulkEmailRequest, session: SessionDep):
+
+    template_file = Path(request.template_path)
+    if not template_file.exists() or not template_file.is_file():
+        raise HTTPException(status_code=404, detail="Template file not found")
+
+
+    statement = (
+        select(Account_User)
+        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
+        .join(
+            Forms_HackathonApplicant,
+            Forms_Application.application_id == Forms_HackathonApplicant.application_id,
+        )
+        .where(
+            Account_User.is_active == True,  # noqa: E712
+            Forms_HackathonApplicant.status == request.status,
+        )
+    )
+
+    users = session.exec(statement).all()
+
+    if not users:
+        return {
+            "message": f"No users found with status: {request.status.value}",
+            "total_recipients": 0,
+            "emails_sent": 0,
+            "emails_failed": 0,
+            "failures": [],
+        }
+
+    emails_sent = 0
+    emails_failed = 0
+    failures = []
+
+
+    for user in users:
+        try:
+
+            email_context = request.context.copy() if request.context else {}
+            email_context.update(
+                {
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email,
+                }
+            )
+
+            status_code, response = await sendEmail(
+                request.template_path,
+                user.email,
+                request.subject,
+                request.text_body,
+                email_context,
+            )
+
+            if status_code == 200:
+                emails_sent += 1
+            else:
+                emails_failed += 1
+                failures.append(
+                    {
+                        "email": user.email,
+                        "error": response.get("Message", "Unknown error"),
+                    }
+                )
+        except Exception as e:
+            emails_failed += 1
+            failures.append({"email": user.email, "error": str(e)})
+
+    return {
+        "message": f"Bulk email send completed for status: {request.status.value}",
+        "total_recipients": len(users),
+        "emails_sent": emails_sent,
+        "emails_failed": emails_failed,
+        "failures": failures if failures else None,
     }
