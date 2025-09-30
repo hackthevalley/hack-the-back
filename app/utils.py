@@ -205,7 +205,18 @@ async def createapplication(
     return session.exec(statement).first()
 
 
-async def isValidSubmissionTime(session: SessionDep):
+async def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
+    """
+    Check if it's valid time to submit application.
+    Walk-in users (with WALK_IN or WALK_IN_SUBMITTED status) can always submit.
+    """
+    # If user is a walk-in, always allow submission
+    if user and user.application and user.application.hackathonapplicant:
+        status = user.application.hackathonapplicant.status
+        if status in [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]:
+            return True
+
+    # Otherwise, check if within submission time window
     time = session.exec(select(Forms_Form).limit(1)).first()
     if time is None:
         return False

@@ -7,6 +7,7 @@ from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.models.forms import Forms_Form, Forms_Question
+from app.models.meal import Meal
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -78,3 +79,23 @@ def seed_form_time(session: Session):
         session.add(db_forms_form)
         session.commit()
         session.refresh(db_forms_form)
+
+
+def seed_meals(meals: List, session: Session):
+    """Seed meals into the database if they don't exist"""
+    for meal_data in meals:
+        # Check if meal already exists
+        statement = select(Meal).where(
+            Meal.day == meal_data["day"], Meal.meal_type == meal_data["meal_type"]
+        )
+        existing_meal = session.exec(statement).first()
+
+        if not existing_meal:
+            db_meal = Meal(
+                day=meal_data["day"],
+                meal_type=meal_data["meal_type"],
+                is_active=meal_data.get("is_active", False),
+            )
+            session.add(db_meal)
+            session.commit()
+            session.refresh(db_meal)
