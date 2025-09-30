@@ -4,6 +4,7 @@ from typing import Annotated, List
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -48,18 +49,34 @@ def create_db_and_tables():
 
 
 def seed_questions(questions: List, session: Session):
-    for index, question in enumerate(questions):
-        statement = select(Forms_Question).where(
-            Forms_Question.label == question["label"]
-        )
-        selected_question = session.exec(statement).first()
-        if not selected_question:
-            db_question = Forms_Question.model_validate(
-                question, update={"question_order": index}
+
+    lock_id = 123456788
+
+    try:
+
+        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+
+        for index, question in enumerate(questions):
+            statement = select(Forms_Question).where(
+                Forms_Question.label == question["label"]
             )
-            session.add(db_question)
-            session.commit()
-            session.refresh(db_question)
+            selected_question = session.exec(statement).first()
+            if not selected_question:
+                try:
+                    db_question = Forms_Question.model_validate(
+                        question, update={"question_order": index}
+                    )
+                    session.add(db_question)
+                    session.commit()
+                    session.refresh(db_question)
+                except IntegrityError:
+
+                    session.rollback()
+    finally:
+
+        session.execute(
+            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
+        )
 
 
 def seed_form_time(session: Session):
@@ -83,22 +100,35 @@ def seed_form_time(session: Session):
 
 
 def seed_meals(meals: List, session: Session):
-    for meal_data in meals:
 
-        statement = select(Meal).where(
-            Meal.day == meal_data["day"], Meal.meal_type == meal_data["meal_type"]
+
+    lock_id = 123456789
+
+    try:
+
+        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+
+        for meal_data in meals:
+
+            statement = select(Meal).where(
+                Meal.day == meal_data["day"], Meal.meal_type == meal_data["meal_type"]
+            )
+            existing_meal = session.exec(statement).first()
+
+            if not existing_meal:
+                try:
+                    db_meal = Meal(
+                        day=meal_data["day"],
+                        meal_type=meal_data["meal_type"],
+                        is_active=meal_data.get("is_active", False),
+                    )
+                    session.add(db_meal)
+                    session.commit()
+                except IntegrityError:
+
+                    session.rollback()
+    finally:
+
+        session.execute(
+            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
         )
-        existing_meal = session.exec(statement).first()
-
-        if not existing_meal:
-            try:
-                db_meal = Meal(
-                    day=meal_data["day"],
-                    meal_type=meal_data["meal_type"],
-                    is_active=meal_data.get("is_active", False),
-                )
-                session.add(db_meal)
-                session.commit()
-            except IntegrityError:
-
-                session.rollback()
