@@ -4,19 +4,14 @@ from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Body, HTTPException, status
-from pydantic import BaseModel
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.forms import Forms_Form, StatusEnum
+from app.models.forms import Forms_Form, StatusEnum, WalkInRequest
 from app.models.user import Account_User
 from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
 
 router = APIRouter()
-
-
-class WalkInRequest(BaseModel):
-    email: str
 
 
 @router.post("/setregtimerange", response_model=Forms_Form)
