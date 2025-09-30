@@ -205,7 +205,14 @@ async def createapplication(
     return session.exec(statement).first()
 
 
-async def isValidSubmissionTime(session: SessionDep):
+async def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
+
+    if user and user.application and user.application.hackathonapplicant:
+        status = user.application.hackathonapplicant.status
+        if status in [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]:
+            return True
+
+
     time = session.exec(select(Forms_Form).limit(1)).first()
     if time is None:
         return False

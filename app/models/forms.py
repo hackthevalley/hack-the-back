@@ -134,3 +134,7 @@ class ApplicationResponse(BaseModel):
     application: Forms_Application
     form_answers: list[Forms_Answer]
     form_answersfile: str | None
+
+
+class WalkInRequest(BaseModel):
+    email: str
