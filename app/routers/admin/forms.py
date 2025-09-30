@@ -9,7 +9,12 @@ from sqlmodel import select
 from app.core.db import SessionDep
 from app.models.forms import Forms_Form, StatusEnum, WalkInRequest
 from app.models.user import Account_User
-from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
+from app.utils import (
+    createapplication,
+    createQRCode,
+    generate_google_wallet_pass,
+    sendEmail,
+)
 
 router = APIRouter()
 
@@ -91,13 +96,17 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
             },
         )
 
-    # Check if user has an application
-    if not user.application or not user.application.hackathonapplicant:
+    # Create application if user doesn't have one
+    if not user.application:
+        user.application = await createapplication(user, session)
+
+    # Ensure hackathonapplicant exists
+    if not user.application.hackathonapplicant:
         raise HTTPException(
             status_code=400,
             detail={
-                "fallbackMessage": "User has no application",
-                "detail": "User needs to create an application first",
+                "fallbackMessage": "Application setup incomplete",
+                "detail": "Application record exists but is incomplete",
             },
         )
 
