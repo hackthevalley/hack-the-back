@@ -136,20 +136,16 @@ async def get_all_apps(
             )
         )
 
-    fa = aliased(Forms_Application)
-
-    statement = statement.join(fa, Account_User.uid == fa.uid)
-
-    if role:
-        fha = aliased(Forms_HackathonApplicant)
-        statement = statement.join(fha, fha.application_id == fa.application_id).where(
-            func.lower(cast(Forms_HackathonApplicant.status, String)) == role.lower()
-        )
-
-    # Join with Forms_Application first (only once)
+    # Join with Forms_Application (only once)
     statement = statement.join(
         Forms_Application, Account_User.uid == Forms_Application.uid
     )
+
+    if role:
+        fha = aliased(Forms_HackathonApplicant)
+        statement = statement.join(
+            fha, fha.application_id == Forms_Application.application_id
+        ).where(func.lower(cast(fha.status, String)) == role.lower())
 
     # Apply age filter
     if age and age_question:
