@@ -7,7 +7,6 @@ from app.routers.account import router as account
 from app.routers.admin import router as admin
 from app.routers.forms import router as forms
 from app.routers.meal import router as meal
-from app.routers.food_tracking import router as foodtracking
 from app.utils import decode_jwt
 
 router = APIRouter()
@@ -29,4 +28,3 @@ router.include_router(
     admin, prefix="/admin", tags=["admin"], dependencies=[Depends(is_admin)]
 )
 router.include_router(meal, prefix="/meal", tags=["food-tracking"])
-router.include_router(foodtracking,prefix="/foodtracking", tags=["food-tracking"])
