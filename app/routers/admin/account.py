@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from sqlalchemy import Integer, String, and_, cast, func, or_
+from sqlalchemy import String, and_, cast, func, or_
 from sqlalchemy.orm import aliased
 from sqlmodel import select
 
@@ -100,15 +100,15 @@ async def get_all_apps(
     ofs: int = 0,
     limit: int = 25,
     search: str = "",
-    age: str = "",
+    level_of_study: str = "",
     gender: str = "",
     school: str = "",
     date_sort: str = "",
     role: str = "",
 ):
 
-    age_question = session.exec(
-        select(Forms_Question).where(Forms_Question.label == "Age")
+    level_of_study_question = session.exec(
+        select(Forms_Question).where(Forms_Question.label == "Current Level of Study")
     ).first()
     gender_question = session.exec(
         select(Forms_Question).where(Forms_Question.label == "Gender")
@@ -148,43 +148,19 @@ async def get_all_apps(
         ).where(func.lower(cast(fha.status, String)) == role.lower())
 
 
-    if age and age_question:
+    if level_of_study and level_of_study_question:
 
-        age_answer = aliased(Forms_Answer)
+        level_of_study_answer = aliased(Forms_Answer)
 
         statement = statement.join(
-            age_answer,
+            level_of_study_answer,
             and_(
-                age_answer.application_id == Forms_Application.application_id,
-                age_answer.question_id == age_question.question_id,
+                level_of_study_answer.application_id
+                == Forms_Application.application_id,
+                level_of_study_answer.question_id
+                == level_of_study_question.question_id,
             ),
-        )
-
-        MAX_AGE = 40
-
-        if age == f"{MAX_AGE}+":
-
-            statement = statement.where(
-                and_(
-                    age_answer.answer.isnot(None),
-                    age_answer.answer != "",
-                    age_answer.answer.cast(Integer) >= MAX_AGE,
-                )
-            )
-        elif "-" in age:
-
-            min_age, max_age = age.split("-")
-            statement = statement.where(
-                and_(
-                    age_answer.answer.isnot(None),
-                    age_answer.answer != "",
-                    age_answer.answer.cast(Integer) >= int(min_age),
-                    age_answer.answer.cast(Integer) <= int(max_age),
-                )
-            )
-        else:
-
-            statement = statement.where(age_answer.answer.ilike(f"%{age}%"))
+        ).where(func.lower(level_of_study_answer.answer) == level_of_study.lower())
 
 
     if gender and gender_question:
@@ -229,19 +205,21 @@ async def get_all_apps(
     response = []
     for user in users:
         user_app = user.application
-        user_age = None
+        user_level_of_study = None
         user_gender = None
         user_school = None
-        if user_app and age_question:
-            age_answer = session.exec(
+        if user_app and level_of_study_question:
+            level_of_study_answer = session.exec(
                 select(Forms_Answer).where(
                     and_(
                         Forms_Answer.application_id == user_app.application_id,
-                        Forms_Answer.question_id == age_question.question_id,
+                        Forms_Answer.question_id == level_of_study_question.question_id,
                     )
                 )
             ).first()
-            user_age = age_answer.answer if age_answer else None
+            user_level_of_study = (
+                level_of_study_answer.answer if level_of_study_answer else None
+            )
 
         if user_app and gender_question:
             gender_answer = session.exec(
@@ -276,7 +254,7 @@ async def get_all_apps(
                 else None,
                 "created_at": user_app.created_at if user_app else None,
                 "updated_at": user_app.updated_at if user_app else None,
-                "age": user_age,
+                "level_of_study": user_level_of_study,
                 "gender": user_gender,
                 "school": user_school,
             }
