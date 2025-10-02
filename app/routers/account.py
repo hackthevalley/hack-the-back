@@ -55,6 +55,8 @@ async def login(
     scopes = []
     if selected_user.role == "admin":
         scopes.append("admin")
+    if selected_user.role == "volunteer":
+        scopes.append("volunteer")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
