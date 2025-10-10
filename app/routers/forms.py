@@ -97,10 +97,27 @@ async def saveAnswers(
 
     answer_map = {str(ans.question_id): ans for ans in application.form_answers}
 
+    # Fetch questions to check for pre-filled fields
+    questions_statement = select(Forms_Question)
+    questions = session.exec(questions_statement).all()
+    question_map = {str(q.question_id): q for q in questions}
+
     bulk_updates = []
     for update in forms_batchupdate:
         form_answer = answer_map.get(update.question_id)
         if form_answer:
+            # Prevent overwriting pre-filled fields (First Name, Last Name, Email) with empty values
+            question = question_map.get(update.question_id)
+            if question:
+                label_lower = question.label.lower().strip()
+                is_prefilled_field = label_lower in ["first name", "last name", "email"]
+                has_existing_value = form_answer.answer and form_answer.answer.strip()
+                is_empty_update = not update.answer or not update.answer.strip()
+
+                # Skip update if trying to overwrite pre-filled field with empty value
+                if is_prefilled_field and has_existing_value and is_empty_update:
+                    continue
+
             bulk_updates.append({"id": form_answer.id, "answer": update.answer})
         else:
             raise HTTPException(
