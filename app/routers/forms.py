@@ -97,10 +97,27 @@ async def saveAnswers(
 
     answer_map = {str(ans.question_id): ans for ans in application.form_answers}
 
+
+    questions_statement = select(Forms_Question)
+    questions = session.exec(questions_statement).all()
+    question_map = {str(q.question_id): q for q in questions}
+
     bulk_updates = []
     for update in forms_batchupdate:
         form_answer = answer_map.get(update.question_id)
         if form_answer:
+
+            question = question_map.get(update.question_id)
+            if question:
+                label_lower = question.label.lower().strip()
+                is_prefilled_field = label_lower in ["first name", "last name", "email"]
+                has_existing_value = form_answer.answer and form_answer.answer.strip()
+                is_empty_update = not update.answer or not update.answer.strip()
+
+
+                if is_prefilled_field and has_existing_value and is_empty_update:
+                    continue
+
             bulk_updates.append({"id": form_answer.id, "answer": update.answer})
         else:
             raise HTTPException(
