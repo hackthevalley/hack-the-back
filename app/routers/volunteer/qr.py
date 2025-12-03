@@ -23,7 +23,7 @@ class QRScanRequest(BaseModel):
     id: str
 
 
-@router.post("/scan")
+@router.post("")
 async def scan_qr(request: QRScanRequest, session: SessionDep):
     try:
         application_id = UUID(request.id)

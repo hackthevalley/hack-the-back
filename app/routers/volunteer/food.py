@@ -57,7 +57,7 @@ async def get_food_data(session: SessionDep):
     return FoodResponse(allFood=all_food, currentMeal=current_meal)
 
 
-@router.post("/foodtracker")
+@router.post("/tracking")
 async def track_food(request: dict, session: SessionDep):
     from app.models.food_tracking import Food_Tracking
     from app.models.forms import Forms_Application
