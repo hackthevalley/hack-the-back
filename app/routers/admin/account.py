@@ -26,7 +26,7 @@ from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
 router = APIRouter()
 
 
-@router.get("/getusers", response_model=list[UserPublic])
+@router.get("/users", response_model=list[UserPublic])
 def get_users(
     session: SessionDep,
     offset: int = 0,
@@ -37,7 +37,7 @@ def get_users(
 
 
 # Need to improve with search query instead of with just offsets
-@router.get("/getapplicants")
+@router.get("/applicants")
 async def getapplicants(
     session: SessionDep,
     offset: int = 0,
@@ -52,7 +52,7 @@ async def getapplicants(
     return applicants
 
 
-@router.get("/file/{application_id}")
+@router.get("/applications/{application_id}/resume")
 async def get_resume(
     application_id: UUID,
     session: SessionDep,
@@ -77,7 +77,7 @@ async def get_resume(
     )
 
 
-@router.get("/getapplication")
+@router.get("/applications/{application_id}")
 async def get_application(application_id: UUID, session: SessionDep):
     statement = select(Forms_Application).where(
         Forms_Application.application_id == application_id
@@ -94,7 +94,7 @@ async def get_application(application_id: UUID, session: SessionDep):
     }
 
 
-@router.get("/getallapps")
+@router.get("/applications")
 async def get_all_apps(
     session: SessionDep,
     ofs: int = 0,
@@ -262,7 +262,7 @@ async def get_all_apps(
     return {"application": response, "offset": ofs, "limit": limit}
 
 
-@router.put("/updatestatus/{application_id}")
+@router.patch("/applications/{application_id}/status")
 async def update_application_status(
     application_id: str, request: StatusEnum, session: SessionDep
 ):
@@ -297,7 +297,7 @@ async def update_application_status(
                 "start_date": "October 3rd 2025",
                 "end_date": "October 5th 2025",
                 "due_date": "September 26th 2025",
-                "apple_url": f"apple_wallet/{application_id}",
+                "apple_url": f"apple-wallet/{application_id}",
                 "google_url": f"{google_link}",
             },
             attachments=[("qr_code", img_bytes, "image/png")],
@@ -316,7 +316,7 @@ async def update_application_status(
     }
 
 
-@router.post("/send_bulk_email")
+@router.post("/bulk-emails")
 async def send_bulk_email(request: BulkEmailRequest, session: SessionDep):
     """
     Send an email to all applicants with a specific status.

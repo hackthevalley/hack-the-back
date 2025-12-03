@@ -16,7 +16,7 @@ from app.utils import (
 router = APIRouter()
 
 
-@router.post("/walkin")
+@router.post("/walk-ins")
 async def mark_walkin(request: WalkInRequest, session: SessionDep):
     """
     Mark a user as walk-in based on their email.
@@ -96,7 +96,7 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
                 "start_date": "October 3rd 2025",
                 "end_date": "October 5th 2025",
                 "due_date": "September 26th 2025",
-                "apple_url": f"apple_wallet/{application_id}",
+                "apple_url": f"apple-wallet/{application_id}",
                 "google_url": f"{google_link}",
             },
             attachments=[("qr_code", img_bytes, "image/png")],

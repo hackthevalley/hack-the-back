@@ -23,7 +23,7 @@ class QRScanRequest(BaseModel):
     id: str  # application_id
 
 
-@router.post("/scan")
+@router.post("")
 async def scan_qr(request: QRScanRequest, session: SessionDep):
     """
     Scan QR code to admit a hacker and retrieve their information

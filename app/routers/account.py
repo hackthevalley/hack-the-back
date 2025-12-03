@@ -33,7 +33,7 @@ router = APIRouter()
 
 
 # Uses type application/x-www-form-urlencoded for response body, not JSON
-@router.post("/login")
+@router.post("/sessions")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
 ) -> Token:
@@ -73,7 +73,7 @@ async def login(
     return Token(access_token=access_token, token_type="bearer")
 
 
-@router.post("/signup", response_model=UserPublic)
+@router.post("/users", response_model=UserPublic)
 async def signup(user: UserCreate, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == user.email)
     selected_user = session.exec(statement).first()
@@ -110,7 +110,7 @@ async def read_users_me(
     )
 
 
-@router.post("/send_reset_password")
+@router.post("/password-resets")
 async def send_reset_password(user: PasswordReset, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == user.email)
     selected_user = session.exec(statement).first()
@@ -158,7 +158,7 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
     return response
 
 
-@router.post("/reset_password")
+@router.put("/password-resets")
 async def reset_password(user: UserUpdate, session: SessionDep):
     token_data = await decode_jwt(user.token)
     if "reset_password" not in token_data.scopes:
@@ -174,7 +174,7 @@ async def reset_password(user: UserUpdate, session: SessionDep):
     return True
 
 
-@router.post("/activate")
+@router.post("/activations")
 async def activate(user: UserUpdate, session: SessionDep):
     token_data = await decode_jwt(user.token)
     if "account_activate" not in token_data.scopes:
@@ -190,7 +190,7 @@ async def activate(user: UserUpdate, session: SessionDep):
     return True
 
 
-@router.post("/refresh")
+@router.post("/tokens")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
     if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
@@ -204,7 +204,7 @@ async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Toke
     return Token(access_token=access_token, token_type="bearer")
 
 
-@router.get("/apple_wallet/{application_id}")
+@router.get("/apple-wallet/{application_id}")
 async def apple_wallet(application_id: str, session: SessionDep):
     statement = (
         select(Account_User.first_name, Account_User.last_name)
@@ -231,7 +231,7 @@ async def apple_wallet(application_id: str, session: SessionDep):
     )
 
 
-@router.put("/rsvpstatusupdate/{uid}")
+@router.patch("/users/{uid}/rsvp-status")
 async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
     application_statement = select(Forms_Application).where(
         Forms_Application.uid == uid
