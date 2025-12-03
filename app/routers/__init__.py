@@ -38,7 +38,7 @@ router.include_router(forms, prefix="/forms", tags=["forms"])
 router.include_router(
     admin, prefix="/admin", tags=["admin"], dependencies=[Depends(is_admin)]
 )
-router.include_router(meal, prefix="/meal", tags=["food-tracking"])
+router.include_router(meal, prefix="/meals", tags=["meals"])
 router.include_router(
     volunteer,
     prefix="/volunteer",
