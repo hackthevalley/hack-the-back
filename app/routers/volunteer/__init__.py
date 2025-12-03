@@ -7,5 +7,5 @@ from app.routers.volunteer.qr import router as qr
 router = APIRouter()
 
 router.include_router(food, prefix="/food")
-router.include_router(qr, prefix="/qr")
+router.include_router(qr, prefix="/check-ins")
 router.include_router(forms, prefix="/forms")

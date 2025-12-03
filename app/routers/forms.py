@@ -32,13 +32,13 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 MAX_FILE_SIZE = 5 * 1024 * 1024
 
 
-@router.get("/getquestions")
+@router.get("/questions")
 async def getquestions(session: SessionDep) -> list[Forms_Question]:
     statement = select(Forms_Question)
     return session.exec(statement)
 
 
-@router.get("/getapplication", response_model=ApplicationResponse)
+@router.get("/application", response_model=ApplicationResponse)
 async def getapplication(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
@@ -73,7 +73,7 @@ async def getapplication(
     }
 
 
-@router.post("/saveAnswers")
+@router.put("/answers")
 async def saveAnswers(
     forms_batchupdate: list[Forms_AnswerUpdate],
     current_user: Annotated[Account_User, Depends(get_current_user)],
@@ -140,7 +140,7 @@ async def saveAnswers(
     return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
 
 
-@router.post("/uploadresume")
+@router.post("/resume")
 async def uploadresume(
     file: UploadFile,
     current_user: Annotated[Account_User, Depends(get_current_user)],
@@ -214,7 +214,7 @@ async def uploadresume(
     return answer_file.original_filename
 
 
-@router.post("/submit")
+@router.post("/submission")
 async def submit(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
@@ -292,7 +292,7 @@ async def submit(
                 "start_date": "October 3rd 2025",
                 "end_date": "October 5th 2025",
                 "due_date": "September 26th 2025",
-                "apple_url": f"apple_wallet/{application_id}",
+                "apple_url": f"apple-wallet/{application_id}",
                 "google_url": f"{google_link}",
             },
             attachments=[("qr_code", img_bytes, "image/png")],
@@ -310,12 +310,12 @@ async def submit(
     return "Success"
 
 
-@router.get("/submissiontime")
+@router.get("/submission-time")
 async def submissiontime(session: SessionDep):
     return await isValidSubmissionTime(session)
 
 
-@router.get("/getregtimerange", response_model=Forms_Form)
+@router.get("/registration-timerange", response_model=Forms_Form)
 async def get_reg_time_range(session: SessionDep) -> Forms_Form:
     """
     Retrieve the current hackathon registration time range.

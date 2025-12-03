@@ -18,7 +18,7 @@ from app.models.meal import (
 
 router = APIRouter()
 
-@router.post("/createmeal", response_model=MealRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=MealRead, status_code=status.HTTP_201_CREATED)
 async def createmeal(*, session: SessionDep, meal: MealCreate):
     query = select(Meal).where(
         Meal.day == meal.day,
@@ -41,7 +41,7 @@ async def createmeal(*, session: SessionDep, meal: MealCreate):
     response.name = db_meal.name
     return response
 
-@router.get("/getmeals", response_model=List[MealRead])
+@router.get("", response_model=List[MealRead])
 def getmeals(*,
               session: SessionDep,
               day: Optional[WeekDay] = None,
@@ -67,7 +67,7 @@ def getmeals(*,
     
     return results
 
-@router.get("/get/{meal_id}", response_model=MealRead)
+@router.get("/{meal_id}", response_model=MealRead)
 def getmeal(*, 
              session: SessionDep,
              meal_id: UUID):
@@ -83,7 +83,7 @@ def getmeal(*,
     response.name = meal.name
     return response
 
-@router.patch("/update/{meal_id}", response_model=MealRead)
+@router.patch("/{meal_id}", response_model=MealRead)
 def updatemeal(*,
                 session: SessionDep,
                 meal_id: UUID,
@@ -106,7 +106,7 @@ def updatemeal(*,
     response.name = db_meal.name
     return response
 
-@router.delete("/delete/{meal_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{meal_id}", status_code=status.HTTP_204_NO_CONTENT)
 def deletemeal(meal_id: UUID, session: SessionDep):
     meal = session.get(Meal, meal_id)
     if not meal:
