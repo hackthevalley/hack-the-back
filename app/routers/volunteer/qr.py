@@ -92,7 +92,7 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         current_status == StatusEnum.WALK_IN
         or current_status == StatusEnum.WALK_IN_SUBMITTED
     ):
-        hacker_applicant.status = StatusEnum.WALK_IN
+        hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"Welcome walk-in {user.first_name}!"
     else:
         # Already scanned in
