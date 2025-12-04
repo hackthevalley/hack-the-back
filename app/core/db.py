@@ -12,33 +12,28 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.models.forms import Forms_Form, Forms_Question
 from app.models.meal import Meal
 
-# Advisory lock IDs - using constants to prevent magic numbers
-# These must be unique integers for different lock operations
 ADVISORY_LOCK_QUESTIONS = 123456788
 ADVISORY_LOCK_MEALS = 123456789
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Validate that DATABASE_URL is set
+
 if not DATABASE_URL:
     raise ValueError(
         "DATABASE_URL environment variable is not set. "
         "Please configure the database connection string."
     )
 
-# Configure connection pooling for better performance
 engine = create_engine(
     DATABASE_URL,
-    # Connection pool settings
-    pool_size=20,  # Number of connections to maintain in pool
-    max_overflow=10,  # Maximum overflow connections beyond pool_size
-    pool_pre_ping=True,  # Verify connections before using them
-    pool_recycle=3600,  # Recycle connections after 1 hour
-    echo=False,  # Set to True for SQL query logging (debug only)
+    pool_size=20,
+    max_overflow=10,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    echo=False,
     connect_args={
         "connect_timeout": 10,
         "application_name": "hack-the-back",
-        # Connection pooling at the driver level
         "keepalives": 1,
         "keepalives_idle": 30,
         "keepalives_interval": 5,
@@ -47,7 +42,6 @@ engine = create_engine(
 )
 
 
-# Dependency for using the database session
 def get_session():
     with Session(engine) as session:
         yield session
@@ -88,7 +82,6 @@ def advisory_lock(session: Session, lock_id: int):
         )
 
 
-# Initialize the database
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 

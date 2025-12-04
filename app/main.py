@@ -52,7 +52,6 @@ questions = [
 
 meals = [
     {"day": WeekDay.FRIDAY, "meal_type": MealType.DINNER, "is_active": False},
-    # {"day": WeekDay.FRIDAY, "meal_type": MealType.MERCH, "is_active": False},
     {"day": WeekDay.SATURDAY, "meal_type": MealType.BREAKFAST, "is_active": False},
     {"day": WeekDay.SATURDAY, "meal_type": MealType.LUNCH, "is_active": False},
     {"day": WeekDay.SATURDAY, "meal_type": MealType.DINNER, "is_active": False},

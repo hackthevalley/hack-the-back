@@ -39,7 +39,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
             },
         )
 
-    # Get the application with user details
     statement = (
         select(Forms_Application, Account_User, Forms_HackathonApplicant)
         .join(Account_User, Forms_Application.uid == Account_User.uid)
@@ -62,7 +61,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
 
     application, user, hacker_applicant = result
 
-    # Check if user is eligible to be scanned in
     current_status = hacker_applicant.status
     if current_status not in [
         StatusEnum.ACCEPTED,
@@ -79,7 +77,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
             },
         )
 
-    # Update status based on current status
     message = ""
 
     if (
@@ -95,15 +92,12 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"Welcome walk-in {user.first_name}!"
     else:
-        # Already scanned in
         message = f"Already scanned in: {user.first_name}!"
 
-    # Save status update
     session.add(hacker_applicant)
     session.commit()
     session.refresh(hacker_applicant)
 
-    # Get all form answers for this application
     answers_statement = (
         select(Forms_Answer, Forms_Question)
         .join(Forms_Question, Forms_Answer.question_id == Forms_Question.question_id)
@@ -111,14 +105,12 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
     )
     answers_results = session.exec(answers_statement).all()
 
-    # Build answers dictionary
     answers_dict = {
         "firstName": user.first_name,
         "lastName": user.last_name,
         "email": user.email,
     }
 
-    # Map question labels to camelCase keys
     label_to_key = {
         "Phone Number": "phoneNumber",
         "Dietary Restrictions": "dietaryRestrictions",
@@ -129,7 +121,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         key = label_to_key.get(question.label, question.label.lower().replace(" ", ""))
         answers_dict[key] = answer.answer
 
-    # Get user's food tracking history
     food_tracking_statement = (
         select(Food_Tracking, Meal)
         .join(Meal, Food_Tracking.meal_id == Meal.id)
@@ -149,7 +140,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
             }
         )
 
-    # Get counts for scanned in and walk in hackers
     scanned_count = session.exec(
         select(func.count(Forms_HackathonApplicant.application_id)).where(
             Forms_HackathonApplicant.status == StatusEnum.SCANNED_IN
@@ -164,7 +154,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         )
     ).one()
 
-    # Build response body
     response_body = {
         "id": str(application_id),
         "answers": answers_dict,

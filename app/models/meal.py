@@ -45,7 +45,6 @@ class Meal(SQLModel, table=True):
     def name(self) -> str:
         return f"{self.day.capitalize()} {self.meal_type.capitalize()}"
 
-    # Relationship
     tracking_records: List["Food_Tracking"] = Relationship(back_populates="meal")
 
 

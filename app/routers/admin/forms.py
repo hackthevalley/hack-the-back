@@ -45,7 +45,6 @@ async def set_reg_time_range(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date format"
         )
 
-    # Sanity check for valid correct new time range
     if new_start_date >= new_end_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time range"

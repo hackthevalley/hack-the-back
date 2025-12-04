@@ -58,7 +58,6 @@ def get_users(
     return users
 
 
-# Need to improve with search query instead of with just offsets
 @router.get("/applicants")
 async def getapplicants(
     session: SessionDep,
@@ -79,7 +78,6 @@ async def get_resume(
     application_id: UUID,
     session: SessionDep,
 ):
-    # Fetch the file entry for this application
     statement = select(Forms_AnswerFile).where(
         Forms_AnswerFile.application_id == application_id
     )
@@ -134,7 +132,6 @@ async def get_all_apps(
     date_sort: str = "",
     role: StatusEnum | None = None,
 ):
-    # Get question IDs for level of study, gender, and school
     level_of_study_question = session.exec(
         select(Forms_Question).where(Forms_Question.label == "Current Level of Study")
     ).first()
@@ -145,13 +142,10 @@ async def get_all_apps(
         select(Forms_Question).where(Forms_Question.label == "School Name")
     ).first()
 
-    # Create aliases for the Forms_Answer tables we'll join for data retrieval
-    # These are separate from the filter aliases to avoid conflicts
     level_of_study_data = aliased(Forms_Answer)
     gender_data = aliased(Forms_Answer)
     school_data = aliased(Forms_Answer)
 
-    # Build the main query - SELECT all needed columns in one query
     statement = (
         select(
             Account_User,
@@ -163,7 +157,7 @@ async def get_all_apps(
         )
         .where(
             Account_User.is_active,
-            Account_User.application.isnot(None),
+            Account_User.application is not None,
         )
         .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .join(
@@ -172,7 +166,6 @@ async def get_all_apps(
         )
     )
 
-    # LEFT JOIN to get level of study, gender, and school data (even if null)
     if level_of_study_question:
         statement = statement.outerjoin(
             level_of_study_data,
@@ -200,7 +193,6 @@ async def get_all_apps(
             ),
         )
 
-    # Apply search filter
     if search:
         search_pattern = f"%{search}%"
         statement = statement.where(
@@ -214,21 +206,17 @@ async def get_all_apps(
             )
         )
 
-    # Apply role filter
     if role:
         statement = statement.where(Forms_HackathonApplicant.status == role)
 
-    # Apply level of study filter
     if level_of_study and level_of_study_question:
         statement = statement.where(
             func.lower(level_of_study_data.answer) == level_of_study.lower()
         )
 
-    # Apply gender filter
     if gender and gender_question:
         statement = statement.where(func.lower(gender_data.answer) == gender.lower())
 
-    # Apply school filter
     if school and school_question:
         statement = statement.where(
             and_(
@@ -238,20 +226,16 @@ async def get_all_apps(
             )
         )
 
-    # Apply date sorting
     if date_sort:
         if date_sort == "oldest":
             statement = statement.order_by(Forms_Application.updated_at.asc())
         elif date_sort == "latest":
             statement = statement.order_by(Forms_Application.updated_at.desc())
 
-    # Apply pagination
     statement = statement.offset(ofs).limit(limit)
 
-    # Execute query - get all data in ONE query (no N+1 problem)
     results = session.exec(statement).all()
 
-    # Build response from the single query result
     response = []
     for (
         user,
@@ -337,7 +321,6 @@ async def send_bulk_email(
     Returns:
         Confirmation that the email job has been queued
     """
-    # Validate template exists
     template_file = Path(request.template_path)
     if not template_file.exists() or not template_file.is_file():
         raise HTTPException(

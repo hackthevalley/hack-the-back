@@ -19,7 +19,6 @@ class Food_Tracking(SQLModel, table=True):
     meal_id: uuid.UUID = Field(foreign_key="meal.id", index=True)
     checkin_time: datetime = Field(default_factory=datetime.now)
 
-    # Relationships
     user: "Account_User" = Relationship(back_populates="meals")
     meal: "Meal" = Relationship(back_populates="tracking_records")
 

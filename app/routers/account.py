@@ -33,7 +33,6 @@ from app.utils import (
 router = APIRouter()
 
 
-# Uses type application/x-www-form-urlencoded for response body, not JSON
 @router.post("/sessions")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep

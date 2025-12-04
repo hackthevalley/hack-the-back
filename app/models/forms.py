@@ -71,7 +71,6 @@ class Forms_ApplicationUpdate(SQLModel):
     updated_at: datetime | None = None
 
 
-# Separate bc no race conditions when updating rows?
 class Forms_HackathonApplicant(SQLModel, table=True):
     application_id: uuid.UUID | None = Field(
         default=None, primary_key=True, foreign_key="forms_application.application_id"
@@ -86,7 +85,6 @@ class Forms_HackathonApplicantUpdate(SQLModel):
     status: StatusEnum | None = None
 
 
-# Future reference: Designed it like this to prevent people from directly submitting answers to invalid questions
 class Forms_Question(SQLModel, table=True):
     question_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     question_order: int = Field(index=True)
@@ -94,7 +92,6 @@ class Forms_Question(SQLModel, table=True):
     required: bool
 
 
-# API to return everything related and we just pass id to modify form answers or else need to index question table for every update
 class Forms_Answer(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     application_id: uuid.UUID | None = Field(

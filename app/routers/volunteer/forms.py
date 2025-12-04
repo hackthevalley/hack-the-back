@@ -23,7 +23,6 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     - If status is APPLYING/NOT_APPLIED/None -> set to WALK_IN
     - If status is already submitted (APPLIED, ACCEPTED, etc.) -> set to WALK_IN_SUBMITTED and send RSVP email
     """
-    # Find user by email
     statement = select(Account_User).where(Account_User.email == request.email)
     user = session.exec(statement).first()
 
@@ -36,11 +35,9 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
             },
         )
 
-    # Create application if user doesn't have one
     if not user.application:
         user.application = await createapplication(user, session)
 
-    # Ensure hackathonapplicant exists
     if not user.application.hackathonapplicant:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -53,7 +50,6 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     current_status = user.application.hackathonapplicant.status
     application_id = str(user.application.application_id)
 
-    # Determine new status based on current status
     early_statuses = [
         StatusEnum.NOT_APPLIED,
         StatusEnum.APPLYING,
@@ -61,22 +57,18 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     ]
 
     if current_status in early_statuses or current_status is None:
-        # User hasn't submitted yet - mark as WALK_IN (can still fill out application)
         user.application.hackathonapplicant.status = StatusEnum.WALK_IN
         message = f"User {user.email} marked as WALK_IN - they can now complete their application"
         send_email = False
     else:
-        # User already submitted or further along - mark as WALK_IN_SUBMITTED and send RSVP
         user.application.hackathonapplicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"User {user.email} marked as WALK_IN_SUBMITTED - RSVP email sent"
         send_email = True
 
-    # Save status change
     session.add(user.application.hackathonapplicant)
     session.commit()
     session.refresh(user.application.hackathonapplicant)
 
-    # Send RSVP email if needed
     if send_email:
         img = await createQRCode(application_id)
         img_bytes = io.BytesIO()

@@ -85,7 +85,6 @@ async def get_current_user(
     ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
 
-    # Optimize: Use eager loading to fetch user with application relationship
     statement = (
         select(Account_User)
         .where(Account_User.email == token_data.email)
@@ -132,12 +131,10 @@ async def createapplication(
             detail="User profile incomplete - first name, last name, or email cannot be empty",
         )
 
-    # Preload all form questions first
     questions = session.exec(
         select(Forms_Question).order_by(Forms_Question.question_order)
     ).all()
 
-    # Create application object
     application = Forms_Application(
         user=current_user,
         is_draft=True,
@@ -145,16 +142,14 @@ async def createapplication(
         updated_at=datetime.now(timezone.utc),
     )
     session.add(application)
-    session.flush()  # Flush to get application_id without committing
+    session.flush()
 
-    # Create hackathon applicant entry
     hackathon_applicant = Forms_HackathonApplicant(
         applicant=application,
         status=StatusEnum.APPLYING,
     )
     session.add(hackathon_applicant)
 
-    # Prepare answers
     answers = []
     resume_question = None
     for q in questions:
@@ -189,13 +184,10 @@ async def createapplication(
         )
         session.add(resume_answer)
 
-    # Single commit for all operations - more efficient
     session.commit()
 
-    # REFRESH current_user (to reflect .application relationship)
     session.refresh(current_user)
 
-    # REFRESH application with all relationships
     statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)
@@ -213,13 +205,11 @@ async def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
     Check if it's valid time to submit application.
     Walk-in users (with WALK_IN or WALK_IN_SUBMITTED status) can always submit.
     """
-    # If user is a walk-in, always allow submission
     if user and user.application and user.application.hackathonapplicant:
         status = user.application.hackathonapplicant.status
         if status in [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]:
             return True
 
-    # Otherwise, check if within submission time window
     time = session.exec(select(Forms_Form).limit(1)).first()
     if time is None:
         return False
@@ -287,7 +277,6 @@ async def sendActivate(email: str, session: SessionDep):
     if selected_user.last_activation_email_sent:
         last_sent = selected_user.last_activation_email_sent
 
-        # Convert naive datetime to aware if needed
         if last_sent.tzinfo is None:
             last_sent = last_sent.replace(tzinfo=timezone.utc)
         if now - last_sent < cooldown:
@@ -360,17 +349,15 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.label_color = "rgb(255, 255, 255)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
-    # Add required graphics (must exist in pass)
     apple_pass.add_file("icon.png", open("images/icon-29x29.png", "rb"))
     apple_pass.add_file("logo.png", open("images/logo-50x50.png", "rb"))
 
-    # Create signed .pkpass (bytes in memory, not written to disk)
     package = apple_pass.create(
         "certs/apple/cert.pem",
         "certs/apple/key.pem",
         "certs/apple/wwdr.pem",
         os.getenv("APPLE_WALLET_KEY_PASSWORD"),
-        None,  # ⚡ keep in memory
+        None,
     )
 
     return package
@@ -415,9 +402,7 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
         },
     }
 
-    # google.auth.jwt.encode accepts the signer object (creds.signer) and returns bytes
     token_bytes = google.auth.jwt.encode(creds.signer, payload)
-    # decode to str
     token = token_bytes.decode("utf-8")
     save_url = f"https://pay.google.com/gp/v/save/{token}"
     return save_url
@@ -439,16 +424,13 @@ async def send_rsvp(
     """
     import io
 
-    # Generate QR code
     img = await createQRCode(application_id)
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="PNG")
     img_bytes.seek(0)
 
-    # Generate Google Wallet pass link
     google_link = generate_google_wallet_pass(user_full_name, application_id)
 
-    # Send email with QR code attachment
     await sendEmail(
         "templates/rsvp.html",
         user_email,

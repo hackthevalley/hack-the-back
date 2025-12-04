@@ -43,11 +43,9 @@ def validate_pdf_file(filename: str, content: bytes) -> tuple[bool, str]:
         return False, "File is too small to be a valid PDF"
 
     if not content.startswith(b"%PDF-"):
-        # allow within first 2KB (some PDFs have garbage first)
         if content[:2048].find(b"%PDF-") == -1:
             return False, "Missing PDF header (%PDF-) — file is not a valid PDF"
 
-    # Regex: %%EOF * possibly preceded by incremental update sections
     eof_matches = re.findall(rb"%%EOF", content)
     if not eof_matches:
         return False, "Missing PDF EOF marker"
@@ -167,7 +165,6 @@ async def saveAnswers(
     for update in forms_batchupdate:
         form_answer = answer_map.get(update.question_id)
         if form_answer:
-            # Prevent overwriting pre-filled fields (First Name, Last Name, Email) with empty values
             question = question_map.get(update.question_id)
             if question:
                 label_lower = question.label.lower().strip()
@@ -175,7 +172,6 @@ async def saveAnswers(
                 has_existing_value = form_answer.answer and form_answer.answer.strip()
                 is_empty_update = not update.answer or not update.answer.strip()
 
-                # Skip update if trying to overwrite pre-filled field with empty value
                 if is_prefilled_field and has_existing_value and is_empty_update:
                     continue
 
@@ -190,12 +186,10 @@ async def saveAnswers(
         session.bulk_update_mappings(Forms_Answer, bulk_updates)
         session.commit()
 
-    # Update application timestamp
     application.updated_at = datetime.now(timezone.utc)
     session.add(application)
     session.commit()
 
-    # Refresh only the application object instead of individual answers
     session.refresh(application)
 
     return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
@@ -295,7 +289,6 @@ async def submit(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    # Check if all mandatory ones are ok + is applying + isdraft + is within the application time
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
