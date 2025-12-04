@@ -1,3 +1,4 @@
+import io
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from pypdf import PdfReader
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -30,6 +32,45 @@ router = APIRouter()
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 MAX_FILE_SIZE = 5 * 1024 * 1024
+
+
+def validate_pdf_file(filename: str, content: bytes) -> tuple[bool, str]:
+    if not filename.lower().endswith(".pdf"):
+        return False, "Only PDF files are allowed"
+
+    if len(content) < 5:
+        return False, "File is too small to be a valid PDF"
+
+    pdf_signature = content[:5]
+    if pdf_signature != b"%PDF-":
+        return False, "File content does not match PDF format (invalid magic bytes)"
+
+    try:
+        pdf_file = io.BytesIO(content)
+
+        reader = PdfReader(pdf_file)
+
+        if len(reader.pages) < 1:
+            return False, "PDF file must contain at least one page"
+
+        _ = reader.pages[0]
+
+        if reader.is_encrypted:
+            return False, "Encrypted or password-protected PDFs are not supported"
+
+        return True, ""
+
+    except Exception as e:
+        error_msg = str(e)
+
+        if "EOF" in error_msg or "marker" in error_msg or "xref" in error_msg:
+            return False, "PDF file is corrupted or incomplete"
+        elif "encrypt" in error_msg.lower() or "password" in error_msg.lower():
+            return False, "Encrypted or password-protected PDFs are not supported"
+        elif "invalid" in error_msg.lower():
+            return False, "Invalid PDF structure detected"
+        else:
+            return False, f"Invalid PDF file: {error_msg[:100]}"
 
 
 @router.get("/questions")
@@ -81,7 +122,8 @@ async def saveAnswers(
 ):
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is currently closed"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Submission is currently closed",
         )
 
     if current_user.application is None:
@@ -148,24 +190,32 @@ async def uploadresume(
 ):
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is currently closed"
-        )
-    if not file.filename.endswith(".pdf"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Submission is currently closed",
         )
 
-    # Check file size before reading
-    # Method 1: Try to get size from headers if available
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Filename is required"
+        )
+
+    if file.content_type and file.content_type not in [
+        "application/pdf",
+        "application/x-pdf",
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid content type: {file.content_type}. Only PDF files are allowed",
+        )
+
     if file.size is not None and file.size > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File exceeds 5MB limit"
+            detail="File exceeds 5MB limit",
         )
 
-    # Method 2: Read file in chunks to check size without loading entire file into memory
     contents = b""
-    chunk_size = 1024 * 1024  # 1MB chunks
+    chunk_size = 1024 * 1024
     while True:
         chunk = await file.read(chunk_size)
         if not chunk:
@@ -173,14 +223,16 @@ async def uploadresume(
         contents += chunk
         if len(contents) > MAX_FILE_SIZE:
             raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File exceeds 5MB limit"
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="File exceeds 5MB limit",
+            )
+
+    is_valid, error_message = validate_pdf_file(file.filename, contents)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         )
 
-    # Reset file position to beginning after reading
-    await file.seek(0)
-
-    # Ensure upload directory exists and is a valid path
     try:
         os.makedirs(UPLOAD_DIR, exist_ok=True)
     except Exception as e:
@@ -188,7 +240,6 @@ async def uploadresume(
             status_code=500, detail=f"Failed to prepare upload directory: {e}"
         )
 
-    # Ensure application exists (parity with saveAnswers)
     if current_user.application is None:
         current_user.application = await createapplication(current_user, session)
     answer_file = current_user.application.form_answersfile
@@ -207,8 +258,6 @@ async def uploadresume(
         f.write(contents)
     answer_file = current_user.application.form_answersfile
     if answer_file is None:
-        # We cannot create a new Forms_AnswerFile without a question_id here.
-        # Return a clear error instead of throwing an AttributeError.
         raise HTTPException(
             status_code=400, detail="Resume record not initialized for application"
         )
@@ -230,7 +279,8 @@ async def submit(
     # Check if all mandatory ones are ok + is applying + isdraft + is within the application time
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is currently closed"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Submission is currently closed",
         )
     for answer in current_user.application.form_answers:
         if answer.answer is not None and (
@@ -243,7 +293,7 @@ async def submit(
             if selected_question and selected_question.required:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Required field not answered: {selected_question.label}"
+                    detail=f"Required field not answered: {selected_question.label}",
                 )
     if current_user.application.form_answersfile.original_filename is None:
         raise HTTPException(
@@ -269,12 +319,12 @@ async def submit(
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not in valid state to submit"
+            detail="User not in valid state to submit",
         )
     if not current_user.application.is_draft:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Application has already been submitted"
+            detail="Application has already been submitted",
         )
     else:
         current_user.application.is_draft = False
@@ -336,14 +386,5 @@ async def submissiontime(session: SessionDep):
 
 @router.get("/registration-timerange", response_model=Forms_Form)
 async def get_reg_time_range(session: SessionDep) -> Forms_Form:
-    """
-    Retrieve the current hackathon registration time range.
-
-    Args:
-        session (SessionDep): Database session dependency.
-
-    Returns:
-        Forms_Form: The current registration time range for Hack the Valley Hackathon.
-    """
     time_range = session.exec(select(Forms_Form)).first()
     return time_range
