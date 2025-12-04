@@ -79,7 +79,7 @@ def updatemeal(*, session: SessionDep, meal_id: UUID, meal_update: MealUpdate):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Meal not found"
         )
-    meal_data = meal_update.dict(exclude_unset=True)
+    meal_data = meal_update.model_dump(exclude_unset=True)
     for key, value in meal_data.items():
         setattr(db_meal, key, value)
 

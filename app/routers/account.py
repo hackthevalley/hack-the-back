@@ -8,6 +8,7 @@ from passlib.hash import bcrypt
 from sqlmodel import select
 
 from app.core.db import SessionDep
+from app.models.constants import TokenScope, UserRole
 from app.models.forms import Forms_Application, StatusEnum
 from app.models.token import Token, TokenData
 from app.models.user import (
@@ -53,10 +54,10 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not activated"
         )
     scopes = []
-    if selected_user.role == "admin":
-        scopes.append("admin")
-    if selected_user.role == "volunteer":
-        scopes.append("volunteer")
+    if selected_user.role == UserRole.ADMIN:
+        scopes.append(TokenScope.ADMIN.value)
+    if selected_user.role == UserRole.VOLUNTEER:
+        scopes.append(TokenScope.VOLUNTEER.value)
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
@@ -82,7 +83,11 @@ async def signup(user: UserCreate, session: SessionDep):
             status_code=status.HTTP_409_CONFLICT, detail="User already exists"
         )
     hashed_password = bcrypt.hash(user.password)
-    extra_data = {"password": hashed_password, "role": "hacker", "is_active": False}
+    extra_data = {
+        "password": hashed_password,
+        "role": UserRole.HACKER,
+        "is_active": False,
+    }
     db_user = Account_User.model_validate(user, update=extra_data)
     session.add(db_user)
     session.commit()
@@ -134,7 +139,7 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
     session.add(selected_user)
     session.commit()
     scopes = []
-    scopes.append("reset_password")
+    scopes.append(TokenScope.RESET_PASSWORD.value)
     access_token_expires = timedelta(minutes=15)
     access_token = create_access_token(
         data={
@@ -161,7 +166,7 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
 @router.put("/password-resets")
 async def reset_password(user: UserUpdate, session: SessionDep):
     token_data = await decode_jwt(user.token)
-    if "reset_password" not in token_data.scopes:
+    if TokenScope.RESET_PASSWORD.value not in token_data.scopes:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
         )
@@ -177,7 +182,7 @@ async def reset_password(user: UserUpdate, session: SessionDep):
 @router.post("/activations")
 async def activate(user: UserUpdate, session: SessionDep):
     token_data = await decode_jwt(user.token)
-    if "account_activate" not in token_data.scopes:
+    if TokenScope.ACCOUNT_ACTIVATE.value not in token_data.scopes:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
         )
@@ -192,10 +197,13 @@ async def activate(user: UserUpdate, session: SessionDep):
 
 @router.post("/tokens")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
-    if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
+    if (
+        TokenScope.RESET_PASSWORD.value in token_data.scopes
+        or TokenScope.ACCOUNT_ACTIVATE.value in token_data.scopes
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token type not eligible for refresh"
+            detail="Token type not eligible for refresh",
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -249,7 +257,7 @@ async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
     if application.hackathonapplicant.status != StatusEnum.ACCEPTED:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only accepted applications can update RSVP status"
+            detail="Only accepted applications can update RSVP status",
         )
 
     application.hackathonapplicant.status = status.value
