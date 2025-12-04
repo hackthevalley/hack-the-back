@@ -1,6 +1,6 @@
 import io
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -29,7 +29,7 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
 
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "fallbackMessage": "User not found",
                 "detail": "No user with this email exists",
@@ -43,7 +43,7 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     # Ensure hackathonapplicant exists
     if not user.application.hackathonapplicant:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "fallbackMessage": "Application setup incomplete",
                 "detail": "Application record exists but is incomplete",

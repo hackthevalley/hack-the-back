@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -81,7 +81,7 @@ async def saveAnswers(
 ):
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
-            status_code=404, detail="Submitting outside submission time"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is currently closed"
         )
 
     if current_user.application is None:
@@ -121,8 +121,8 @@ async def saveAnswers(
             bulk_updates.append({"id": form_answer.id, "answer": update.answer})
         else:
             raise HTTPException(
-                status_code=404,
-                detail=f"Form Application not found for question_id: {update.question_id}",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid question_id: {update.question_id}",
             )
 
     if bulk_updates:
@@ -148,15 +148,20 @@ async def uploadresume(
 ):
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
-            status_code=404, detail="Submitting outside submission time"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is currently closed"
         )
     if not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=404, detail="File not pdf")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed"
+        )
 
     # Check file size before reading
     # Method 1: Try to get size from headers if available
     if file.size is not None and file.size > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File exceeds 5MB limit")
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File exceeds 5MB limit"
+        )
 
     # Method 2: Read file in chunks to check size without loading entire file into memory
     contents = b""
@@ -167,7 +172,10 @@ async def uploadresume(
             break
         contents += chunk
         if len(contents) > MAX_FILE_SIZE:
-            raise HTTPException(status_code=413, detail="File exceeds 5MB limit")
+            raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File exceeds 5MB limit"
+        )
 
     # Reset file position to beginning after reading
     await file.seek(0)
@@ -214,7 +222,7 @@ async def uploadresume(
     return answer_file.original_filename
 
 
-@router.post("/submission")
+@router.post("/submission", status_code=status.HTTP_201_CREATED)
 async def submit(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
@@ -222,7 +230,7 @@ async def submit(
     # Check if all mandatory ones are ok + is applying + isdraft + is within the application time
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
-            status_code=404, detail="Submitting outside submission time"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is currently closed"
         )
     for answer in current_user.application.form_answers:
         if answer.answer is not None and (
@@ -234,10 +242,13 @@ async def submit(
             selected_question = session.exec(statement).first()
             if selected_question and selected_question.required:
                 raise HTTPException(
-                    status_code=404, detail=f"{selected_question.label} not answered"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Required field not answered: {selected_question.label}"
                 )
     if current_user.application.form_answersfile.original_filename is None:
-        raise HTTPException(status_code=404, detail="Resume not uploaded")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Resume is required"
+        )
 
     current_status = current_user.application.hackathonapplicant.status
 
@@ -252,11 +263,19 @@ async def submit(
         )
         is_walk_in_submission = True
     elif current_status in [StatusEnum.APPLIED, StatusEnum.WALK_IN_SUBMITTED]:
-        raise HTTPException(status_code=400, detail="Application already submitted")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Application already submitted"
+        )
     else:
-        raise HTTPException(status_code=400, detail="User not in valid state to submit")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User not in valid state to submit"
+        )
     if not current_user.application.is_draft:
-        raise HTTPException(status_code=404, detail="Application not draft")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Application has already been submitted"
+        )
     else:
         current_user.application.is_draft = False
         current_user.application.updated_at = datetime.now(timezone.utc)

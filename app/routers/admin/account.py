@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy import String, and_, cast, func, or_
 from sqlalchemy.orm import aliased
@@ -64,11 +64,15 @@ async def get_resume(
     resume = session.exec(statement).first()
 
     if not resume or not resume.file_path:
-        raise HTTPException(status_code=404, detail="Resume not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found"
+        )
 
     file_path = Path(resume.file_path)
     if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail="File not found on disk")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk"
+        )
 
     return FileResponse(
         path=str(file_path),
@@ -84,7 +88,9 @@ async def get_application(application_id: UUID, session: SessionDep):
     )
     application = session.exec(statement).first()
     if application is None:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
     return {
         "application": application,
         "form_answers": application.form_answers,
@@ -265,7 +271,9 @@ async def update_application_status(
     result = session.exec(statement).first()
 
     if not result:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
 
     application, user = result
 
@@ -325,7 +333,9 @@ async def send_bulk_email(request: BulkEmailRequest, session: SessionDep):
     # Validate template exists
     template_file = Path(request.template_path)
     if not template_file.exists() or not template_file.is_file():
-        raise HTTPException(status_code=404, detail="Template file not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template file not found"
+        )
 
     # Get all users with the specified status
     statement = (

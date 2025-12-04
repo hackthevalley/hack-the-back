@@ -73,13 +73,13 @@ async def login(
     return Token(access_token=access_token, token_type="bearer")
 
 
-@router.post("/users", response_model=UserPublic)
+@router.post("/users", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 async def signup(user: UserCreate, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == user.email)
     selected_user = session.exec(statement).first()
     if selected_user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User already exists"
+            status_code=status.HTTP_409_CONFLICT, detail="User already exists"
         )
     hashed_password = pbkdf2_sha256.hash(user.password)
     extra_data = {"password": hashed_password, "role": "hacker", "is_active": False}
@@ -163,7 +163,7 @@ async def reset_password(user: UserUpdate, session: SessionDep):
     token_data = await decode_jwt(user.token)
     if "reset_password" not in token_data.scopes:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Wrong token type"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
         )
     statement = select(Account_User).where(Account_User.email == token_data.email)
     selected_user = session.exec(statement).first()
@@ -179,7 +179,7 @@ async def activate(user: UserUpdate, session: SessionDep):
     token_data = await decode_jwt(user.token)
     if "account_activate" not in token_data.scopes:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Wrong token type"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
         )
     statement = select(Account_User).where(Account_User.email == token_data.email)
     selected_user = session.exec(statement).first()
@@ -193,7 +193,10 @@ async def activate(user: UserUpdate, session: SessionDep):
 @router.post("/tokens")
 async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
     if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token type not eligible for refresh"
+        )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(token_data.email), "scopes": token_data.scopes},
@@ -239,10 +242,15 @@ async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
     application = session.exec(application_statement).first()
 
     if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
 
     if application.hackathonapplicant.status != StatusEnum.ACCEPTED:
-        raise HTTPException(status_code=404, detail="Application was not accepted...")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only accepted applications can update RSVP status"
+        )
 
     application.hackathonapplicant.status = status.value
     application.updated_at = datetime.now(timezone.utc)

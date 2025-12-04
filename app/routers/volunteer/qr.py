@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import func, select
 
@@ -32,7 +32,7 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         application_id = UUID(request.id)
     except ValueError:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "fallbackMessage": "Invalid QR code format",
                 "detail": "Invalid application ID format",
@@ -53,7 +53,7 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
 
     if not result:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "fallbackMessage": "Application not found",
                 "detail": "No application found with this QR code",
@@ -72,7 +72,7 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         StatusEnum.WALK_IN_SUBMITTED,
     ]:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "fallbackMessage": f"User cannot be scanned in (Status: {current_status.value})",
                 "detail": f"User with status {current_status.value} is not eligible for check-in",

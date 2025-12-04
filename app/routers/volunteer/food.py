@@ -1,7 +1,7 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import select
 
@@ -86,7 +86,9 @@ async def track_food(request: dict, session: SessionDep):
         application = session.exec(app_statement).first()
 
         if not application:
-            raise HTTPException(status_code=404, detail="Application not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+            )
 
         # Check if this tracking already exists
         existing_statement = select(Food_Tracking).where(
