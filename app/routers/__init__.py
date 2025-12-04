@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Security, status
 
+from app.models.constants import TokenScope
 from app.models.token import TokenData
 from app.routers.account import router as account
 from app.routers.admin import router as admin
@@ -14,11 +15,14 @@ router = APIRouter()
 
 
 def is_admin(
-    token_data: Annotated[TokenData, Security(decode_jwt, scopes=["admin"])],
+    token_data: Annotated[
+        TokenData, Security(decode_jwt, scopes=[TokenScope.ADMIN.value])
+    ],
 ) -> bool:
-    if "admin" not in token_data.scopes:
+    if TokenScope.ADMIN.value not in token_data.scopes:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User does not permission"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User does not have permission",
         )
     return True
 
@@ -26,9 +30,13 @@ def is_admin(
 def is_volunteer(
     token_data: Annotated[TokenData, Security(decode_jwt)],
 ) -> bool:
-    if "admin" not in token_data.scopes and "volunteer" not in token_data.scopes:
+    if (
+        TokenScope.ADMIN.value not in token_data.scopes
+        and TokenScope.VOLUNTEER.value not in token_data.scopes
+    ):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User does not permission"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User does not have permission",
         )
     return True
 
