@@ -301,18 +301,18 @@ async def submit(
             detail="Submission is currently closed",
         )
 
-
     questions_statement = select(Forms_Question)
     all_questions = session.exec(questions_statement).all()
     question_map = {str(q.question_id): q for q in all_questions}
 
-
     for answer in current_user.application.form_answers:
-        if answer.answer is not None and (
-            answer.answer.strip() == "" or answer.answer == "false"
-        ):
-            selected_question = question_map.get(str(answer.question_id))
-            if selected_question and selected_question.required:
+        selected_question = question_map.get(str(answer.question_id))
+        if selected_question and selected_question.required:
+            if (
+                answer.answer is None
+                or answer.answer.strip() == ""
+                or answer.answer == "false"
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Required field not answered: {selected_question.label}",
@@ -323,7 +323,6 @@ async def submit(
         )
 
     current_status = current_user.application.hackathonapplicant.status
-
 
     is_walk_in_submission = False
 
@@ -357,9 +356,7 @@ async def submit(
     session.refresh(current_user.application.hackathonapplicant)
     session.refresh(current_user.application)
 
-
     if is_walk_in_submission:
-
         import io
 
         from app.utils import createQRCode, generate_google_wallet_pass
@@ -389,7 +386,6 @@ async def submit(
             attachments=[("qr_code", img_bytes, "image/png")],
         )
     else:
-
         await sendEmail(
             "templates/confirmation.html",
             current_user.email,
