@@ -13,6 +13,7 @@ class MealType(str, enum.Enum):
     LUNCH = "lunch"
     DINNER = "dinner"
     SNACK = "snack"
+    MERCH = "merch"
 
 
 class WeekDay(str, enum.Enum):
