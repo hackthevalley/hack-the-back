@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
+import aiofiles
+import aiofiles.os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from pypdf import PdfReader
 from sqlalchemy.orm import selectinload
@@ -245,9 +247,9 @@ async def uploadresume(
     upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
     try:
         upload_dir.mkdir(parents=True, exist_ok=True)
-    except Exception as e:
+    except Exception:
         raise HTTPException(
-            status_code=500, detail=f"Failed to prepare upload directory: {e}"
+            status_code=500, detail="Failed to prepare upload directory"
         )
 
     if current_user.application is None:
@@ -256,16 +258,14 @@ async def uploadresume(
     if answer_file and answer_file.file_path:
         try:
             old_path = Path(answer_file.file_path)
-            if old_path.exists():
-                old_path.unlink()
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to delete old resume: {e}"
-            )
+            if await aiofiles.os.path.exists(str(old_path)):
+                await aiofiles.os.remove(str(old_path))
+        except Exception:
+            raise HTTPException(status_code=500, detail="Failed to delete old resume")
     filename = f"{uuid4()}.pdf"
     filepath = str(upload_dir / filename)
-    with open(filepath, "wb") as f:
-        f.write(contents)
+    async with aiofiles.open(filepath, "wb") as f:
+        await f.write(contents)
     answer_file = current_user.application.form_answersfile
     if answer_file is None:
         raise HTTPException(
