@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
-from passlib.hash import pbkdf2_sha256
+from passlib.hash import bcrypt
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -43,7 +43,7 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
         )
-    if not pbkdf2_sha256.verify(form_data.password, selected_user.password):
+    if not bcrypt.verify(form_data.password, selected_user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect"
         )
@@ -81,7 +81,7 @@ async def signup(user: UserCreate, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="User already exists"
         )
-    hashed_password = pbkdf2_sha256.hash(user.password)
+    hashed_password = bcrypt.hash(user.password)
     extra_data = {"password": hashed_password, "role": "hacker", "is_active": False}
     db_user = Account_User.model_validate(user, update=extra_data)
     session.add(db_user)
@@ -167,7 +167,7 @@ async def reset_password(user: UserUpdate, session: SessionDep):
         )
     statement = select(Account_User).where(Account_User.email == token_data.email)
     selected_user = session.exec(statement).first()
-    selected_user.password = pbkdf2_sha256.hash(user.password)
+    selected_user.password = bcrypt.hash(user.password)
     session.add(selected_user)
     session.commit()
     session.refresh(selected_user)
