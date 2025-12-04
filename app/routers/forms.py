@@ -1,6 +1,6 @@
-import io
+import asyncio
 import os
-import re
+import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,7 +8,6 @@ from typing import Annotated
 from uuid import uuid4
 
 import aiofiles
-import aiofiles.os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from pypdf import PdfReader
 from sqlalchemy.orm import selectinload
@@ -37,61 +36,67 @@ from app.utils import (
 router = APIRouter()
 
 
-def validate_pdf_file(filename: str, content: bytes) -> tuple[bool, str]:
+def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
+    """
+    Validate PDF file directly from disk without loading into memory.
+
+    This function runs in a thread pool to avoid blocking the async event loop.
+    PyPDF's PdfReader efficiently reads from the file path without loading
+    the entire file into RAM at once.
+
+    Args:
+        filepath: Path to the PDF file on disk
+        filename: Original filename for extension validation
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Basic filename validation
     if not filename.lower().endswith(".pdf"):
         return False, "Only PDF files are allowed"
 
-    if len(content) < 100:
-        return False, "File is too small to be a valid PDF"
-
-    if not content.startswith(b"%PDF-"):
-        if content[:2048].find(b"%PDF-") == -1:
-            return False, "Missing PDF header (%PDF-) — file is not a valid PDF"
-
-    eof_matches = re.findall(rb"%%EOF", content)
-    if not eof_matches:
-        return False, "Missing PDF EOF marker"
-
-    if content.rfind(b"%%EOF") < len(content) - 4096:
-        return False, "EOF marker too far from end — corrupted or incremental PDF"
-
     try:
-        reader = PdfReader(io.BytesIO(content))
+        reader = PdfReader(filepath)
 
+        # Check encryption
         if reader.is_encrypted:
             return False, "Encrypted or password-protected PDFs are not supported"
 
+        # Check pages
         if len(reader.pages) == 0:
             return False, "PDF contains no pages"
 
+        # Security: Scan for forbidden embedded content
+        def object_contains(forbidden_keys, obj):
+            """Recursively scan PDF dictionaries for forbidden keys."""
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if key in forbidden_keys:
+                        return True
+                    if isinstance(value, (dict, list)):
+                        if object_contains(forbidden_keys, value):
+                            return True
+            elif isinstance(obj, list):
+                for item in obj:
+                    if isinstance(item, (dict, list)):
+                        if object_contains(forbidden_keys, item):
+                            return True
+            return False
+
+        root = reader.trailer.get("/Root")
+
+        # Check for JavaScript (security risk)
+        JS_KEYS = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
+        if object_contains(JS_KEYS, root):
+            return False, "PDF contains JavaScript actions, which are not allowed"
+
+        # Check for embedded files (security risk)
+        EMBED_KEYS = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
+        if object_contains(EMBED_KEYS, root):
+            return False, "PDF contains embedded files, which are not allowed"
+
     except Exception as e:
-        return False, f"PDF parsing error: {str(e)[:120]}"
-
-    def object_contains(forbidden_keys, obj):
-        """Recursively scan PDF dictionaries for forbidden keys."""
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                if key in forbidden_keys:
-                    return True
-                if isinstance(value, (dict, list)):
-                    if object_contains(forbidden_keys, value):
-                        return True
-        elif isinstance(obj, list):
-            for item in obj:
-                if isinstance(item, (dict, list)):
-                    if object_contains(forbidden_keys, item):
-                        return True
-        return False
-
-    root = reader.trailer.get("/Root")
-
-    JS_KEYS = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
-    if object_contains(JS_KEYS, root):
-        return False, "PDF contains JavaScript actions, which are not allowed"
-
-    EMBED_KEYS = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
-    if object_contains(EMBED_KEYS, root):
-        return False, "PDF contains embedded files, which are not allowed"
+        return False, f"Invalid PDF: {str(e)[:120]}"
 
     return True, ""
 
@@ -203,113 +208,68 @@ async def uploadresume(
     session: SessionDep,
 ):
     if not await isValidSubmissionTime(session, current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Submission is currently closed",
-        )
+        raise HTTPException(status_code=403, detail="Submission is closed")
 
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Filename is required"
-        )
-
-    if file.content_type and file.content_type not in [
-        "application/pdf",
-        "application/x-pdf",
-    ]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid content type: {file.content_type}. Only PDF files are allowed",
-        )
-
-    if file.size is not None and file.size > FileUploadConfig.MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File exceeds {FileUploadConfig.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB limit",
-        )
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
     upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
-    try:
-        upload_dir.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        raise HTTPException(
-            status_code=500, detail="Failed to prepare upload directory"
-        )
+    upload_dir.mkdir(parents=True, exist_ok=True)
 
-    temp_fd, temp_path = tempfile.mkstemp(dir=upload_dir, suffix=".pdf.tmp")
-    temp_file_path = Path(temp_path)
-
-    try:
-        os.close(temp_fd)
-
+    # Stream directly into temp file
+    with tempfile.NamedTemporaryFile(
+        delete=False, dir=upload_dir, suffix=".pdf"
+    ) as tmp:
+        temp_path = tmp.name
+    async with aiofiles.open(temp_path, "wb") as out:
         bytes_written = 0
-        async with aiofiles.open(temp_path, "wb") as f:
-            while True:
-                chunk = await file.read(FileUploadConfig.CHUNK_SIZE_BYTES)
-                if not chunk:
-                    break
-                bytes_written += len(chunk)
 
-                # Check size limit while streaming
-                if bytes_written > FileUploadConfig.MAX_FILE_SIZE_BYTES:
-                    await aiofiles.os.remove(temp_path)
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"File exceeds {FileUploadConfig.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB limit",
-                    )
+        while chunk := await file.read(FileUploadConfig.CHUNK_SIZE_BYTES):
+            bytes_written += len(chunk)
+            if bytes_written > FileUploadConfig.MAX_FILE_SIZE_BYTES:
+                await out.close()
+                os.unlink(temp_path)
+                raise HTTPException(413, "File too large")
+            await out.write(chunk)
 
-                await f.write(chunk)
+    # Validate PDF safely in thread
+    is_valid, error_msg = await asyncio.to_thread(
+        _validate_pdf, temp_path, file.filename
+    )
+    if not is_valid:
+        os.unlink(temp_path)
+        raise HTTPException(400, detail=error_msg)
 
-        async with aiofiles.open(temp_path, "rb") as f:
-            file_contents = await f.read()
+    # Ensure application exists
+    if current_user.application is None:
+        current_user.application = await createapplication(current_user, session)
 
-        is_valid, error_message = validate_pdf_file(file.filename, file_contents)
-        if not is_valid:
-            await aiofiles.os.remove(temp_path)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
-            )
-
-        if current_user.application is None:
-            current_user.application = await createapplication(current_user, session)
-
-        answer_file = current_user.application.form_answersfile
-        if answer_file and answer_file.file_path:
-            try:
-                old_path = Path(answer_file.file_path)
-                if await aiofiles.os.path.exists(str(old_path)):
-                    await aiofiles.os.remove(str(old_path))
-            except Exception:
-                pass
-
-        filename = f"{uuid4()}.pdf"
-        filepath = upload_dir / filename
-        await aiofiles.os.rename(temp_path, str(filepath))
-        filepath = str(filepath)
-
-    except HTTPException:
-        raise
-    except Exception as e:
+    # Remove old file
+    old = current_user.application.form_answersfile
+    if old and old.file_path:
         try:
-            if temp_file_path.exists():
-                await aiofiles.os.remove(temp_path)
+            Path(old.file_path).unlink(missing_ok=True)
         except Exception:
             pass
-        raise HTTPException(
-            status_code=500, detail="Failed to process file upload"
-        ) from e
+
+    # Move to permanent filename
+    final_name = f"{uuid4()}.pdf"
+    final_path = upload_dir / final_name
+    shutil.move(temp_path, final_path)
+
+    # Update DB
     answer_file = current_user.application.form_answersfile
-    if answer_file is None:
-        raise HTTPException(
-            status_code=400, detail="Resume record not initialized for application"
-        )
+    if not answer_file:
+        raise HTTPException(400, detail="Missing resume model")
+
     answer_file.original_filename = file.filename
-    answer_file.file_path = filepath
+    answer_file.file_path = str(final_path)
+
     current_user.application.updated_at = datetime.now(timezone.utc)
-    session.add(answer_file)
-    session.add(current_user.application)
+
     session.commit()
     session.refresh(answer_file)
+
     return answer_file.original_filename
 
 
