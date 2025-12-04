@@ -34,7 +34,6 @@ def get_day_number(day_str: str) -> int:
 
 @router.get("", response_model=FoodResponse)
 async def get_food_data(session: SessionDep):
-
     statement = select(Meal)
     meals = session.exec(statement).all()
 
@@ -67,19 +66,15 @@ async def track_food(request: dict, session: SessionDep):
     if not food_items:
         return {"message": "No food items to track"}
 
-
     application_ids = [UUID(item["application"]) for item in food_items]
     meal_ids = [UUID(item["serving"]) for item in food_items]
-
 
     app_statement = select(Forms_Application).where(
         Forms_Application.application_id.in_(application_ids)
     )
     applications = session.exec(app_statement).all()
 
-
     app_map = {str(app.application_id): app for app in applications}
-
 
     for item in food_items:
         if item["application"] not in app_map:
@@ -88,13 +83,11 @@ async def track_food(request: dict, session: SessionDep):
                 detail=f"Application not found: {item['application']}",
             )
 
-
     tracking_pairs = []
     for item in food_items:
         application = app_map[item["application"]]
         meal_id = UUID(item["serving"])
         tracking_pairs.append((application.uid, meal_id))
-
 
     user_ids = [pair[0] for pair in tracking_pairs]
     existing_statement = select(Food_Tracking).where(
@@ -102,11 +95,9 @@ async def track_food(request: dict, session: SessionDep):
     )
     existing_trackings = session.exec(existing_statement).all()
 
-
     existing_pairs = {
         (str(tracking.user_id), str(tracking.meal_id)) for tracking in existing_trackings
     }
-
 
     new_trackings = []
     for user_id, meal_id in tracking_pairs:

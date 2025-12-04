@@ -12,8 +12,6 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.models.forms import Forms_Form, Forms_Question
 from app.models.meal import Meal
 
-
-
 ADVISORY_LOCK_QUESTIONS = 123456788
 ADVISORY_LOCK_MEALS = 123456789
 
@@ -26,10 +24,8 @@ if not DATABASE_URL:
         "Please configure the database connection string."
     )
 
-
 engine = create_engine(
     DATABASE_URL,
-
     pool_size=20,
     max_overflow=10,
     pool_pre_ping=True,
@@ -38,14 +34,12 @@ engine = create_engine(
     connect_args={
         "connect_timeout": 10,
         "application_name": "hack-the-back",
-
         "keepalives": 1,
         "keepalives_idle": 30,
         "keepalives_interval": 5,
         "keepalives_count": 5,
     },
 )
-
 
 
 def get_session():
@@ -68,7 +62,6 @@ def advisory_lock(session: Session, lock_id: int):
         session.execute(
             text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
         )
-
 
 
 def create_db_and_tables():

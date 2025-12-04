@@ -58,7 +58,6 @@ def get_users(
     return users
 
 
-
 @router.get("/applicants")
 async def getapplicants(
     session: SessionDep,
@@ -79,7 +78,6 @@ async def get_resume(
     application_id: UUID,
     session: SessionDep,
 ):
-
     statement = select(Forms_AnswerFile).where(
         Forms_AnswerFile.application_id == application_id
     )
@@ -134,7 +132,6 @@ async def get_all_apps(
     date_sort: str = "",
     role: StatusEnum | None = None,
 ):
-
     level_of_study_question = session.exec(
         select(Forms_Question).where(Forms_Question.label == "Current Level of Study")
     ).first()
@@ -145,12 +142,9 @@ async def get_all_apps(
         select(Forms_Question).where(Forms_Question.label == "School Name")
     ).first()
 
-
-
     level_of_study_data = aliased(Forms_Answer)
     gender_data = aliased(Forms_Answer)
     school_data = aliased(Forms_Answer)
-
 
     statement = (
         select(
@@ -163,7 +157,7 @@ async def get_all_apps(
         )
         .where(
             Account_User.is_active,
-            Account_User.application.isnot(None),
+            Account_User.application is not None,
         )
         .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .join(
@@ -171,7 +165,6 @@ async def get_all_apps(
             Forms_Application.application_id == Forms_HackathonApplicant.application_id,
         )
     )
-
 
     if level_of_study_question:
         statement = statement.outerjoin(
@@ -200,7 +193,6 @@ async def get_all_apps(
             ),
         )
 
-
     if search:
         search_pattern = f"%{search}%"
         statement = statement.where(
@@ -214,20 +206,16 @@ async def get_all_apps(
             )
         )
 
-
     if role:
         statement = statement.where(Forms_HackathonApplicant.status == role)
-
 
     if level_of_study and level_of_study_question:
         statement = statement.where(
             func.lower(level_of_study_data.answer) == level_of_study.lower()
         )
 
-
     if gender and gender_question:
         statement = statement.where(func.lower(gender_data.answer) == gender.lower())
-
 
     if school and school_question:
         statement = statement.where(
@@ -238,19 +226,15 @@ async def get_all_apps(
             )
         )
 
-
     if date_sort:
         if date_sort == "oldest":
             statement = statement.order_by(Forms_Application.updated_at.asc())
         elif date_sort == "latest":
             statement = statement.order_by(Forms_Application.updated_at.desc())
 
-
     statement = statement.offset(ofs).limit(limit)
 
-
     results = session.exec(statement).all()
-
 
     response = []
     for (
@@ -322,7 +306,6 @@ async def update_application_status(
 async def send_bulk_email(
     request: BulkEmailRequest, session: SessionDep, background_tasks: BackgroundTasks
 ):
-
     template_file = Path(request.template_path)
     if not template_file.exists() or not template_file.is_file():
         raise HTTPException(
