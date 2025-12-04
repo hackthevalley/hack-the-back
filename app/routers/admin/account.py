@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy import String, and_, cast, func, or_
 from sqlalchemy.orm import aliased
@@ -24,6 +24,29 @@ from app.models.user import Account_User, UserPublic
 from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
 
 router = APIRouter()
+
+
+async def send_email_async(
+    users_data: list[dict],
+    template_path: str,
+    subject: str,
+    text_body: str,
+    base_context: dict,
+):
+    for user_data in users_data:
+        try:
+            email_context = base_context.copy() if base_context else {}
+            email_context.update(user_data)
+
+            await sendEmail(
+                template_path,
+                user_data["email"],
+                subject,
+                text_body,
+                email_context,
+            )
+        except Exception:
+            pass
 
 
 @router.get("/users", response_model=list[UserPublic])
@@ -316,17 +339,21 @@ async def update_application_status(
 
 
 @router.post("/bulk-emails")
-async def send_bulk_email(request: BulkEmailRequest, session: SessionDep):
+async def send_bulk_email(
+    request: BulkEmailRequest, session: SessionDep, background_tasks: BackgroundTasks
+):
 
     template_file = Path(request.template_path)
     if not template_file.exists() or not template_file.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Template file not found"
         )
-
-
     statement = (
-        select(Account_User)
+        select(
+            Account_User.first_name,
+            Account_User.last_name,
+            Account_User.email,
+        )
         .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .join(
             Forms_HackathonApplicant,
@@ -338,60 +365,36 @@ async def send_bulk_email(request: BulkEmailRequest, session: SessionDep):
         )
     )
 
-    users = session.exec(statement).all()
+    results = session.exec(statement).all()
 
-    if not users:
+    if not results:
         return {
             "message": f"No users found with status: {request.status.value}",
             "total_recipients": 0,
-            "emails_sent": 0,
-            "emails_failed": 0,
-            "failures": [],
+            "status": "no_recipients",
         }
 
-    emails_sent = 0
-    emails_failed = 0
-    failures = []
+    users_data = [
+        {
+            "first_name": row[0],
+            "last_name": row[1],
+            "email": row[2],
+        }
+        for row in results
+    ]
 
-
-    for user in users:
-        try:
-
-            email_context = request.context.copy() if request.context else {}
-            email_context.update(
-                {
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                    "email": user.email,
-                }
-            )
-
-            status_code, response = await sendEmail(
-                request.template_path,
-                user.email,
-                request.subject,
-                request.text_body,
-                email_context,
-            )
-
-            if status_code == 200:
-                emails_sent += 1
-            else:
-                emails_failed += 1
-                failures.append(
-                    {
-                        "email": user.email,
-                        "error": response.get("Message", "Unknown error"),
-                    }
-                )
-        except Exception as e:
-            emails_failed += 1
-            failures.append({"email": user.email, "error": str(e)})
+    background_tasks.add_task(
+        send_email_async,
+        users_data,
+        request.template_path,
+        request.subject,
+        request.text_body,
+        request.context,
+    )
 
     return {
-        "message": f"Bulk email send completed for status: {request.status.value}",
-        "total_recipients": len(users),
-        "emails_sent": emails_sent,
-        "emails_failed": emails_failed,
-        "failures": failures if failures else None,
+        "message": f"Bulk email job queued for status: {request.status.value}",
+        "total_recipients": len(users_data),
+        "status": "queued",
+        "note": "Emails are being sent in the background. Check server logs for delivery status.",
     }
