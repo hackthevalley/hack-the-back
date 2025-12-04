@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
-from passlib.hash import bcrypt
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -44,7 +44,9 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
         )
-    if not bcrypt.verify(form_data.password, selected_user.password):
+    if not bcrypt.checkpw(
+        form_data.password.encode("utf-8"), selected_user.password.encode("utf-8")
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect"
         )
@@ -82,7 +84,9 @@ async def signup(user: UserCreate, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="User already exists"
         )
-    hashed_password = bcrypt.hash(user.password)
+    hashed_password = bcrypt.hashpw(
+        user.password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     extra_data = {
         "password": hashed_password,
         "role": UserRole.HACKER,
@@ -129,7 +133,7 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
         last_sent = selected_user.last_password_reset_request
         if last_sent.tzinfo is None:
             last_sent = last_sent.replace(tzinfo=timezone.utc)
-        if now - last_sent < cooldown:  # <-- use last_sent here
+        if now - last_sent < cooldown:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Sent too many emails, please wait before requesting another password reset email.",
@@ -172,7 +176,9 @@ async def reset_password(user: UserUpdate, session: SessionDep):
         )
     statement = select(Account_User).where(Account_User.email == token_data.email)
     selected_user = session.exec(statement).first()
-    selected_user.password = bcrypt.hash(user.password)
+    selected_user.password = bcrypt.hashpw(
+        user.password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
     session.add(selected_user)
     session.commit()
     session.refresh(selected_user)
