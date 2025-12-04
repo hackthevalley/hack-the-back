@@ -302,18 +302,18 @@ async def submit(
             detail="Submission is currently closed",
         )
 
-    # Preload all questions once to avoid N+1 query problem
     questions_statement = select(Forms_Question)
     all_questions = session.exec(questions_statement).all()
     question_map = {str(q.question_id): q for q in all_questions}
 
-    # Validate all required questions are answered
     for answer in current_user.application.form_answers:
-        if answer.answer is not None and (
-            answer.answer.strip() == "" or answer.answer == "false"
-        ):
-            selected_question = question_map.get(str(answer.question_id))
-            if selected_question and selected_question.required:
+        selected_question = question_map.get(str(answer.question_id))
+        if selected_question and selected_question.required:
+            if (
+                answer.answer is None
+                or answer.answer.strip() == ""
+                or answer.answer == "false"
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Required field not answered: {selected_question.label}",
@@ -325,7 +325,6 @@ async def submit(
 
     current_status = current_user.application.hackathonapplicant.status
 
-    # Check if user is in a valid state to submit
     is_walk_in_submission = False
 
     if current_status == StatusEnum.APPLYING:
@@ -358,9 +357,7 @@ async def submit(
     session.refresh(current_user.application.hackathonapplicant)
     session.refresh(current_user.application)
 
-    # Send appropriate email based on submission type
     if is_walk_in_submission:
-        # Walk-in submission - send RSVP email with QR code
         import io
 
         from app.utils import createQRCode, generate_google_wallet_pass
@@ -390,7 +387,6 @@ async def submit(
             attachments=[("qr_code", img_bytes, "image/png")],
         )
     else:
-        # Regular submission - send confirmation email
         await sendEmail(
             "templates/confirmation.html",
             current_user.email,
