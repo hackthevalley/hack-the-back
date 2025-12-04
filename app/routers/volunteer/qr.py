@@ -36,7 +36,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
             },
         )
 
-
     statement = (
         select(Forms_Application, Account_User, Forms_HackathonApplicant)
         .join(Account_User, Forms_Application.uid == Account_User.uid)
@@ -59,7 +58,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
 
     application, user, hacker_applicant = result
 
-
     current_status = hacker_applicant.status
     if current_status not in [
         StatusEnum.ACCEPTED,
@@ -76,7 +74,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
             },
         )
 
-
     message = ""
 
     if (
@@ -92,14 +89,11 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"Welcome walk-in {user.first_name}!"
     else:
-
         message = f"Already scanned in: {user.first_name}!"
-
 
     session.add(hacker_applicant)
     session.commit()
     session.refresh(hacker_applicant)
-
 
     answers_statement = (
         select(Forms_Answer, Forms_Question)
@@ -108,13 +102,11 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
     )
     answers_results = session.exec(answers_statement).all()
 
-
     answers_dict = {
         "firstName": user.first_name,
         "lastName": user.last_name,
         "email": user.email,
     }
-
 
     label_to_key = {
         "Phone Number": "phoneNumber",
@@ -125,7 +117,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
     for answer, question in answers_results:
         key = label_to_key.get(question.label, question.label.lower().replace(" ", ""))
         answers_dict[key] = answer.answer
-
 
     food_tracking_statement = (
         select(Food_Tracking, Meal)
@@ -146,7 +137,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
             }
         )
 
-
     scanned_count = session.exec(
         select(func.count(Forms_HackathonApplicant.application_id)).where(
             Forms_HackathonApplicant.status == StatusEnum.SCANNED_IN
@@ -160,7 +150,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
             )
         )
     ).one()
-
 
     response_body = {
         "id": str(application_id),

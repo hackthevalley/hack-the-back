@@ -43,10 +43,8 @@ def validate_pdf_file(filename: str, content: bytes) -> tuple[bool, str]:
         return False, "File is too small to be a valid PDF"
 
     if not content.startswith(b"%PDF-"):
-
         if content[:2048].find(b"%PDF-") == -1:
             return False, "Missing PDF header (%PDF-) — file is not a valid PDF"
-
 
     eof_matches = re.findall(rb"%%EOF", content)
     if not eof_matches:
@@ -166,14 +164,12 @@ async def saveAnswers(
     for update in forms_batchupdate:
         form_answer = answer_map.get(update.question_id)
         if form_answer:
-
             question = question_map.get(update.question_id)
             if question:
                 label_lower = question.label.lower().strip()
                 is_prefilled_field = label_lower in ["first name", "last name", "email"]
                 has_existing_value = form_answer.answer and form_answer.answer.strip()
                 is_empty_update = not update.answer or not update.answer.strip()
-
 
                 if is_prefilled_field and has_existing_value and is_empty_update:
                     continue
@@ -189,11 +185,9 @@ async def saveAnswers(
         session.bulk_update_mappings(Forms_Answer, bulk_updates)
         session.commit()
 
-
     application.updated_at = datetime.now(timezone.utc)
     session.add(application)
     session.commit()
-
 
     session.refresh(application)
 
@@ -294,7 +288,6 @@ async def submit(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

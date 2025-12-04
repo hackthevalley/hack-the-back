@@ -71,7 +71,6 @@ class Forms_ApplicationUpdate(SQLModel):
     updated_at: datetime | None = None
 
 
-
 class Forms_HackathonApplicant(SQLModel, table=True):
     application_id: uuid.UUID | None = Field(
         default=None, primary_key=True, foreign_key="forms_application.application_id"
@@ -86,13 +85,11 @@ class Forms_HackathonApplicantUpdate(SQLModel):
     status: StatusEnum | None = None
 
 
-
 class Forms_Question(SQLModel, table=True):
     question_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     question_order: int = Field(index=True)
     label: str = Field(index=True)
     required: bool
-
 
 
 class Forms_Answer(SQLModel, table=True):

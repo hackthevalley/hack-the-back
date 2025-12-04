@@ -18,7 +18,6 @@ router = APIRouter()
 
 @router.post("/walk-ins")
 async def mark_walkin(request: WalkInRequest, session: SessionDep):
-
     statement = select(Account_User).where(Account_User.email == request.email)
     user = session.exec(statement).first()
 
@@ -31,10 +30,8 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
             },
         )
 
-
     if not user.application:
         user.application = await createapplication(user, session)
-
 
     if not user.application.hackathonapplicant:
         raise HTTPException(
@@ -48,7 +45,6 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     current_status = user.application.hackathonapplicant.status
     application_id = str(user.application.application_id)
 
-
     early_statuses = [
         StatusEnum.NOT_APPLIED,
         StatusEnum.APPLYING,
@@ -56,21 +52,17 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     ]
 
     if current_status in early_statuses or current_status is None:
-
         user.application.hackathonapplicant.status = StatusEnum.WALK_IN
         message = f"User {user.email} marked as WALK_IN - they can now complete their application"
         send_email = False
     else:
-
         user.application.hackathonapplicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"User {user.email} marked as WALK_IN_SUBMITTED - RSVP email sent"
         send_email = True
 
-
     session.add(user.application.hackathonapplicant)
     session.commit()
     session.refresh(user.application.hackathonapplicant)
-
 
     if send_email:
         img = await createQRCode(application_id)

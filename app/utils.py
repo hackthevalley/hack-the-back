@@ -85,7 +85,6 @@ async def get_current_user(
     ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
 
-
     statement = (
         select(Account_User)
         .where(Account_User.email == token_data.email)
@@ -132,11 +131,9 @@ async def createapplication(
             detail="User profile incomplete - first name, last name, or email cannot be empty",
         )
 
-
     questions = session.exec(
         select(Forms_Question).order_by(Forms_Question.question_order)
     ).all()
-
 
     application = Forms_Application(
         user=current_user,
@@ -147,13 +144,11 @@ async def createapplication(
     session.add(application)
     session.flush()
 
-
     hackathon_applicant = Forms_HackathonApplicant(
         applicant=application,
         status=StatusEnum.APPLYING,
     )
     session.add(hackathon_applicant)
-
 
     answers = []
     resume_question = None
@@ -189,12 +184,9 @@ async def createapplication(
         )
         session.add(resume_answer)
 
-
     session.commit()
 
-
     session.refresh(current_user)
-
 
     statement = (
         select(Forms_Application)
@@ -209,12 +201,10 @@ async def createapplication(
 
 
 async def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
-
     if user and user.application and user.application.hackathonapplicant:
         status = user.application.hackathonapplicant.status
         if status in [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]:
             return True
-
 
     time = session.exec(select(Forms_Form).limit(1)).first()
     if time is None:
@@ -282,7 +272,6 @@ async def sendActivate(email: str, session: SessionDep):
     cooldown = timedelta(minutes=120)
     if selected_user.last_activation_email_sent:
         last_sent = selected_user.last_activation_email_sent
-
 
         if last_sent.tzinfo is None:
             last_sent = last_sent.replace(tzinfo=timezone.utc)
@@ -356,10 +345,8 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.label_color = "rgb(255, 255, 255)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
-
     apple_pass.add_file("icon.png", open("images/icon-29x29.png", "rb"))
     apple_pass.add_file("logo.png", open("images/logo-50x50.png", "rb"))
-
 
     package = apple_pass.create(
         "certs/apple/cert.pem",
@@ -411,9 +398,7 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
         },
     }
 
-
     token_bytes = google.auth.jwt.encode(creds.signer, payload)
-
     token = token_bytes.decode("utf-8")
     save_url = f"https://pay.google.com/gp/v/save/{token}"
     return save_url
@@ -424,15 +409,12 @@ async def send_rsvp(
 ):
     import io
 
-
     img = await createQRCode(application_id)
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="PNG")
     img_bytes.seek(0)
 
-
     google_link = generate_google_wallet_pass(user_full_name, application_id)
-
 
     await sendEmail(
         "templates/rsvp.html",
