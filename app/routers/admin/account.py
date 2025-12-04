@@ -117,10 +117,60 @@ async def get_all_apps(
         select(Forms_Question).where(Forms_Question.label == "School Name")
     ).first()
 
-    statement = select(Account_User).where(
-        Account_User.is_active,
-        Account_User.application != None,  # noqa: E711
+    # Create aliases for the Forms_Answer tables we'll join for data retrieval
+    # These are separate from the filter aliases to avoid conflicts
+    level_of_study_data = aliased(Forms_Answer)
+    gender_data = aliased(Forms_Answer)
+    school_data = aliased(Forms_Answer)
+
+    # Build the main query - SELECT all needed columns in one query
+    statement = (
+        select(
+            Account_User,
+            Forms_Application,
+            Forms_HackathonApplicant,
+            level_of_study_data.answer.label("level_of_study_answer"),
+            gender_data.answer.label("gender_answer"),
+            school_data.answer.label("school_answer"),
+        )
+        .where(
+            Account_User.is_active,
+            Account_User.application != None,  # noqa: E711
+        )
+        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
+        .join(
+            Forms_HackathonApplicant,
+            Forms_Application.application_id == Forms_HackathonApplicant.application_id,
+        )
     )
+
+    # LEFT JOIN to get level of study, gender, and school data (even if null)
+    if level_of_study_question:
+        statement = statement.outerjoin(
+            level_of_study_data,
+            and_(
+                level_of_study_data.application_id == Forms_Application.application_id,
+                level_of_study_data.question_id == level_of_study_question.question_id,
+            ),
+        )
+
+    if gender_question:
+        statement = statement.outerjoin(
+            gender_data,
+            and_(
+                gender_data.application_id == Forms_Application.application_id,
+                gender_data.question_id == gender_question.question_id,
+            ),
+        )
+
+    if school_question:
+        statement = statement.outerjoin(
+            school_data,
+            and_(
+                school_data.application_id == Forms_Application.application_id,
+                school_data.question_id == school_question.question_id,
+            ),
+        )
 
     # Apply search filter
     if search:
@@ -136,61 +186,29 @@ async def get_all_apps(
             )
         )
 
-    # Join with Forms_Application (only once)
-    statement = statement.join(
-        Forms_Application, Account_User.uid == Forms_Application.uid
-    )
-
+    # Apply role filter
     if role:
-        fha = aliased(Forms_HackathonApplicant)
-        statement = statement.join(
-            fha, fha.application_id == Forms_Application.application_id
-        ).where(func.lower(cast(fha.status, String)) == role.lower())
+        statement = statement.where(
+            func.lower(cast(Forms_HackathonApplicant.status, String)) == role.lower()
+        )
 
     # Apply level of study filter
     if level_of_study and level_of_study_question:
-        # Use alias to avoid conflicts with gender join
-        level_of_study_answer = aliased(Forms_Answer)
-
-        statement = statement.join(
-            level_of_study_answer,
-            and_(
-                level_of_study_answer.application_id
-                == Forms_Application.application_id,
-                level_of_study_answer.question_id
-                == level_of_study_question.question_id,
-            ),
-        ).where(func.lower(level_of_study_answer.answer) == level_of_study.lower())
+        statement = statement.where(
+            func.lower(level_of_study_data.answer) == level_of_study.lower()
+        )
 
     # Apply gender filter
     if gender and gender_question:
-        # Use alias to avoid conflicts with other joins
-        gender_answer = aliased(Forms_Answer)
-
-        statement = statement.join(
-            gender_answer,
-            and_(
-                gender_answer.application_id == Forms_Application.application_id,
-                gender_answer.question_id == gender_question.question_id,
-            ),
-        ).where(func.lower(gender_answer.answer) == gender.lower())
+        statement = statement.where(func.lower(gender_data.answer) == gender.lower())
 
     # Apply school filter
     if school and school_question:
-        # Use alias to avoid conflicts with other joins
-        school_answer = aliased(Forms_Answer)
-
-        statement = statement.join(
-            school_answer,
+        statement = statement.where(
             and_(
-                school_answer.application_id == Forms_Application.application_id,
-                school_answer.question_id == school_question.question_id,
-            ),
-        ).where(
-            and_(
-                school_answer.answer.isnot(None),
-                school_answer.answer != "",
-                func.lower(school_answer.answer) == school.lower(),
+                school_data.answer.isnot(None),
+                school_data.answer != "",
+                func.lower(school_data.answer) == school.lower(),
             )
         )
 
@@ -200,65 +218,38 @@ async def get_all_apps(
             statement = statement.order_by(Forms_Application.updated_at.asc())
         elif date_sort == "latest":
             statement = statement.order_by(Forms_Application.updated_at.desc())
+
+    # Apply pagination
     statement = statement.offset(ofs).limit(limit)
-    users = session.exec(statement).all()
+
+    # Execute query - get all data in ONE query (no N+1 problem)
+    results = session.exec(statement).all()
+
+    # Build response from the single query result
     response = []
-    for user in users:
-        user_app = user.application
-        user_level_of_study = None
-        user_gender = None
-        user_school = None
-        if user_app and level_of_study_question:
-            level_of_study_answer = session.exec(
-                select(Forms_Answer).where(
-                    and_(
-                        Forms_Answer.application_id == user_app.application_id,
-                        Forms_Answer.question_id == level_of_study_question.question_id,
-                    )
-                )
-            ).first()
-            user_level_of_study = (
-                level_of_study_answer.answer if level_of_study_answer else None
-            )
-
-        if user_app and gender_question:
-            gender_answer = session.exec(
-                select(Forms_Answer).where(
-                    and_(
-                        Forms_Answer.application_id == user_app.application_id,
-                        Forms_Answer.question_id == gender_question.question_id,
-                    )
-                )
-            ).first()
-            user_gender = gender_answer.answer if gender_answer else None
-
-        if user_app and school_question:
-            school_answer = session.exec(
-                select(Forms_Answer).where(
-                    and_(
-                        Forms_Answer.application_id == user_app.application_id,
-                        Forms_Answer.question_id == school_question.question_id,
-                    )
-                )
-            ).first()
-            user_school = school_answer.answer if school_answer else None
-
+    for (
+        user,
+        user_app,
+        hacker_applicant,
+        level_study,
+        gender_val,
+        school_val,
+    ) in results:
         response.append(
             {
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email,
-                "status": user_app.hackathonapplicant.status if user_app else None,
-                "app_id": user_app.hackathonapplicant.application_id
-                if user_app
-                else None,
-                "created_at": user_app.created_at if user_app else None,
-                "updated_at": user_app.updated_at if user_app else None,
-                "level_of_study": user_level_of_study,
-                "gender": user_gender,
-                "school": user_school,
+                "status": hacker_applicant.status,
+                "app_id": hacker_applicant.application_id,
+                "created_at": user_app.created_at,
+                "updated_at": user_app.updated_at,
+                "level_of_study": level_study,
+                "gender": gender_val,
+                "school": school_val,
             }
         )
+
     return {"application": response, "offset": ofs, "limit": limit}
 
 
