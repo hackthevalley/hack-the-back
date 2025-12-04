@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
@@ -48,23 +50,29 @@ questions = [
     {"label": "Hack the Valley Consent Form Agreement", "required": True},
 ]
 
-# Define meals for the hackathon (October 3-5, 2025)
 meals = [
-    # Day 1 - Friday, October 3
     {"day": WeekDay.FRIDAY, "meal_type": MealType.DINNER, "is_active": False},
     # {"day": WeekDay.FRIDAY, "meal_type": MealType.MERCH, "is_active": False},
-    # Day 2 - Saturday, October 4
     {"day": WeekDay.SATURDAY, "meal_type": MealType.BREAKFAST, "is_active": False},
     {"day": WeekDay.SATURDAY, "meal_type": MealType.LUNCH, "is_active": False},
     {"day": WeekDay.SATURDAY, "meal_type": MealType.DINNER, "is_active": False},
-    # Day 3 - Sunday, October 5
     {"day": WeekDay.SUNDAY, "meal_type": MealType.BREAKFAST, "is_active": False},
     {"day": WeekDay.SUNDAY, "meal_type": MealType.LUNCH, "is_active": False},
 ]
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    with Session(engine) as session:
+        seed_questions(questions, session)
+        seed_form_time(session)
+        seed_meals(meals, session)
+    yield
+
+
 def get_application():
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -80,15 +88,6 @@ def get_application():
 
 
 app = get_application()
-
-
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
-    with Session(engine) as session:
-        seed_questions(questions, session)
-        seed_form_time(session)
-        seed_meals(meals, session)
 
 
 @app.get("/")
