@@ -11,7 +11,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.constants import QuestionLabel
+from app.models.constants import QuestionLabel, SortOrder
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -177,7 +177,7 @@ async def get_all_apps(
     level_of_study: str = "",
     gender: str = "",
     school: str = "",
-    date_sort: str = "",
+    date_sort: SortOrder | None = None,
     role: StatusEnum | None = None,
 ):
     level_of_study_question = session.exec(
@@ -279,9 +279,9 @@ async def get_all_apps(
         )
 
     if date_sort:
-        if date_sort == "oldest":
+        if date_sort == SortOrder.OLDEST:
             statement = statement.order_by(Forms_Application.updated_at.asc())
-        elif date_sort == "latest":
+        elif date_sort == SortOrder.LATEST:
             statement = statement.order_by(Forms_Application.updated_at.desc())
 
     statement = statement.offset(ofs).limit(limit)

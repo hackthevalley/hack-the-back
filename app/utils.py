@@ -18,7 +18,13 @@ from sqlmodel import select
 
 from app.config import AppConfig, EmailConfig, SecurityConfig
 from app.core.db import SessionDep
-from app.models.constants import QuestionLabel, TokenScope
+from app.models.constants import (
+    EmailMessage,
+    EmailSubject,
+    EmailTemplate,
+    QuestionLabel,
+    TokenScope,
+)
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -302,10 +308,10 @@ async def sendActivate(email: str, session: SessionDep):
     )
     activation_url = AppConfig.get_activation_url(access_token)
     response = await sendEmail(
-        "templates/activation.html",
+        EmailTemplate.ACTIVATION,
         email,
-        "Account Activation",
-        f"Go to this link to activate your account: {activation_url}",
+        EmailSubject.ACTIVATION,
+        EmailMessage.activation_text(activation_url),
         {"url": access_token},
     )
     return response
@@ -429,10 +435,10 @@ async def send_rsvp(user_email: str, user_full_name: str, application_id: str):
     end_date_str = AppConfig.EVENT_END_DATE.strftime("%B %d %Y")
 
     await sendEmail(
-        "templates/rsvp.html",
+        EmailTemplate.RSVP,
         user_email,
-        f"RSVP for {AppConfig.EVENT_NAME}",
-        f"RSVP at {AppConfig.FRONTEND_URL}",
+        EmailSubject.rsvp(AppConfig.EVENT_NAME),
+        EmailMessage.rsvp_text(AppConfig.FRONTEND_URL),
         {
             "start_date": start_date_str,
             "end_date": end_date_str,

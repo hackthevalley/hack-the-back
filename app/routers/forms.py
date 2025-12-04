@@ -15,7 +15,12 @@ from sqlmodel import select
 
 from app.config import FileUploadConfig
 from app.core.db import SessionDep
-from app.models.constants import QuestionLabel
+from app.models.constants import (
+    EmailMessage,
+    EmailSubject,
+    EmailTemplate,
+    QuestionLabel,
+)
 from app.models.forms import (
     ApplicationResponse,
     Forms_Answer,
@@ -348,10 +353,10 @@ async def submit(
         await send_rsvp(current_user.email, user_full_name, application_id)
     else:
         await sendEmail(
-            "templates/confirmation.html",
+            EmailTemplate.CONFIRMATION,
             current_user.email,
-            "Application Submitted",
-            "You have successfully submitted your application",
+            EmailSubject.CONFIRMATION,
+            EmailMessage.CONFIRMATION,
             {},
         )
 
