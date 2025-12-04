@@ -12,6 +12,7 @@ from sqlmodel import select
 
 from app.config import FileUploadConfig
 from app.core.db import SessionDep
+from app.models.constants import QuestionLabel
 from app.models.forms import (
     ApplicationResponse,
     Forms_Answer,
@@ -164,8 +165,7 @@ async def saveAnswers(
         if form_answer:
             question = question_map.get(update.question_id)
             if question:
-                label_lower = question.label.lower().strip()
-                is_prefilled_field = label_lower in ["first name", "last name", "email"]
+                is_prefilled_field = QuestionLabel.is_prefilled_field(question.label)
                 has_existing_value = form_answer.answer and form_answer.answer.strip()
                 is_empty_update = not update.answer or not update.answer.strip()
 

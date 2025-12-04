@@ -10,6 +10,7 @@ from sqlalchemy.orm import aliased
 from sqlmodel import select
 
 from app.core.db import SessionDep
+from app.models.constants import QuestionLabel
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -133,13 +134,17 @@ async def get_all_apps(
     role: StatusEnum | None = None,
 ):
     level_of_study_question = session.exec(
-        select(Forms_Question).where(Forms_Question.label == "Current Level of Study")
+        select(Forms_Question).where(
+            Forms_Question.label == QuestionLabel.CURRENT_LEVEL_OF_STUDY.value
+        )
     ).first()
     gender_question = session.exec(
-        select(Forms_Question).where(Forms_Question.label == "Gender")
+        select(Forms_Question).where(Forms_Question.label == QuestionLabel.GENDER.value)
     ).first()
     school_question = session.exec(
-        select(Forms_Question).where(Forms_Question.label == "School Name")
+        select(Forms_Question).where(
+            Forms_Question.label == QuestionLabel.SCHOOL_NAME.value
+        )
     ).first()
 
     level_of_study_data = aliased(Forms_Answer)
@@ -338,7 +343,7 @@ async def send_bulk_email(
             Forms_Application.application_id == Forms_HackathonApplicant.application_id,
         )
         .where(
-            Account_User.is_active == True,  # noqa: E712
+            Account_User.is_active,
             Forms_HackathonApplicant.status == request.status,
         )
     )

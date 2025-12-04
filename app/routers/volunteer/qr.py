@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from app.core.db import SessionDep
+from app.models.constants import QuestionLabel
 from app.models.food_tracking import Food_Tracking
 from app.models.forms import (
     Forms_Answer,
@@ -105,9 +106,9 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
     }
 
     label_to_key = {
-        "Phone Number": "phoneNumber",
-        "Dietary Restrictions": "dietaryRestrictions",
-        "T-Shirt Size": "tShirtSize",
+        QuestionLabel.PHONE_NUMBER.value: "phoneNumber",
+        QuestionLabel.DIETARY_RESTRICTIONS.value: "dietaryRestrictions",
+        QuestionLabel.T_SHIRT_SIZE.value: "tShirtSize",
     }
 
     for answer, question in answers_results:

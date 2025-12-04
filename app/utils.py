@@ -18,7 +18,7 @@ from sqlmodel import select
 
 from app.config import AppConfig, EmailConfig, SecurityConfig
 from app.core.db import SessionDep
-from app.models.constants import TokenScope
+from app.models.constants import QuestionLabel, TokenScope
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -147,14 +147,14 @@ async def createapplication(
     answers = []
     resume_question = None
     for q in questions:
-        if "resume" not in q.label.lower():
+        if not QuestionLabel.contains_resume(q.label):
             answer_value = None
             label_lower = q.label.lower().strip()
-            if label_lower == "first name":
+            if label_lower == QuestionLabel.FIRST_NAME.value.lower():
                 answer_value = current_user.first_name
-            elif label_lower == "last name":
+            elif label_lower == QuestionLabel.LAST_NAME.value.lower():
                 answer_value = current_user.last_name
-            elif label_lower == "email":
+            elif label_lower == QuestionLabel.EMAIL.value.lower():
                 answer_value = current_user.email
 
             answers.append(
