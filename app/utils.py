@@ -128,6 +128,11 @@ async def createapplication(
             detail="User profile incomplete - first name, last name, or email cannot be empty",
         )
 
+    # Preload all form questions first
+    questions = session.exec(
+        select(Forms_Question).order_by(Forms_Question.question_order)
+    ).all()
+
     # Create application object
     application = Forms_Application(
         user=current_user,
@@ -136,8 +141,7 @@ async def createapplication(
         updated_at=datetime.now(timezone.utc),
     )
     session.add(application)
-    session.commit()
-    session.refresh(application)
+    session.flush()  # Flush to get application_id without committing
 
     # Create hackathon applicant entry
     hackathon_applicant = Forms_HackathonApplicant(
@@ -145,14 +149,8 @@ async def createapplication(
         status=StatusEnum.APPLYING,
     )
     session.add(hackathon_applicant)
-    session.commit()
-    session.refresh(hackathon_applicant)
 
-    # Preload all form questions
-    questions = session.exec(
-        select(Forms_Question).order_by(Forms_Question.question_order)
-    ).all()
-
+    # Prepare answers
     answers = []
     resume_question = None
     for q in questions:
@@ -187,6 +185,7 @@ async def createapplication(
         )
         session.add(resume_answer)
 
+    # Single commit for all operations - more efficient
     session.commit()
 
     # REFRESH current_user (to reflect .application relationship)
