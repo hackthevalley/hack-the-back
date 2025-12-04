@@ -129,6 +129,11 @@ async def createapplication(
         )
 
 
+    questions = session.exec(
+        select(Forms_Question).order_by(Forms_Question.question_order)
+    ).all()
+
+
     application = Forms_Application(
         user=current_user,
         is_draft=True,
@@ -136,8 +141,7 @@ async def createapplication(
         updated_at=datetime.now(timezone.utc),
     )
     session.add(application)
-    session.commit()
-    session.refresh(application)
+    session.flush()
 
 
     hackathon_applicant = Forms_HackathonApplicant(
@@ -145,13 +149,7 @@ async def createapplication(
         status=StatusEnum.APPLYING,
     )
     session.add(hackathon_applicant)
-    session.commit()
-    session.refresh(hackathon_applicant)
 
-
-    questions = session.exec(
-        select(Forms_Question).order_by(Forms_Question.question_order)
-    ).all()
 
     answers = []
     resume_question = None
@@ -186,6 +184,7 @@ async def createapplication(
             question_id=resume_question.question_id,
         )
         session.add(resume_answer)
+
 
     session.commit()
 
