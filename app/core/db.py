@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Annotated, List
+from functools import wraps
+from typing import Annotated, Callable, List
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends
@@ -75,34 +76,72 @@ def advisory_lock(session: Session, lock_id: int):
         )
 
 
+def with_advisory_lock(lock_id: int):
+    """
+    Decorator for functions that need PostgreSQL advisory locks.
+
+    Args:
+        lock_id: Unique integer identifier for this lock
+
+    Example:
+        @with_advisory_lock(ADVISORY_LOCK_QUESTIONS)
+        def seed_questions(questions: List, session: Session):
+            # This will be wrapped with advisory lock
+            pass
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            session = None
+            for arg in args:
+                if isinstance(arg, Session):
+                    session = arg
+                    break
+            if session is None:
+                session = kwargs.get("session")
+
+            if session is None:
+                raise ValueError(
+                    f"Function {func.__name__} must have a 'session' parameter of type Session"
+                )
+
+            with advisory_lock(session, lock_id):
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
 
+@with_advisory_lock(ADVISORY_LOCK_QUESTIONS)
 def seed_questions(questions: List, session: Session):
     """
     Seed form questions into the database with proper locking.
     """
-    with advisory_lock(session, ADVISORY_LOCK_QUESTIONS):
-        try:
-            for index, question in enumerate(questions):
-                statement = select(Forms_Question).where(
-                    Forms_Question.label == question["label"]
+    try:
+        for index, question in enumerate(questions):
+            statement = select(Forms_Question).where(
+                Forms_Question.label == question["label"]
+            )
+            selected_question = session.exec(statement).first()
+
+            if not selected_question:
+                db_question = Forms_Question.model_validate(
+                    question, update={"question_order": index}
                 )
-                selected_question = session.exec(statement).first()
+                session.add(db_question)
 
-                if not selected_question:
-                    db_question = Forms_Question.model_validate(
-                        question, update={"question_order": index}
-                    )
-                    session.add(db_question)
-
-            session.commit()
-        except IntegrityError:
-            session.rollback()
-        except Exception:
-            session.rollback()
-            raise
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+    except Exception:
+        session.rollback()
+        raise
 
 
 def seed_form_time(session: Session):
@@ -122,29 +161,29 @@ def seed_form_time(session: Session):
         session.refresh(db_forms_form)
 
 
+@with_advisory_lock(ADVISORY_LOCK_MEALS)
 def seed_meals(meals: List, session: Session):
     """
     Seed hackathon meals into the database with proper locking.
     """
-    with advisory_lock(session, ADVISORY_LOCK_MEALS):
-        try:
-            for meal_data in meals:
-                statement = select(Meal).where(
-                    Meal.day == meal_data["day"],
-                    Meal.meal_type == meal_data["meal_type"],
-                )
-                existing_meal = session.exec(statement).first()
+    try:
+        for meal_data in meals:
+            statement = select(Meal).where(
+                Meal.day == meal_data["day"],
+                Meal.meal_type == meal_data["meal_type"],
+            )
+            existing_meal = session.exec(statement).first()
 
-                if not existing_meal:
-                    db_meal = Meal(
-                        day=meal_data["day"],
-                        meal_type=meal_data["meal_type"],
-                        is_active=meal_data.get("is_active", False),
-                    )
-                    session.add(db_meal)
-            session.commit()
-        except IntegrityError:
-            session.rollback()
-        except Exception:
-            session.rollback()
-            raise
+            if not existing_meal:
+                db_meal = Meal(
+                    day=meal_data["day"],
+                    meal_type=meal_data["meal_type"],
+                    is_active=meal_data.get("is_active", False),
+                )
+                session.add(db_meal)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+    except Exception:
+        session.rollback()
+        raise

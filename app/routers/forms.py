@@ -313,26 +313,27 @@ async def submit(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Resume is required"
         )
 
-    current_status = current_user.application.hackathonapplicant.status
+    hacker_applicant = current_user.application.hackathonapplicant
 
-    is_walk_in_submission = False
-
-    if current_status == StatusEnum.APPLYING:
-        current_user.application.hackathonapplicant.status = StatusEnum.APPLIED
-    elif current_status == StatusEnum.WALK_IN:
-        current_user.application.hackathonapplicant.status = (
-            StatusEnum.WALK_IN_SUBMITTED
-        )
-        is_walk_in_submission = True
-    elif current_status in [StatusEnum.APPLIED, StatusEnum.WALK_IN_SUBMITTED]:
+    if hacker_applicant.is_already_submitted():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Application already submitted"
         )
-    else:
+
+    if not hacker_applicant.can_submit_application():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User not in valid state to submit",
         )
+
+    is_walk_in_submission = False
+    current_status = hacker_applicant.status
+
+    if current_status == StatusEnum.APPLYING:
+        hacker_applicant.status = StatusEnum.APPLIED
+    elif current_status == StatusEnum.WALK_IN:
+        hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
+        is_walk_in_submission = True
     if not current_user.application.is_draft:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -341,17 +342,17 @@ async def submit(
     else:
         current_user.application.is_draft = False
         current_user.application.updated_at = datetime.now(timezone.utc)
-    session.add(current_user.application.hackathonapplicant)
+    session.add(hacker_applicant)
     session.add(current_user.application)
     session.commit()
-    session.refresh(current_user.application.hackathonapplicant)
+    session.refresh(hacker_applicant)
     session.refresh(current_user.application)
 
     if is_walk_in_submission:
         from app.utils import send_rsvp
 
         application_id = str(current_user.application.application_id)
-        user_full_name = f"{current_user.first_name} {current_user.last_name}"
+        user_full_name = current_user.full_name
         await send_rsvp(current_user.email, user_full_name, application_id)
     else:
         await sendEmail(

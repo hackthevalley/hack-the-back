@@ -286,7 +286,7 @@ async def update_application_status(
     if request == StatusEnum.ACCEPTED:
         from app.utils import send_rsvp
 
-        user_full_name = f"{user.first_name} {user.last_name}"
+        user_full_name = user.full_name
         await send_rsvp(user.email, user_full_name, application_id)
 
     session.add(application.hackathonapplicant)

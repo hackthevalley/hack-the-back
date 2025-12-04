@@ -80,6 +80,24 @@ class Forms_HackathonApplicant(SQLModel, table=True):
         back_populates="hackathonapplicant"
     )
 
+    def can_scan_in(self) -> bool:
+        """Check if applicant is eligible for QR scan check-in."""
+        return self.status in [
+            StatusEnum.ACCEPTED,
+            StatusEnum.ACCEPTED_INVITE,
+            StatusEnum.SCANNED_IN,
+            StatusEnum.WALK_IN,
+            StatusEnum.WALK_IN_SUBMITTED,
+        ]
+
+    def can_submit_application(self) -> bool:
+        """Check if applicant can submit their application."""
+        return self.status in [StatusEnum.APPLYING, StatusEnum.WALK_IN]
+
+    def is_already_submitted(self) -> bool:
+        """Check if application is already submitted."""
+        return self.status in [StatusEnum.APPLIED, StatusEnum.WALK_IN_SUBMITTED]
+
 
 class Forms_HackathonApplicantUpdate(SQLModel):
     status: StatusEnum | None = None

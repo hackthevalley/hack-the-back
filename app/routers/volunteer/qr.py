@@ -61,33 +61,26 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
 
     application, user, hacker_applicant = result
 
-    current_status = hacker_applicant.status
-    if current_status not in [
-        StatusEnum.ACCEPTED,
-        StatusEnum.ACCEPTED_INVITE,
-        StatusEnum.SCANNED_IN,
-        StatusEnum.WALK_IN,
-        StatusEnum.WALK_IN_SUBMITTED,
-    ]:
+    if not hacker_applicant.can_scan_in():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "fallbackMessage": f"User cannot be scanned in (Status: {current_status.value})",
-                "detail": f"User with status {current_status.value} is not eligible for check-in",
+                "fallbackMessage": f"User cannot be scanned in (Status: {hacker_applicant.status.value})",
+                "detail": f"User with status {hacker_applicant.status.value} is not eligible for check-in",
             },
         )
 
     message = ""
 
     if (
-        current_status == StatusEnum.ACCEPTED
-        or current_status == StatusEnum.ACCEPTED_INVITE
+        hacker_applicant.status == StatusEnum.ACCEPTED
+        or hacker_applicant.status == StatusEnum.ACCEPTED_INVITE
     ):
         hacker_applicant.status = StatusEnum.SCANNED_IN
         message = f"Welcome {user.first_name}!"
     elif (
-        current_status == StatusEnum.WALK_IN
-        or current_status == StatusEnum.WALK_IN_SUBMITTED
+        hacker_applicant.status == StatusEnum.WALK_IN
+        or hacker_applicant.status == StatusEnum.WALK_IN_SUBMITTED
     ):
         hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"Welcome walk-in {user.first_name}!"

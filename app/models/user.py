@@ -31,6 +31,11 @@ class Account_User(UserBase, table=True):
     application: Optional["Forms_Application"] = Relationship(back_populates="user")
     meals: Optional["Food_Tracking"] = Relationship(back_populates="user")
 
+    @property
+    def full_name(self) -> str:
+        """Get user's full name."""
+        return f"{self.first_name} {self.last_name}"
+
 
 class UserCreate(UserBase):
     password: str

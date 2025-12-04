@@ -1,17 +1,10 @@
-import io
-
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.forms import StatusEnum, WalkInRequest
 from app.models.user import Account_User
-from app.utils import (
-    createapplication,
-    createQRCode,
-    generate_google_wallet_pass,
-    sendEmail,
-)
+from app.utils import createapplication, send_rsvp
 
 router = APIRouter()
 
@@ -70,29 +63,7 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     session.refresh(user.application.hackathonapplicant)
 
     if send_email:
-        img = await createQRCode(application_id)
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="PNG")
-        img_bytes.seek(0)
-
-        google_link = generate_google_wallet_pass(
-            f"{user.first_name} {user.last_name}", application_id
-        )
-
-        await sendEmail(
-            "templates/rsvp.html",
-            user.email,
-            "RSVP for Hack the Valley X",
-            "RSVP at hackthevalley.io",
-            {
-                "start_date": "October 3rd 2025",
-                "end_date": "October 5th 2025",
-                "due_date": "September 26th 2025",
-                "apple_url": f"apple-wallet/{application_id}",
-                "google_url": f"{google_link}",
-            },
-            attachments=[("qr_code", img_bytes, "image/png")],
-        )
+        await send_rsvp(user.email, user.full_name, application_id)
 
     return {
         "message": message,

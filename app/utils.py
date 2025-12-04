@@ -291,7 +291,7 @@ async def sendActivate(email: str, session: SessionDep):
     access_token = create_access_token(
         data={
             "sub": str(selected_user.email),
-            "fullName": f"{selected_user.first_name} {selected_user.last_name}",
+            "fullName": selected_user.full_name,
             "firstName": selected_user.first_name,
             "lastName": selected_user.last_name,
             "scopes": scopes,
