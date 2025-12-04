@@ -1,5 +1,6 @@
 import io
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -38,39 +39,60 @@ def validate_pdf_file(filename: str, content: bytes) -> tuple[bool, str]:
     if not filename.lower().endswith(".pdf"):
         return False, "Only PDF files are allowed"
 
-    if len(content) < 5:
+    if len(content) < 100:
         return False, "File is too small to be a valid PDF"
 
-    pdf_signature = content[:5]
-    if pdf_signature != b"%PDF-":
-        return False, "File content does not match PDF format (invalid magic bytes)"
+    if not content.startswith(b"%PDF-"):
+
+        if content[:2048].find(b"%PDF-") == -1:
+            return False, "Missing PDF header (%PDF-) — file is not a valid PDF"
+
+
+    eof_matches = re.findall(rb"%%EOF", content)
+    if not eof_matches:
+        return False, "Missing PDF EOF marker"
+
+    if content.rfind(b"%%EOF") < len(content) - 4096:
+        return False, "EOF marker too far from end — corrupted or incremental PDF"
 
     try:
-        pdf_file = io.BytesIO(content)
-
-        reader = PdfReader(pdf_file)
-
-        if len(reader.pages) < 1:
-            return False, "PDF file must contain at least one page"
-
-        _ = reader.pages[0]
+        reader = PdfReader(io.BytesIO(content))
 
         if reader.is_encrypted:
             return False, "Encrypted or password-protected PDFs are not supported"
 
-        return True, ""
+        if len(reader.pages) == 0:
+            return False, "PDF contains no pages"
 
     except Exception as e:
-        error_msg = str(e)
+        return False, f"PDF parsing error: {str(e)[:120]}"
 
-        if "EOF" in error_msg or "marker" in error_msg or "xref" in error_msg:
-            return False, "PDF file is corrupted or incomplete"
-        elif "encrypt" in error_msg.lower() or "password" in error_msg.lower():
-            return False, "Encrypted or password-protected PDFs are not supported"
-        elif "invalid" in error_msg.lower():
-            return False, "Invalid PDF structure detected"
-        else:
-            return False, f"Invalid PDF file: {error_msg[:100]}"
+    def object_contains(forbidden_keys, obj):
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if key in forbidden_keys:
+                    return True
+                if isinstance(value, (dict, list)):
+                    if object_contains(forbidden_keys, value):
+                        return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if isinstance(item, (dict, list)):
+                    if object_contains(forbidden_keys, item):
+                        return True
+        return False
+
+    root = reader.trailer.get("/Root")
+
+    JS_KEYS = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
+    if object_contains(JS_KEYS, root):
+        return False, "PDF contains JavaScript actions, which are not allowed"
+
+    EMBED_KEYS = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
+    if object_contains(EMBED_KEYS, root):
+        return False, "PDF contains embedded files, which are not allowed"
+
+    return True, ""
 
 
 @router.get("/questions")
@@ -89,11 +111,9 @@ async def getapplication(
             status_code=404, detail="Submitting outside submission time"
         )
 
-
     if current_user.application is None:
         application = await createapplication(current_user, session)
     else:
-
         statement = (
             select(Forms_Application)
             .where(Forms_Application.uid == current_user.uid)
@@ -129,7 +149,6 @@ async def saveAnswers(
     if current_user.application is None:
         current_user.application = await createapplication(current_user, session)
 
-
     statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)
@@ -138,7 +157,6 @@ async def saveAnswers(
     application = session.exec(statement).first()
 
     answer_map = {str(ans.question_id): ans for ans in application.form_answers}
-
 
     questions_statement = select(Forms_Question)
     questions = session.exec(questions_statement).all()
