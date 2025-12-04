@@ -300,14 +300,18 @@ async def submit(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Submission is currently closed",
         )
+
+
+    questions_statement = select(Forms_Question)
+    all_questions = session.exec(questions_statement).all()
+    question_map = {str(q.question_id): q for q in all_questions}
+
+
     for answer in current_user.application.form_answers:
         if answer.answer is not None and (
             answer.answer.strip() == "" or answer.answer == "false"
         ):
-            statement = select(Forms_Question).where(
-                Forms_Question.question_id == answer.question_id
-            )
-            selected_question = session.exec(statement).first()
+            selected_question = question_map.get(str(answer.question_id))
             if selected_question and selected_question.required:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
