@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -24,29 +25,75 @@ from app.models.user import Account_User, UserPublic
 from app.utils import sendEmail
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
-async def send_email_async(
+async def send_batch_email(
     users_data: list[dict],
     template_path: str,
     subject: str,
     text_body: str,
     base_context: dict,
 ):
+    """
+    Send emails to multiple users with proper error tracking and logging.
+
+    Logs both successful sends and failures with details to help diagnose issues.
+    """
+    total = len(users_data)
+    successful = 0
+    failed = 0
+    failures = []
+
+    logger.info(
+        f"Starting bulk email send: {total} recipients, subject='{subject}', template='{template_path}'"
+    )
+
     for user_data in users_data:
+        email = user_data.get("email", "unknown")
         try:
             email_context = base_context.copy() if base_context else {}
             email_context.update(user_data)
 
-            await sendEmail(
+            status_code, response = await sendEmail(
                 template_path,
-                user_data["email"],
+                email,
                 subject,
                 text_body,
                 email_context,
             )
-        except Exception:
-            pass
+
+            if status_code == 200:
+                successful += 1
+                logger.debug(f"Email sent successfully to {email}")
+            else:
+                failed += 1
+                failures.append(
+                    {
+                        "email": email,
+                        "reason": f"Status {status_code}",
+                        "response": response,
+                    }
+                )
+                logger.warning(
+                    f"Email send failed to {email}: Status {status_code}, Response: {response}"
+                )
+
+        except Exception as e:
+            failed += 1
+            error_msg = str(e)
+            failures.append({"email": email, "reason": error_msg})
+            logger.error(
+                f"Exception sending email to {email}: {error_msg}",
+                exc_info=True,
+            )
+
+    logger.info(
+        f"Bulk email send complete: {successful}/{total} successful, {failed}/{total} failed"
+    )
+
+    if failures:
+        logger.warning(f"Failed emails summary: {failures}")
 
 
 @router.get("/users", response_model=list[UserPublic])
@@ -367,7 +414,7 @@ async def send_bulk_email(
     ]
 
     background_tasks.add_task(
-        send_email_async,
+        send_batch_email,
         users_data,
         request.template_path,
         request.subject,

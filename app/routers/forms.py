@@ -1,5 +1,7 @@
 import io
+import os
 import re
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -226,24 +228,6 @@ async def uploadresume(
             detail=f"File exceeds {FileUploadConfig.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB limit",
         )
 
-    contents = b""
-    while True:
-        chunk = await file.read(FileUploadConfig.CHUNK_SIZE_BYTES)
-        if not chunk:
-            break
-        contents += chunk
-        if len(contents) > FileUploadConfig.MAX_FILE_SIZE_BYTES:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File exceeds {FileUploadConfig.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB limit",
-            )
-
-    is_valid, error_message = validate_pdf_file(file.filename, contents)
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
-        )
-
     upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
     try:
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -252,20 +236,68 @@ async def uploadresume(
             status_code=500, detail="Failed to prepare upload directory"
         )
 
-    if current_user.application is None:
-        current_user.application = await createapplication(current_user, session)
-    answer_file = current_user.application.form_answersfile
-    if answer_file and answer_file.file_path:
+    temp_fd, temp_path = tempfile.mkstemp(dir=upload_dir, suffix=".pdf.tmp")
+    temp_file_path = Path(temp_path)
+
+    try:
+        os.close(temp_fd)
+
+        bytes_written = 0
+        async with aiofiles.open(temp_path, "wb") as f:
+            while True:
+                chunk = await file.read(FileUploadConfig.CHUNK_SIZE_BYTES)
+                if not chunk:
+                    break
+                bytes_written += len(chunk)
+
+                # Check size limit while streaming
+                if bytes_written > FileUploadConfig.MAX_FILE_SIZE_BYTES:
+                    await aiofiles.os.remove(temp_path)
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"File exceeds {FileUploadConfig.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB limit",
+                    )
+
+                await f.write(chunk)
+
+        async with aiofiles.open(temp_path, "rb") as f:
+            file_contents = await f.read()
+
+        is_valid, error_message = validate_pdf_file(file.filename, file_contents)
+        if not is_valid:
+            await aiofiles.os.remove(temp_path)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
+            )
+
+        if current_user.application is None:
+            current_user.application = await createapplication(current_user, session)
+
+        answer_file = current_user.application.form_answersfile
+        if answer_file and answer_file.file_path:
+            try:
+                old_path = Path(answer_file.file_path)
+                if await aiofiles.os.path.exists(str(old_path)):
+                    await aiofiles.os.remove(str(old_path))
+            except Exception:
+                pass
+
+        filename = f"{uuid4()}.pdf"
+        filepath = upload_dir / filename
+        await aiofiles.os.rename(temp_path, str(filepath))
+        filepath = str(filepath)
+
+    except HTTPException:
+        raise
+    except Exception as e:
         try:
-            old_path = Path(answer_file.file_path)
-            if await aiofiles.os.path.exists(str(old_path)):
-                await aiofiles.os.remove(str(old_path))
+            if temp_file_path.exists():
+                await aiofiles.os.remove(temp_path)
         except Exception:
-            raise HTTPException(status_code=500, detail="Failed to delete old resume")
-    filename = f"{uuid4()}.pdf"
-    filepath = str(upload_dir / filename)
-    async with aiofiles.open(filepath, "wb") as f:
-        await f.write(contents)
+            pass
+        raise HTTPException(
+            status_code=500, detail="Failed to process file upload"
+        ) from e
     answer_file = current_user.application.form_answersfile
     if answer_file is None:
         raise HTTPException(
