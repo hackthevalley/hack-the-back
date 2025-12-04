@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List
 from zoneinfo import ZoneInfo
@@ -11,7 +12,19 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.models.forms import Forms_Form, Forms_Question
 from app.models.meal import Meal
 
+
+
+ADVISORY_LOCK_QUESTIONS = 123456788
+ADVISORY_LOCK_MEALS = 123456789
+
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is not set. "
+        "Please configure the database connection string."
+    )
 
 
 engine = create_engine(
@@ -43,40 +56,46 @@ def get_session():
 SessionDep = Annotated[Session, Depends(get_session)]
 
 
+@contextmanager
+def advisory_lock(session: Session, lock_id: int):
+    if not isinstance(lock_id, int) or lock_id <= 0:
+        raise ValueError(f"lock_id must be a positive integer, got: {lock_id}")
+
+    try:
+        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+        yield
+    finally:
+        session.execute(
+            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
+        )
+
+
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
 
 def seed_questions(questions: List, session: Session):
+    with advisory_lock(session, ADVISORY_LOCK_QUESTIONS):
+        try:
+            for index, question in enumerate(questions):
+                statement = select(Forms_Question).where(
+                    Forms_Question.label == question["label"]
+                )
+                selected_question = session.exec(statement).first()
 
-    lock_id = 123456788
-
-    try:
-
-        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
-
-        for index, question in enumerate(questions):
-            statement = select(Forms_Question).where(
-                Forms_Question.label == question["label"]
-            )
-            selected_question = session.exec(statement).first()
-            if not selected_question:
-                try:
+                if not selected_question:
                     db_question = Forms_Question.model_validate(
                         question, update={"question_order": index}
                     )
                     session.add(db_question)
-                    session.commit()
-                    session.refresh(db_question)
-                except IntegrityError:
 
-                    session.rollback()
-    finally:
-
-        session.execute(
-            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
-        )
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+        except Exception:
+            session.rollback()
+            raise
 
 
 def seed_form_time(session: Session):
@@ -100,35 +119,25 @@ def seed_form_time(session: Session):
 
 
 def seed_meals(meals: List, session: Session):
+    with advisory_lock(session, ADVISORY_LOCK_MEALS):
+        try:
+            for meal_data in meals:
+                statement = select(Meal).where(
+                    Meal.day == meal_data["day"],
+                    Meal.meal_type == meal_data["meal_type"],
+                )
+                existing_meal = session.exec(statement).first()
 
-
-    lock_id = 123456789
-
-    try:
-
-        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
-
-        for meal_data in meals:
-
-            statement = select(Meal).where(
-                Meal.day == meal_data["day"], Meal.meal_type == meal_data["meal_type"]
-            )
-            existing_meal = session.exec(statement).first()
-
-            if not existing_meal:
-                try:
+                if not existing_meal:
                     db_meal = Meal(
                         day=meal_data["day"],
                         meal_type=meal_data["meal_type"],
                         is_active=meal_data.get("is_active", False),
                     )
                     session.add(db_meal)
-                    session.commit()
-                except IntegrityError:
-
-                    session.rollback()
-    finally:
-
-        session.execute(
-            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
-        )
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+        except Exception:
+            session.rollback()
+            raise
