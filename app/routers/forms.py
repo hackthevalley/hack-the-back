@@ -1,5 +1,4 @@
 import io
-import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +10,7 @@ from pypdf import PdfReader
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
+from app.config import FileUploadConfig
 from app.core.db import SessionDep
 from app.models.forms import (
     ApplicationResponse,
@@ -30,9 +30,6 @@ from app.utils import (
 )
 
 router = APIRouter()
-
-UPLOAD_DIR = os.getenv("UPLOAD_DIR")
-MAX_FILE_SIZE = 5 * 1024 * 1024
 
 
 def validate_pdf_file(filename: str, content: bytes) -> tuple[bool, str]:
@@ -221,23 +218,22 @@ async def uploadresume(
             detail=f"Invalid content type: {file.content_type}. Only PDF files are allowed",
         )
 
-    if file.size is not None and file.size > MAX_FILE_SIZE:
+    if file.size is not None and file.size > FileUploadConfig.MAX_FILE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File exceeds 5MB limit",
+            detail=f"File exceeds {FileUploadConfig.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB limit",
         )
 
     contents = b""
-    chunk_size = 1024 * 1024
     while True:
-        chunk = await file.read(chunk_size)
+        chunk = await file.read(FileUploadConfig.CHUNK_SIZE_BYTES)
         if not chunk:
             break
         contents += chunk
-        if len(contents) > MAX_FILE_SIZE:
+        if len(contents) > FileUploadConfig.MAX_FILE_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="File exceeds 5MB limit",
+                detail=f"File exceeds {FileUploadConfig.MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB limit",
             )
 
     is_valid, error_message = validate_pdf_file(file.filename, contents)
@@ -246,8 +242,9 @@ async def uploadresume(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         )
 
+    upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
     try:
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        upload_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to prepare upload directory: {e}"
@@ -260,13 +257,13 @@ async def uploadresume(
         try:
             old_path = Path(answer_file.file_path)
             if old_path.exists():
-                old_path.unlink()  # deletes file
+                old_path.unlink()
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Failed to delete old resume: {e}"
             )
     filename = f"{uuid4()}.pdf"
-    filepath = os.path.join(UPLOAD_DIR, filename)
+    filepath = str(upload_dir / filename)
     with open(filepath, "wb") as f:
         f.write(contents)
     answer_file = current_user.application.form_answersfile
@@ -355,9 +352,7 @@ async def submit(
 
         application_id = str(current_user.application.application_id)
         user_full_name = f"{current_user.first_name} {current_user.last_name}"
-        await send_rsvp(
-            current_user.email, user_full_name, application_id
-        )
+        await send_rsvp(current_user.email, user_full_name, application_id)
     else:
         await sendEmail(
             "templates/confirmation.html",

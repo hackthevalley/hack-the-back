@@ -1,6 +1,5 @@
 import base64
-import os
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import google.auth.jwt
@@ -9,7 +8,6 @@ import jwt
 import qrcode
 from applepassgenerator.client import ApplePassGeneratorClient
 from applepassgenerator.models import Barcode, BarcodeFormat, EventTicket
-from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from google.oauth2 import service_account
@@ -18,6 +16,7 @@ from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
+from app.config import AppConfig, EmailConfig, SecurityConfig
 from app.core.db import SessionDep
 from app.models.constants import TokenScope
 from app.models.forms import (
@@ -31,13 +30,6 @@ from app.models.forms import (
 )
 from app.models.token import TokenData
 from app.models.user import Account_User
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-POSTMARK_API_KEY = os.getenv("POSTMARK_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="login",
@@ -56,7 +48,9 @@ credentials_exception = HTTPException(
 
 async def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token, SecurityConfig.SECRET_KEY, algorithms=[SecurityConfig.ALGORITHM]
+        )
         email: str = payload.get("sub")
         scopes: list[str] = payload.get("scopes", [])
         fullName: str = payload.get("fullName")
@@ -224,7 +218,6 @@ async def sendEmail(
     context: str,
     attachments: list = None,
 ):
-    POSTMARK_URL = "https://api.postmarkapp.com/email"
     with open(template, "r", encoding="utf-8") as file:
         raw_html = file.read()
         html_template = Template(raw_html)
@@ -232,10 +225,10 @@ async def sendEmail(
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "X-Postmark-Server-Token": POSTMARK_API_KEY,
+        "X-Postmark-Server-Token": EmailConfig.POSTMARK_API_KEY,
     }
     data = {
-        "From": "do-not-reply@hackthevalley.io",
+        "From": EmailConfig.FROM_EMAIL,
         "To": receiver,
         "Subject": subject,
         "HtmlBody": html_content,
@@ -257,7 +250,9 @@ async def sendEmail(
                 }
             )
     async with httpx.AsyncClient() as client:
-        response = await client.post(POSTMARK_URL, json=data, headers=headers)
+        response = await client.post(
+            EmailConfig.POSTMARK_URL, json=data, headers=headers
+        )
     return (response.status_code, response.json())
 
 
@@ -273,7 +268,7 @@ async def sendActivate(email: str, session: SessionDep):
             status_code=status.HTTP_404_NOT_FOUND, detail="User already activated"
         )
     now = datetime.now(timezone.utc)
-    cooldown = timedelta(minutes=120)
+    cooldown = timedelta(minutes=SecurityConfig.ACTIVATION_EMAIL_COOLDOWN_MINUTES)
     if selected_user.last_activation_email_sent:
         last_sent = selected_user.last_activation_email_sent
 
@@ -290,7 +285,9 @@ async def sendActivate(email: str, session: SessionDep):
     session.commit()
     scopes = []
     scopes.append(TokenScope.ACCOUNT_ACTIVATE.value)
-    access_token_expires = timedelta(minutes=60)
+    access_token_expires = timedelta(
+        minutes=SecurityConfig.ACTIVATION_TOKEN_EXPIRE_MINUTES
+    )
     access_token = create_access_token(
         data={
             "sub": str(selected_user.email),
@@ -299,15 +296,16 @@ async def sendActivate(email: str, session: SessionDep):
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SECRET_KEY,
-        ALGORITHM=ALGORITHM,
+        SECRET_KEY=SecurityConfig.SECRET_KEY,
+        ALGORITHM=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
+    activation_url = AppConfig.get_activation_url(access_token)
     response = await sendEmail(
         "templates/activation.html",
         email,
         "Account Activation",
-        f"Go to this link to activate your account: https://hackthevalley.io/account-activate?token={access_token}",
+        f"Go to this link to activate your account: {activation_url}",
         {"url": access_token},
     )
     return response
@@ -327,36 +325,34 @@ async def createQRCode(application_id: str):
 
 
 def generate_apple_wallet_pass(user_name: str, application_id: str):
-    start_date = date(2025, 10, 3)
-    end_date = date(2025, 10, 5)
-    date_range_str = f"{start_date.strftime('%b %d')} - {end_date.strftime('%d, %Y')}"
+    date_range_str = AppConfig.get_event_date_range()
     card_info = EventTicket()
     card_info.add_primary_field("role", "Hacker", "Role")
     card_info.add_secondary_field("name", user_name, "Name")
     card_info.add_secondary_field("date", date_range_str, "Date")
-    card_info.add_auxiliary_field(
-        "location", "IA building, UofT Scarborough", "Location"
-    )
+    card_info.add_auxiliary_field("location", AppConfig.EVENT_LOCATION, "Location")
     client = ApplePassGeneratorClient(
-        team_identifier=os.getenv("APPLE_TEAM_IDENTIFIER"),
-        pass_type_identifier=os.getenv("APPLE_PASS_TYPE_IDENTIFIER"),
+        team_identifier=AppConfig.APPLE_TEAM_IDENTIFIER,
+        pass_type_identifier=AppConfig.APPLE_PASS_TYPE_IDENTIFIER,
         organization_name="Hack the Valley",
     )
     apple_pass = client.get_pass(card_info)
-    apple_pass.logo_text = "Hack the Valley X"
+    apple_pass.logo_text = AppConfig.EVENT_NAME
     apple_pass.background_color = "rgb(25, 24, 32)"
     apple_pass.foreground_color = "rgb(255,255,255)"
     apple_pass.label_color = "rgb(255, 255, 255)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
-    apple_pass.add_file("icon.png", open("images/icon-29x29.png", "rb"))
-    apple_pass.add_file("logo.png", open("images/logo-50x50.png", "rb"))
+    with open("images/icon-29x29.png", "rb") as icon_file:
+        apple_pass.add_file("icon.png", icon_file)
+    with open("images/logo-50x50.png", "rb") as logo_file:
+        apple_pass.add_file("logo.png", logo_file)
 
     package = apple_pass.create(
         "certs/apple/cert.pem",
         "certs/apple/key.pem",
         "certs/apple/wwdr.pem",
-        os.getenv("APPLE_WALLET_KEY_PASSWORD"),
+        AppConfig.APPLE_WALLET_KEY_PASSWORD,
         None,
     )
 
@@ -370,11 +366,11 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
         scopes=["https://www.googleapis.com/auth/wallet_object.issuer"],
     )
 
-    issuer_id = os.getenv("GOOGLE_WALLET_ISSUER_ID")
+    issuer_id = AppConfig.GOOGLE_WALLET_ISSUER_ID
     if not issuer_id:
         raise RuntimeError("GOOGLE_WALLET_ISSUER_ID not set")
 
-    class_id = f"{issuer_id}.{os.getenv('GOOGLE_WALLET_CLASS_ID')}"
+    class_id = f"{issuer_id}.{AppConfig.GOOGLE_WALLET_CLASS_ID}"
     object_id = f"{issuer_id}.{application_id}"
 
     payload = {
@@ -395,7 +391,7 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
                         "alternateText": "Present when signing in/getting food!",
                     },
                     "eventId": "hackthevalleyx",
-                    "venue": {"name": "UofT Scarborough"},
+                    "venue": {"name": AppConfig.EVENT_LOCATION},
                     "textModulesData": [{"header": "Name", "body": user_name}],
                 }
             ]
@@ -408,15 +404,13 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
     return save_url
 
 
-async def send_rsvp(
-    user_email: str, user_full_name: str, application_id: str
-):
+async def send_rsvp(user_email: str, user_full_name: str, application_id: str):
     """
     Send acceptance/RSVP email with QR code attachment and wallet passes.
-    
+
     This consolidates duplicate logic for sending acceptance emails with QR codes.
     Used when accepting applications or for walk-in submissions.
-    
+
     Args:
         user_email: Email address of the recipient
         user_full_name: Full name of the user for wallet passes
@@ -431,16 +425,19 @@ async def send_rsvp(
 
     google_link = generate_google_wallet_pass(user_full_name, application_id)
 
+    start_date_str = AppConfig.EVENT_START_DATE.strftime("%B %d %Y")
+    end_date_str = AppConfig.EVENT_END_DATE.strftime("%B %d %Y")
+
     await sendEmail(
         "templates/rsvp.html",
         user_email,
-        "RSVP for Hack the Valley X",
-        "RSVP at hackthevalley.io",
+        f"RSVP for {AppConfig.EVENT_NAME}",
+        f"RSVP at {AppConfig.FRONTEND_URL}",
         {
-            "start_date": "October 3rd 2025",
-            "end_date": "October 5th 2025",
-            "due_date": "September 26th 2025",
-            "apple_url": f"apple-wallet/{application_id}",
+            "start_date": start_date_str,
+            "end_date": end_date_str,
+            "due_date": AppConfig.RSVP_DUE_DATE,
+            "apple_url": AppConfig.get_apple_wallet_url(application_id),
             "google_url": google_link,
         },
         attachments=[("qr_code", img_bytes, "image/png")],

@@ -1,9 +1,12 @@
+import json
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 
+from app.config import validate_config
 from app.core.db import (
     create_db_and_tables,
     engine,
@@ -14,41 +17,13 @@ from app.core.db import (
 from app.models.meal import MealType, WeekDay
 from app.routers import router
 
-questions = [
-    {"label": "First Name", "required": True},
-    {"label": "Last Name", "required": True},
-    {"label": "Email", "required": True},
-    {"label": "Phone Number", "required": True},
-    {"label": "Country", "required": True},
-    {"label": "School Name", "required": True},
-    {"label": "Major", "required": True},
-    {"label": "Current Level of Study", "required": True},
-    {"label": "Expected Graduation Year", "required": True},
-    {"label": "Age", "required": True},
-    {"label": "Gender", "required": True},
-    {"label": "Race/Ethnicity", "required": True},
-    {"label": "Part of the LGBTQ+ Community", "required": True},
-    {"label": "Person with Disabilities?", "required": True},
-    {"label": "Hackathon Count?", "required": True},
-    {"label": "Github", "required": False},
-    {"label": "LinkedIn", "required": False},
-    {"label": "Portfolio", "required": False},
-    {"label": "Attach Your Resume", "required": True},
-    {"label": "UI/UX Design", "required": False},
-    {"label": "Frontend Development", "required": False},
-    {"label": "Backend Development", "required": False},
-    {"label": "Fullstack Development", "required": False},
-    {"label": "Project Management", "required": False},
-    {"label": "Web, Crypto, Blockchain", "required": False},
-    {"label": "Cybersecurity", "required": False},
-    {"label": "Machine Learning", "required": False},
-    {"label": "Dietary Restrictions", "required": True},
-    {"label": "T-Shirt Size", "required": True},
-    {"label": "MLH Code of Conduct", "required": True},
-    {"label": "MLH Privacy Policy, MLH Contest Terms and Conditions", "required": True},
-    {"label": "MLH Event Communication", "required": False},
-    {"label": "Hack the Valley Consent Form Agreement", "required": True},
-]
+
+def load_form_questions() -> list[dict]:
+    """Load form questions from JSON configuration file."""
+    questions_path = Path(__file__).parent / "data" / "form_questions.json"
+    with open(questions_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
 
 meals = [
     {"day": WeekDay.FRIDAY, "meal_type": MealType.DINNER, "is_active": False},
@@ -62,7 +37,11 @@ meals = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_config()
+
     create_db_and_tables()
+
+    questions = load_form_questions()
     with Session(engine) as session:
         seed_questions(questions, session)
         seed_form_time(session)

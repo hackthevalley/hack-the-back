@@ -7,6 +7,7 @@ from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 
+from app.config import AppConfig, SecurityConfig
 from app.core.db import SessionDep
 from app.models.constants import TokenScope, UserRole
 from app.models.forms import Forms_Application, StatusEnum
@@ -19,9 +20,6 @@ from app.models.user import (
     UserUpdate,
 )
 from app.utils import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    ALGORITHM,
-    SECRET_KEY,
     create_access_token,
     decode_jwt,
     generate_apple_wallet_pass,
@@ -59,7 +57,7 @@ async def login(
         scopes.append(TokenScope.ADMIN.value)
     if selected_user.role == UserRole.VOLUNTEER:
         scopes.append(TokenScope.VOLUNTEER.value)
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
             "sub": str(selected_user.email),
@@ -68,8 +66,8 @@ async def login(
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SECRET_KEY,
-        ALGORITHM=ALGORITHM,
+        SECRET_KEY=SecurityConfig.SECRET_KEY,
+        ALGORITHM=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
@@ -127,7 +125,7 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
             status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
         )
     now = datetime.now(timezone.utc)
-    cooldown = timedelta(minutes=15)
+    cooldown = timedelta(minutes=SecurityConfig.PASSWORD_RESET_COOLDOWN_MINUTES)
     if selected_user.last_password_reset_request:
         last_sent = selected_user.last_password_reset_request
         if last_sent.tzinfo is None:
@@ -143,7 +141,9 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
     session.commit()
     scopes = []
     scopes.append(TokenScope.RESET_PASSWORD.value)
-    access_token_expires = timedelta(minutes=15)
+    access_token_expires = timedelta(
+        minutes=SecurityConfig.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    )
     access_token = create_access_token(
         data={
             "sub": str(selected_user.email),
@@ -152,15 +152,16 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SECRET_KEY,
-        ALGORITHM=ALGORITHM,
+        SECRET_KEY=SecurityConfig.SECRET_KEY,
+        ALGORITHM=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
+    password_reset_url = AppConfig.get_password_reset_url(access_token)
     response = await sendEmail(
         "templates/password_reset.html",
         user.email,
         "Account Password Reset",
-        f"Go to this link to reset your password: https://hackthevalley.io/reset-password?token={access_token}",
+        f"Go to this link to reset your password: {password_reset_url}",
         {"url": access_token},
     )
     return response
@@ -210,11 +211,11 @@ async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Toke
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token type not eligible for refresh",
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(token_data.email), "scopes": token_data.scopes},
-        SECRET_KEY=SECRET_KEY,
-        ALGORITHM=ALGORITHM,
+        SECRET_KEY=SecurityConfig.SECRET_KEY,
+        ALGORITHM=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
@@ -236,7 +237,7 @@ async def apple_wallet(application_id: str, session: SessionDep):
     if hasattr(pkpass_bytes_io, "getvalue"):
         pkpass_bytes = pkpass_bytes_io.getvalue()
     else:
-        pkpass_bytes = pkpass_bytes_io  # already bytes
+        pkpass_bytes = pkpass_bytes_io
 
     return Response(
         content=pkpass_bytes,

@@ -1,6 +1,5 @@
-import os
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Annotated, List
 from zoneinfo import ZoneInfo
 
@@ -9,35 +8,29 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from app.config import AppConfig, DatabaseConfig
 from app.models.forms import Forms_Form, Forms_Question
 from app.models.meal import Meal
 
 ADVISORY_LOCK_QUESTIONS = 123456788
 ADVISORY_LOCK_MEALS = 123456789
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-
-if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable is not set. "
-        "Please configure the database connection string."
-    )
+DatabaseConfig.validate()
 
 engine = create_engine(
-    DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_pre_ping=True,
-    pool_recycle=3600,
+    DatabaseConfig.URL,
+    pool_size=DatabaseConfig.POOL_SIZE,
+    max_overflow=DatabaseConfig.MAX_OVERFLOW,
+    pool_pre_ping=DatabaseConfig.POOL_PRE_PING,
+    pool_recycle=DatabaseConfig.POOL_RECYCLE_SECONDS,
     echo=False,
     connect_args={
-        "connect_timeout": 10,
+        "connect_timeout": DatabaseConfig.CONNECT_TIMEOUT,
         "application_name": "hack-the-back",
-        "keepalives": 1,
-        "keepalives_idle": 30,
-        "keepalives_interval": 5,
-        "keepalives_count": 5,
+        "keepalives": DatabaseConfig.KEEPALIVES,
+        "keepalives_idle": DatabaseConfig.KEEPALIVES_IDLE,
+        "keepalives_interval": DatabaseConfig.KEEPALIVES_INTERVAL,
+        "keepalives_count": DatabaseConfig.KEEPALIVES_COUNT,
     },
 )
 
@@ -113,18 +106,15 @@ def seed_questions(questions: List, session: Session):
 
 
 def seed_form_time(session: Session):
+    """Seed application form timeline into the database."""
     row = session.exec(select(Forms_Form).limit(1)).first()
     if row is None:
         current_time = datetime.now(ZoneInfo("America/New_York"))
-        created_at = current_time
-        updated_at = current_time
-        start_at = datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone(timedelta(hours=-4)))
-        end_at = datetime(2025, 9, 1, 0, 0, 0, tzinfo=timezone(timedelta(hours=-4)))
         db_forms_form = Forms_Form(
-            created_at=created_at,
-            updated_at=updated_at,
-            start_at=start_at,
-            end_at=end_at,
+            created_at=current_time,
+            updated_at=current_time,
+            start_at=AppConfig.APPLICATION_START_DATE,
+            end_at=AppConfig.APPLICATION_END_DATE,
         )
 
         session.add(db_forms_form)

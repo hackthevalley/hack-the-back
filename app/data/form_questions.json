@@ -1,0 +1,134 @@
+[
+  {
+    "label": "First Name",
+    "required": true
+  },
+  {
+    "label": "Last Name",
+    "required": true
+  },
+  {
+    "label": "Email",
+    "required": true
+  },
+  {
+    "label": "Phone Number",
+    "required": true
+  },
+  {
+    "label": "Country",
+    "required": true
+  },
+  {
+    "label": "School Name",
+    "required": true
+  },
+  {
+    "label": "Major",
+    "required": true
+  },
+  {
+    "label": "Current Level of Study",
+    "required": true
+  },
+  {
+    "label": "Expected Graduation Year",
+    "required": true
+  },
+  {
+    "label": "Age",
+    "required": true
+  },
+  {
+    "label": "Gender",
+    "required": true
+  },
+  {
+    "label": "Race/Ethnicity",
+    "required": true
+  },
+  {
+    "label": "Part of the LGBTQ+ Community",
+    "required": true
+  },
+  {
+    "label": "Person with Disabilities?",
+    "required": true
+  },
+  {
+    "label": "Hackathon Count?",
+    "required": true
+  },
+  {
+    "label": "Github",
+    "required": false
+  },
+  {
+    "label": "LinkedIn",
+    "required": false
+  },
+  {
+    "label": "Portfolio",
+    "required": false
+  },
+  {
+    "label": "Attach Your Resume",
+    "required": true
+  },
+  {
+    "label": "UI/UX Design",
+    "required": false
+  },
+  {
+    "label": "Frontend Development",
+    "required": false
+  },
+  {
+    "label": "Backend Development",
+    "required": false
+  },
+  {
+    "label": "Fullstack Development",
+    "required": false
+  },
+  {
+    "label": "Project Management",
+    "required": false
+  },
+  {
+    "label": "Web, Crypto, Blockchain",
+    "required": false
+  },
+  {
+    "label": "Cybersecurity",
+    "required": false
+  },
+  {
+    "label": "Machine Learning",
+    "required": false
+  },
+  {
+    "label": "Dietary Restrictions",
+    "required": true
+  },
+  {
+    "label": "T-Shirt Size",
+    "required": true
+  },
+  {
+    "label": "MLH Code of Conduct",
+    "required": true
+  },
+  {
+    "label": "MLH Privacy Policy, MLH Contest Terms and Conditions",
+    "required": true
+  },
+  {
+    "label": "MLH Event Communication",
+    "required": false
+  },
+  {
+    "label": "Hack the Valley Consent Form Agreement",
+    "required": true
+  }
+]
