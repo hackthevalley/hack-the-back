@@ -4,9 +4,9 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
 import google.auth.jwt
+import httpx
 import jwt
 import qrcode
-import requests
 from applepassgenerator.client import ApplePassGeneratorClient
 from applepassgenerator.models import Barcode, BarcodeFormat, EventTicket
 from dotenv import load_dotenv
@@ -262,7 +262,8 @@ async def sendEmail(
                     "ContentID": f"cid:{cid}",
                 }
             )
-    response = requests.post(POSTMARK_URL, json=data, headers=headers)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(POSTMARK_URL, json=data, headers=headers)
     return (response.status_code, response.json())
 
 
@@ -416,3 +417,34 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
     token = token_bytes.decode("utf-8")
     save_url = f"https://pay.google.com/gp/v/save/{token}"
     return save_url
+
+
+async def send_rsvp(
+    user_email: str, user_full_name: str, application_id: str
+):
+    import io
+
+
+    img = await createQRCode(application_id)
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format="PNG")
+    img_bytes.seek(0)
+
+
+    google_link = generate_google_wallet_pass(user_full_name, application_id)
+
+
+    await sendEmail(
+        "templates/rsvp.html",
+        user_email,
+        "RSVP for Hack the Valley X",
+        "RSVP at hackthevalley.io",
+        {
+            "start_date": "October 3rd 2025",
+            "end_date": "October 5th 2025",
+            "due_date": "September 26th 2025",
+            "apple_url": f"apple-wallet/{application_id}",
+            "google_url": google_link,
+        },
+        attachments=[("qr_code", img_bytes, "image/png")],
+    )
