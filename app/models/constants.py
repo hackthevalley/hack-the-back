@@ -16,6 +16,12 @@ class TokenScope(str, Enum):
     ACCOUNT_ACTIVATE = "account_activate"
 
 
+class SortOrder(str, Enum):
+
+    OLDEST = "oldest"
+    LATEST = "latest"
+
+
 class QuestionLabel(str, Enum):
     FIRST_NAME = "First Name"
     LAST_NAME = "Last Name"
@@ -40,3 +46,44 @@ class QuestionLabel(str, Enum):
     @classmethod
     def contains_resume(cls, label: str) -> bool:
         return "resume" in label.lower()
+
+
+class EmailTemplate:
+
+    ACTIVATION = "templates/activation.html"
+    CONFIRMATION = "templates/confirmation.html"
+    PASSWORD_RESET = "templates/password_reset.html"
+    RSVP = "templates/rsvp.html"
+    HACKER_PACKAGE = "templates/hacker_package.html"
+
+
+class EmailSubject:
+
+    ACTIVATION = "Account Activation"
+    CONFIRMATION = "Application Submitted"
+    PASSWORD_RESET = "Account Password Reset"
+    RSVP_TEMPLATE = "RSVP for {event_name}"
+
+    @staticmethod
+    def rsvp(event_name: str) -> str:
+        return f"RSVP for {event_name}"
+
+
+class EmailMessage:
+
+    CONFIRMATION = "You have successfully submitted your application"
+    PASSWORD_RESET_TEXT = "Go to this link to reset your password: {url}"
+    ACTIVATION_TEXT = "Go to this link to activate your account: {url}"
+    RSVP_TEXT = "RSVP at {url}"
+
+    @staticmethod
+    def password_reset_text(url: str) -> str:
+        return f"Go to this link to reset your password: {url}"
+
+    @staticmethod
+    def activation_text(url: str) -> str:
+        return f"Go to this link to activate your account: {url}"
+
+    @staticmethod
+    def rsvp_text(url: str) -> str:
+        return f"RSVP at {url}"

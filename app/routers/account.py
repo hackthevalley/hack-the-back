@@ -9,7 +9,13 @@ from sqlmodel import select
 
 from app.config import AppConfig, SecurityConfig
 from app.core.db import SessionDep
-from app.models.constants import TokenScope, UserRole
+from app.models.constants import (
+    EmailMessage,
+    EmailSubject,
+    EmailTemplate,
+    TokenScope,
+    UserRole,
+)
 from app.models.forms import Forms_Application, StatusEnum
 from app.models.token import Token, TokenData
 from app.models.user import (
@@ -158,10 +164,10 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
     )
     password_reset_url = AppConfig.get_password_reset_url(access_token)
     response = await sendEmail(
-        "templates/password_reset.html",
+        EmailTemplate.PASSWORD_RESET,
         user.email,
-        "Account Password Reset",
-        f"Go to this link to reset your password: {password_reset_url}",
+        EmailSubject.PASSWORD_RESET,
+        EmailMessage.password_reset_text(password_reset_url),
         {"url": access_token},
     )
     return response
