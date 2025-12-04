@@ -77,7 +77,6 @@ async def scan_qr(request: QRScanRequest, session: SessionDep):
         )
 
 
-    old_status = current_status
     message = ""
 
     if (

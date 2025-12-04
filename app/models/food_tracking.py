@@ -1,10 +1,8 @@
 import uuid
-import enum
-from typing import TYPE_CHECKING, Optional, List
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
-from pydantic import BaseModel
-from sqlmodel import Field, Relationship, SQLModel, Column, Enum
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.meal import Meal
 
@@ -23,11 +21,13 @@ class Food_Tracking(SQLModel, table=True):
 
 
     user: "Account_User" = Relationship(back_populates="meals")
-    meal: "Meal"= Relationship(back_populates="tracking_records")
+    meal: "Meal" = Relationship(back_populates="tracking_records")
+
 
 class Food_TrackingCreate(SQLModel):
     user_id: uuid.UUID
     meal_id: uuid.UUID
+
 
 class Food_TrackingRead(SQLModel):
     id: uuid.UUID
