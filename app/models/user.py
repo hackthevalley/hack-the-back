@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from pydantic import BaseModel
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.models.constants import UserRole
 from app.models.food_tracking import Food_Tracking
 
 if TYPE_CHECKING:
@@ -23,7 +24,7 @@ class Account_User(UserBase, table=True):
         primary_key=True,
     )
     password: str
-    role: str
+    role: UserRole
     is_active: bool
     last_password_reset_request: Optional[datetime] = None
     last_activation_email_sent: Optional[datetime] = None
@@ -37,7 +38,7 @@ class UserCreate(UserBase):
 
 class UserPublic(UserBase):
     uid: uuid.UUID
-    role: str
+    role: UserRole
     is_active: bool
     application_status: Optional[str] = None
 

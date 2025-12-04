@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.core.db import SessionDep
+from app.models.constants import TokenScope
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -41,8 +42,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 1
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="login",
     scopes={
-        "admin": "Allow user to call admin routes",
-        "volunteer": "Allow user to call qr routes",
+        TokenScope.ADMIN.value: "Allow user to call admin routes",
+        TokenScope.VOLUNTEER.value: "Allow user to call qr routes",
     },
 )
 
@@ -78,7 +79,10 @@ async def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
 async def get_current_user(
     token_data: Annotated[TokenData, Depends(decode_jwt)], session: SessionDep
 ) -> Account_User:
-    if "reset_password" in token_data.scopes or "account_activate" in token_data.scopes:
+    if (
+        TokenScope.RESET_PASSWORD.value in token_data.scopes
+        or TokenScope.ACCOUNT_ACTIVATE.value in token_data.scopes
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
 
     # Optimize: Use eager loading to fetch user with application relationship
@@ -295,7 +299,7 @@ async def sendActivate(email: str, session: SessionDep):
     session.add(selected_user)
     session.commit()
     scopes = []
-    scopes.append("account_activate")
+    scopes.append(TokenScope.ACCOUNT_ACTIVATE.value)
     access_token_expires = timedelta(minutes=60)
     access_token = create_access_token(
         data={
