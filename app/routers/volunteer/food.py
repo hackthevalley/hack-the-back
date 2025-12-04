@@ -74,37 +74,63 @@ async def track_food(request: dict, session: SessionDep):
     if not food_items:
         return {"message": "No food items to track"}
 
-    # Track each food item
+    # Extract all application_ids and meal_ids upfront
+    application_ids = [UUID(item["application"]) for item in food_items]
+    meal_ids = [UUID(item["serving"]) for item in food_items]
+
+    # Batch query: Get all applications in one query
+    app_statement = select(Forms_Application).where(
+        Forms_Application.application_id.in_(application_ids)
+    )
+    applications = session.exec(app_statement).all()
+
+    # Create a lookup map for fast access
+    app_map = {str(app.application_id): app for app in applications}
+
+    # Validate all applications exist
     for item in food_items:
-        application_id = UUID(item["application"])
-        meal_id = UUID(item["serving"])
-
-        # Get the user from application
-        app_statement = select(Forms_Application).where(
-            Forms_Application.application_id == application_id
-        )
-        application = session.exec(app_statement).first()
-
-        if not application:
+        if item["application"] not in app_map:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Application not found: {item['application']}",
             )
 
-        # Check if this tracking already exists
-        existing_statement = select(Food_Tracking).where(
-            Food_Tracking.user_id == application.uid,
-            Food_Tracking.meal_id == meal_id,
-        )
-        existing_tracking = session.exec(existing_statement).first()
+    # Build list of (user_id, meal_id) tuples for tracking
+    tracking_pairs = []
+    for item in food_items:
+        application = app_map[item["application"]]
+        meal_id = UUID(item["serving"])
+        tracking_pairs.append((application.uid, meal_id))
 
-        if not existing_tracking:
-            # Create new food tracking
-            new_tracking = Food_Tracking(
-                user_id=application.uid,
-                meal_id=meal_id,
+    # Batch query: Get all existing tracking records in one query
+    user_ids = [pair[0] for pair in tracking_pairs]
+    existing_statement = select(Food_Tracking).where(
+        Food_Tracking.user_id.in_(user_ids), Food_Tracking.meal_id.in_(meal_ids)
+    )
+    existing_trackings = session.exec(existing_statement).all()
+
+    # Create a set of existing (user_id, meal_id) for fast lookup
+    existing_pairs = {
+        (str(tracking.user_id), str(tracking.meal_id)) for tracking in existing_trackings
+    }
+
+    # Create new tracking records only for non-existing pairs
+    new_trackings = []
+    for user_id, meal_id in tracking_pairs:
+        if (str(user_id), str(meal_id)) not in existing_pairs:
+            new_trackings.append(
+                Food_Tracking(
+                    user_id=user_id,
+                    meal_id=meal_id,
+                )
             )
-            session.add(new_tracking)
+
+    if new_trackings:
+        session.add_all(new_trackings)
 
     session.commit()
 
-    return {"message": "Food tracking updated successfully"}
+    return {
+        "message": "Food tracking updated successfully",
+        "new_records_created": len(new_trackings),
+    }

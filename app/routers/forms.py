@@ -358,33 +358,12 @@ async def submit(
     session.refresh(current_user.application)
 
     if is_walk_in_submission:
-        import io
-
-        from app.utils import createQRCode, generate_google_wallet_pass
+        from app.utils import send_rsvp
 
         application_id = str(current_user.application.application_id)
-        img = await createQRCode(application_id)
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="PNG")
-        img_bytes.seek(0)
-
-        google_link = generate_google_wallet_pass(
-            f"{current_user.first_name} {current_user.last_name}", application_id
-        )
-
-        await sendEmail(
-            "templates/rsvp.html",
-            current_user.email,
-            "RSVP for Hack the Valley X",
-            "RSVP at hackthevalley.io",
-            {
-                "start_date": "October 3rd 2025",
-                "end_date": "October 5th 2025",
-                "due_date": "September 26th 2025",
-                "apple_url": f"apple-wallet/{application_id}",
-                "google_url": f"{google_link}",
-            },
-            attachments=[("qr_code", img_bytes, "image/png")],
+        user_full_name = f"{current_user.first_name} {current_user.last_name}"
+        await send_rsvp(
+            current_user.email, user_full_name, application_id
         )
     else:
         await sendEmail(

@@ -1,4 +1,3 @@
-import io
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -6,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import String, and_, cast, func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import aliased
 from sqlmodel import select
 
@@ -21,7 +20,7 @@ from app.models.forms import (
 )
 from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
-from app.utils import createQRCode, generate_google_wallet_pass, sendEmail
+from app.utils import sendEmail
 
 router = APIRouter()
 
@@ -133,7 +132,7 @@ async def get_all_apps(
     gender: str = "",
     school: str = "",
     date_sort: str = "",
-    role: str = "",
+    role: StatusEnum | None = None,
 ):
     # Get question IDs for level of study, gender, and school
     level_of_study_question = session.exec(
@@ -164,7 +163,7 @@ async def get_all_apps(
         )
         .where(
             Account_User.is_active,
-            Account_User.application != None,  # noqa: E711
+            Account_User.application.isnot(None),
         )
         .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .join(
@@ -217,9 +216,7 @@ async def get_all_apps(
 
     # Apply role filter
     if role:
-        statement = statement.where(
-            func.lower(cast(Forms_HackathonApplicant.status, String)) == role.lower()
-        )
+        statement = statement.where(Forms_HackathonApplicant.status == role)
 
     # Apply level of study filter
     if level_of_study and level_of_study_question:
@@ -302,28 +299,11 @@ async def update_application_status(
 
     application.hackathonapplicant.status = request.value
     application.updated_at = datetime.now(timezone.utc)
-    if request.value == "ACCEPTED":
-        img = await createQRCode(application_id)
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="PNG")
-        img_bytes.seek(0)
-        google_link = generate_google_wallet_pass(
-            f"{user.first_name} {user.last_name}", application_id
-        )
-        await sendEmail(
-            "templates/rsvp.html",
-            user.email,
-            "RSVP for Hack the Valley X",
-            "RSVP at hackthevalley.io",
-            {
-                "start_date": "October 3rd 2025",
-                "end_date": "October 5th 2025",
-                "due_date": "September 26th 2025",
-                "apple_url": f"apple-wallet/{application_id}",
-                "google_url": f"{google_link}",
-            },
-            attachments=[("qr_code", img_bytes, "image/png")],
-        )
+    if request == StatusEnum.ACCEPTED:
+        from app.utils import send_rsvp
+
+        user_full_name = f"{user.first_name} {user.last_name}"
+        await send_rsvp(user.email, user_full_name, application_id)
 
     session.add(application.hackathonapplicant)
     session.add(application)
