@@ -1,8 +1,7 @@
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Annotated, Callable, List
-from zoneinfo import ZoneInfo
 
 from fastapi import Depends
 from sqlalchemy import text
@@ -13,8 +12,11 @@ from app.config import AppConfig, DatabaseConfig
 from app.models.forms import Forms_Form, Forms_Question
 from app.models.meal import Meal
 
-ADVISORY_LOCK_QUESTIONS = 123456788
-ADVISORY_LOCK_MEALS = 123456789
+# PostgreSQL advisory lock IDs for preventing race conditions during seeding
+# These are arbitrary positive integers used to coordinate access across multiple workers
+# Lock ID range: Using 123456700-123456799 for application-specific locks
+ADVISORY_LOCK_QUESTIONS = 123456788  # Protects question seeding operations
+ADVISORY_LOCK_MEALS = 123456789  # Protects meal seeding operations
 
 DatabaseConfig.validate()
 
@@ -148,7 +150,7 @@ def seed_form_time(session: Session):
     """Seed application form timeline into the database."""
     row = session.exec(select(Forms_Form).limit(1)).first()
     if row is None:
-        current_time = datetime.now(ZoneInfo("America/New_York"))
+        current_time = datetime.now(timezone.utc)
         db_forms_form = Forms_Form(
             created_at=current_time,
             updated_at=current_time,

@@ -112,7 +112,8 @@ async def getapplication(
 ):
     if not await isValidSubmissionTime(session, current_user):
         raise HTTPException(
-            status_code=404, detail="Submitting outside submission time"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Submitting outside submission time",
         )
 
     if current_user.application is None:
@@ -212,10 +213,14 @@ async def uploadresume(
     session: SessionDep,
 ):
     if not await isValidSubmissionTime(session, current_user):
-        raise HTTPException(status_code=403, detail="Submission is closed")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is closed"
+        )
 
     if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed"
+        )
 
     upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -232,7 +237,10 @@ async def uploadresume(
             if bytes_written > FileUploadConfig.MAX_FILE_SIZE_BYTES:
                 await out.close()
                 os.unlink(temp_path)
-                raise HTTPException(413, "File too large")
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="File too large",
+                )
             await out.write(chunk)
 
     is_valid, error_msg = await asyncio.to_thread(
@@ -240,7 +248,7 @@ async def uploadresume(
     )
     if not is_valid:
         os.unlink(temp_path)
-        raise HTTPException(400, detail=error_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     if current_user.application is None:
         current_user.application = await createapplication(current_user, session)
@@ -262,7 +270,9 @@ async def uploadresume(
             final_path.unlink(missing_ok=True)
         except Exception:
             pass
-        raise HTTPException(400, detail="Missing resume model")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Missing resume model"
+        )
 
     try:
         answer_file.original_filename = file.filename
