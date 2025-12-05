@@ -102,7 +102,7 @@ def get_users(
 
 
 @router.get("/applicants")
-async def getapplicants(
+def getapplicants(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
@@ -117,7 +117,7 @@ async def getapplicants(
 
 
 @router.get("/applications/{application_id}/resume")
-async def get_resume(
+def get_resume(
     application_id: UUID,
     session: SessionDep,
 ):
@@ -145,7 +145,7 @@ async def get_resume(
 
 
 @router.get("/applications/{application_id}")
-async def get_application(application_id: UUID, session: SessionDep):
+def get_application(application_id: UUID, session: SessionDep):
     statement = select(Forms_Application).where(
         Forms_Application.application_id == application_id
     )
