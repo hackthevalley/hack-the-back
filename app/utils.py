@@ -332,12 +332,54 @@ async def createQRCode(application_id: str):
 
 
 def generate_apple_wallet_pass(user_name: str, application_id: str):
+    """
+    Generate an Apple Wallet pass for a hacker.
+
+    Args:
+        user_name: Full name of the user
+        application_id: Application UUID
+
+    Returns:
+        Binary pkpass file
+
+    Raises:
+        FileNotFoundError: If required image or certificate files are missing
+        RuntimeError: If wallet configuration is incomplete
+    """
+    from pathlib import Path
+
+    required_files = {
+        "icon": "images/icon-29x29.png",
+        "logo": "images/logo-50x50.png",
+        "cert": "certs/apple/cert.pem",
+        "key": "certs/apple/key.pem",
+        "wwdr": "certs/apple/wwdr.pem",
+    }
+
+    missing_files = []
+    for file_type, file_path in required_files.items():
+        if not Path(file_path).exists():
+            missing_files.append(f"{file_type}: {file_path}")
+
+    if missing_files:
+        raise FileNotFoundError(
+            f"Missing required files for Apple Wallet pass generation: {', '.join(missing_files)}"
+        )
+
+    if not AppConfig.APPLE_TEAM_IDENTIFIER:
+        raise RuntimeError("APPLE_TEAM_IDENTIFIER not configured")
+    if not AppConfig.APPLE_PASS_TYPE_IDENTIFIER:
+        raise RuntimeError("APPLE_PASS_TYPE_IDENTIFIER not configured")
+    if not AppConfig.APPLE_WALLET_KEY_PASSWORD:
+        raise RuntimeError("APPLE_WALLET_KEY_PASSWORD not configured")
+
     date_range_str = AppConfig.get_event_date_range()
     card_info = EventTicket()
     card_info.add_primary_field("role", "Hacker", "Role")
     card_info.add_secondary_field("name", user_name, "Name")
     card_info.add_secondary_field("date", date_range_str, "Date")
     card_info.add_auxiliary_field("location", AppConfig.EVENT_LOCATION, "Location")
+
     client = ApplePassGeneratorClient(
         team_identifier=AppConfig.APPLE_TEAM_IDENTIFIER,
         pass_type_identifier=AppConfig.APPLE_PASS_TYPE_IDENTIFIER,
@@ -350,15 +392,15 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.label_color = "rgb(255, 255, 255)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
-    with open("images/icon-29x29.png", "rb") as icon_file:
+    with open(required_files["icon"], "rb") as icon_file:
         apple_pass.add_file("icon.png", icon_file)
-    with open("images/logo-50x50.png", "rb") as logo_file:
+    with open(required_files["logo"], "rb") as logo_file:
         apple_pass.add_file("logo.png", logo_file)
 
     package = apple_pass.create(
-        "certs/apple/cert.pem",
-        "certs/apple/key.pem",
-        "certs/apple/wwdr.pem",
+        required_files["cert"],
+        required_files["key"],
+        required_files["wwdr"],
         AppConfig.APPLE_WALLET_KEY_PASSWORD,
         None,
     )
@@ -367,15 +409,40 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
 
 
 def generate_google_wallet_pass(user_name: str, application_id: str):
+    """
+    Generate a Google Wallet pass URL for a hacker.
+
+    Args:
+        user_name: Full name of the user
+        application_id: Application UUID
+
+    Returns:
+        Google Wallet pass URL
+
+    Raises:
+        FileNotFoundError: If credentials file is missing
+        RuntimeError: If wallet configuration is incomplete
+    """
+    from pathlib import Path
+
     GOOGLE_CREDENTIALS_FILE = "certs/google/credentials.json"
+
+    if not Path(GOOGLE_CREDENTIALS_FILE).exists():
+        raise FileNotFoundError(
+            f"Google Wallet credentials file not found: {GOOGLE_CREDENTIALS_FILE}"
+        )
+
+    if not AppConfig.GOOGLE_WALLET_ISSUER_ID:
+        raise RuntimeError("GOOGLE_WALLET_ISSUER_ID not configured")
+    if not AppConfig.GOOGLE_WALLET_CLASS_ID:
+        raise RuntimeError("GOOGLE_WALLET_CLASS_ID not configured")
+
     creds = service_account.Credentials.from_service_account_file(
         GOOGLE_CREDENTIALS_FILE,
         scopes=["https://www.googleapis.com/auth/wallet_object.issuer"],
     )
 
     issuer_id = AppConfig.GOOGLE_WALLET_ISSUER_ID
-    if not issuer_id:
-        raise RuntimeError("GOOGLE_WALLET_ISSUER_ID not set")
 
     class_id = f"{issuer_id}.{AppConfig.GOOGLE_WALLET_CLASS_ID}"
     object_id = f"{issuer_id}.{application_id}"

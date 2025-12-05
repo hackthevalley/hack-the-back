@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, field_validator
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.constants import UserRole
@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 
 class UserBase(SQLModel):
-    first_name: str = Field(index=True)
-    last_name: str = Field(index=True)
-    email: str = Field(unique=True, index=True)
+    first_name: str = Field(index=True, min_length=1, max_length=100)
+    last_name: str = Field(index=True, min_length=1, max_length=100)
+    email: EmailStr = Field(unique=True, index=True, max_length=255)
 
 
 class Account_User(UserBase, table=True):
@@ -38,7 +38,21 @@ class Account_User(UserBase, table=True):
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password meets minimum security requirements."""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one number")
+        return v
 
 
 class UserPublic(UserBase):
@@ -49,9 +63,25 @@ class UserPublic(UserBase):
 
 
 class UserUpdate(BaseModel):
-    token: str
-    password: Optional[str] = None
+    token: str = Field(max_length=1000)
+    password: Optional[str] = Field(None, min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: Optional[str]) -> Optional[str]:
+        """Validate password meets minimum security requirements."""
+        if v is None:
+            return v
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one number")
+        return v
 
 
 class PasswordReset(BaseModel):
-    email: str
+    email: EmailStr = Field(max_length=255)

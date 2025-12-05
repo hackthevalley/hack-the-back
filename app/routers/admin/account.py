@@ -28,6 +28,48 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_filename(filename: str) -> str:
+    """
+    Sanitize filename to prevent path traversal attacks.
+
+    Removes directory traversal sequences and dangerous characters.
+    Ensures the filename is safe for use in Content-Disposition header.
+
+    Args:
+        filename: User-provided filename
+
+    Returns:
+        Sanitized filename safe for use
+    """
+    import re
+
+    filename = Path(filename).name
+
+    filename = filename.replace("\x00", "")
+
+    filename = filename.replace("..", "")
+    filename = filename.replace("./", "")
+    filename = filename.replace("../", "")
+
+    filename = re.sub(r"[^\w\s\-.]", "", filename)
+
+    filename = filename.lstrip(".")
+
+    max_length = 255
+    if len(filename) > max_length:
+        name_parts = filename.rsplit(".", 1)
+        if len(name_parts) == 2:
+            name, ext = name_parts
+            filename = name[: max_length - len(ext) - 1] + "." + ext
+        else:
+            filename = filename[:max_length]
+
+    if not filename or filename.isspace():
+        filename = "file.pdf"
+
+    return filename
+
+
 async def send_batch_email(
     users_data: list[dict],
     template_path: str,
@@ -142,10 +184,12 @@ def get_resume(
             status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk"
         )
 
+    safe_filename = _sanitize_filename(resume.original_filename or "resume.pdf")
+
     return FileResponse(
         path=str(file_path),
         media_type="application/pdf",
-        filename=resume.original_filename or "resume.pdf",
+        filename=safe_filename,
     )
 
 

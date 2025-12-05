@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -23,14 +23,37 @@ class FoodResponse(BaseModel):
     currentMeal: str | None
 
 
+class FoodTrackingItem(BaseModel):
+    """Single food tracking item."""
+
+    application: UUID
+    serving: UUID
+
+    @field_validator("application", "serving")
+    @classmethod
+    def validate_uuid(cls, v: str) -> str:
+        """Validate that the string is a valid UUID."""
+        try:
+            UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f"Invalid UUID format: {v}")
+
+
+class FoodTrackingRequest(BaseModel):
+    """Request body for food tracking."""
+
+    food: List[FoodTrackingItem] = Field(
+        max_length=100, description="List of food items to track (max 100 per request)"
+    )
+
+
 def get_day_number(day_str: str) -> int:
-    """Convert day string to number (friday=1, saturday=2, sunday=3)"""
-    day_map = {
-        "friday": 1,
-        "saturday": 2,
-        "sunday": 3,
-    }
-    return day_map.get(day_str.lower(), 0)
+    day_map = {"friday": 1, "saturday": 2, "sunday": 3}
+    try:
+        return day_map[day_str.lower()]
+    except KeyError:
+        raise ValueError(f"Invalid day: {day_str}")
 
 
 @router.get("", response_model=FoodResponse)
@@ -61,20 +84,23 @@ def get_food_data(session: SessionDep):
 
 
 @router.post("/tracking")
-async def track_food(request: dict, session: SessionDep):
+async def track_food(request: FoodTrackingRequest, session: SessionDep):
     """
-    Track food items for a hacker
+    Track food items for a hacker.
+
+    Request body should contain a list of food tracking items with
+    application IDs and serving/meal IDs. Maximum 100 items per request.
     """
     from app.models.food_tracking import Food_Tracking
     from app.models.forms import Forms_Application
 
-    food_items = request.get("food", [])
+    food_items = request.food
 
     if not food_items:
         return {"message": "No food items to track"}
 
-    application_ids = [UUID(item["application"]) for item in food_items]
-    meal_ids = [UUID(item["serving"]) for item in food_items]
+    application_ids = [UUID(item.application) for item in food_items]
+    meal_ids = [UUID(item.serving) for item in food_items]
 
     app_statement = select(Forms_Application).where(
         Forms_Application.application_id.in_(application_ids)
@@ -84,16 +110,16 @@ async def track_food(request: dict, session: SessionDep):
     app_map = {str(app.application_id): app for app in applications}
 
     for item in food_items:
-        if item["application"] not in app_map:
+        if item.application not in app_map:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Application not found: {item['application']}",
+                detail=f"Application not found: {item.application}",
             )
 
     tracking_pairs = []
     for item in food_items:
-        application = app_map[item["application"]]
-        meal_id = UUID(item["serving"])
+        application = app_map[item.application]
+        meal_id = UUID(item.serving)
         tracking_pairs.append((application.uid, meal_id))
 
     user_ids = [pair[0] for pair in tracking_pairs]

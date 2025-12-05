@@ -105,8 +105,8 @@ class Forms_HackathonApplicantUpdate(SQLModel):
 
 class Forms_Question(SQLModel, table=True):
     question_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    question_order: int = Field(index=True)
-    label: str = Field(index=True)
+    question_order: int = Field(index=True, ge=0)
+    label: str = Field(index=True, max_length=255)
     required: bool
 
 
@@ -116,15 +116,15 @@ class Forms_Answer(SQLModel, table=True):
         default=None, index=True, foreign_key="forms_application.application_id"
     )
     question_id: uuid.UUID = Field(index=True)
-    answer: str | None = None
+    answer: str | None = Field(None, max_length=5000)
     applicant: Optional["Forms_Application"] = Relationship(
         back_populates="form_answers"
     )
 
 
 class Forms_AnswerUpdate(SQLModel):
-    question_id: str
-    answer: str | None = None
+    question_id: str = Field(max_length=36)
+    answer: str | None = Field(None, max_length=5000)
 
 
 class Forms_AnswerFile(SQLModel, table=True):
@@ -132,8 +132,8 @@ class Forms_AnswerFile(SQLModel, table=True):
     application_id: uuid.UUID | None = Field(
         default=None, index=True, foreign_key="forms_application.application_id"
     )
-    original_filename: Optional[str] = None
-    file_path: Optional[str] = None
+    original_filename: Optional[str] = Field(None, max_length=255)
+    file_path: Optional[str] = Field(None, max_length=500)
     question_id: uuid.UUID = Field(index=True)
     applicant: Optional["Forms_Application"] = Relationship(
         back_populates="form_answersfile"
@@ -141,7 +141,7 @@ class Forms_AnswerFile(SQLModel, table=True):
 
 
 class Forms_AnswerFileUpdate(SQLModel):
-    original_filename: str | None = None
+    original_filename: str | None = Field(None, max_length=255)
     file: bytes | None = Field(sa_column=Column(LargeBinary))
 
 
@@ -152,4 +152,4 @@ class ApplicationResponse(BaseModel):
 
 
 class WalkInRequest(BaseModel):
-    email: str
+    email: str = Field(max_length=255)
