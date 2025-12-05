@@ -99,3 +99,17 @@ class EmailMessage:
     def rsvp_text(url: str) -> str:
         """Generate RSVP text."""
         return f"RSVP at {url}"
+
+
+ALLOWED_FILE_EXTENSIONS = frozenset([".pdf"])
+DEFAULT_FILE_EXTENSION = ".pdf"
+ALLOWED_FILE_TYPES_MESSAGE = "Only PDF files are allowed"
+
+
+MIN_PDF_PAGES = 1
+PDF_ENCRYPTED_ERROR = "Encrypted or password-protected PDFs are not supported"
+PDF_NO_PAGES_ERROR = "PDF contains no pages"
+PDF_JAVASCRIPT_ERROR = "PDF contains JavaScript actions, which are not allowed"
+PDF_EMBEDDED_FILES_ERROR = "PDF contains embedded files, which are not allowed"
+
+MAX_ERROR_MESSAGE_LENGTH = 120

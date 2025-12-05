@@ -16,6 +16,15 @@ from sqlmodel import select
 from app.config import FileUploadConfig
 from app.core.db import SessionDep
 from app.models.constants import (
+    ALLOWED_FILE_EXTENSIONS,
+    ALLOWED_FILE_TYPES_MESSAGE,
+    DEFAULT_FILE_EXTENSION,
+    MAX_ERROR_MESSAGE_LENGTH,
+    MIN_PDF_PAGES,
+    PDF_EMBEDDED_FILES_ERROR,
+    PDF_ENCRYPTED_ERROR,
+    PDF_JAVASCRIPT_ERROR,
+    PDF_NO_PAGES_ERROR,
     EmailMessage,
     EmailSubject,
     EmailTemplate,
@@ -57,16 +66,18 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    if not filename.lower().endswith(".pdf"):
-        return False, "Only PDF files are allowed"
+    # Check if file extension is allowed
+    file_ext = Path(filename).suffix.lower()
+    if file_ext not in ALLOWED_FILE_EXTENSIONS:
+        return False, ALLOWED_FILE_TYPES_MESSAGE
 
     try:
         reader = PdfReader(filepath)
         if reader.is_encrypted:
-            return False, "Encrypted or password-protected PDFs are not supported"
+            return False, PDF_ENCRYPTED_ERROR
 
-        if len(reader.pages) == 0:
-            return False, "PDF contains no pages"
+        if len(reader.pages) < MIN_PDF_PAGES:
+            return False, PDF_NO_PAGES_ERROR
 
         def object_contains(forbidden_keys, obj):
             """Recursively scan PDF dictionaries for forbidden keys."""
@@ -88,14 +99,14 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
 
         JS_KEYS = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
         if object_contains(JS_KEYS, root):
-            return False, "PDF contains JavaScript actions, which are not allowed"
+            return False, PDF_JAVASCRIPT_ERROR
 
         EMBED_KEYS = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
         if object_contains(EMBED_KEYS, root):
-            return False, "PDF contains embedded files, which are not allowed"
+            return False, PDF_EMBEDDED_FILES_ERROR
 
     except Exception as e:
-        return False, f"Invalid PDF: {str(e)[:120]}"
+        return False, f"Invalid PDF: {str(e)[:MAX_ERROR_MESSAGE_LENGTH]}"
 
     return True, ""
 
@@ -232,16 +243,22 @@ async def uploadresume(
             status_code=status.HTTP_403_FORBIDDEN, detail="Submission is closed"
         )
 
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
+    if not file.filename:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Filename is required"
+        )
+
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_FILE_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=ALLOWED_FILE_TYPES_MESSAGE
         )
 
     upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.NamedTemporaryFile(
-        delete=False, dir=upload_dir, suffix=".pdf"
+        delete=False, dir=upload_dir, suffix=DEFAULT_FILE_EXTENSION
     ) as tmp:
         temp_path = tmp.name
     async with aiofiles.open(temp_path, "wb") as out:
@@ -275,7 +292,7 @@ async def uploadresume(
         except Exception:
             pass
 
-    final_name = f"{uuid4()}.pdf"
+    final_name = f"{uuid4()}{DEFAULT_FILE_EXTENSION}"
     final_path = upload_dir / final_name
     shutil.move(temp_path, final_path)
 

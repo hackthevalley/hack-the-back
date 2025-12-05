@@ -11,7 +11,7 @@ from sqlalchemy.orm import aliased, selectinload
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.constants import QuestionLabel, SortOrder
+from app.models.constants import DEFAULT_FILE_EXTENSION, QuestionLabel, SortOrder
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -65,7 +65,7 @@ def _sanitize_filename(filename: str) -> str:
             filename = filename[:max_length]
 
     if not filename or filename.isspace():
-        filename = "file.pdf"
+        filename = f"file{DEFAULT_FILE_EXTENSION}"
 
     return filename
 
@@ -216,7 +216,9 @@ def get_resume(
             status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk"
         )
 
-    safe_filename = _sanitize_filename(resume.original_filename or "resume.pdf")
+    safe_filename = _sanitize_filename(
+        resume.original_filename or f"resume{DEFAULT_FILE_EXTENSION}"
+    )
 
     return FileResponse(
         path=str(file_path),

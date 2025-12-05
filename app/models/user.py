@@ -7,6 +7,11 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.constants import UserRole
 from app.models.food_tracking import Food_Tracking
+from app.validators import (
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+    validate_password_requirements,
+)
 
 if TYPE_CHECKING:
     from app.models.forms import Forms_Application
@@ -38,21 +43,15 @@ class Account_User(UserBase, table=True):
 
 
 class UserCreate(UserBase):
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(
+        min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH
+    )
 
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         """Validate password meets minimum security requirements."""
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        if not any(c.isupper() for c in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not any(c.islower() for c in v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one number")
-        return v
+        return validate_password_requirements(v)
 
 
 class UserPublic(UserBase):
@@ -64,7 +63,9 @@ class UserPublic(UserBase):
 
 class UserUpdate(BaseModel):
     token: str = Field(max_length=1000)
-    password: Optional[str] = Field(None, min_length=8, max_length=128)
+    password: Optional[str] = Field(
+        None, min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH
+    )
 
     @field_validator("password")
     @classmethod
@@ -72,15 +73,7 @@ class UserUpdate(BaseModel):
         """Validate password meets minimum security requirements."""
         if v is None:
             return v
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        if not any(c.isupper() for c in v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not any(c.islower() for c in v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one number")
-        return v
+        return validate_password_requirements(v)
 
 
 class PasswordReset(BaseModel):
