@@ -379,7 +379,19 @@ async def get_all_apps(
 
     results = session.exec(statement).all()
 
-    def generate_response():
+    response = [
+        {
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "status": hacker_applicant.status,
+            "app_id": hacker_applicant.application_id,
+            "created_at": user_app.created_at,
+            "updated_at": user_app.updated_at,
+            "level_of_study": level_study,
+            "gender": gender_val,
+            "school": school_val,
+        }
         for (
             user,
             user_app,
@@ -387,21 +399,8 @@ async def get_all_apps(
             level_study,
             gender_val,
             school_val,
-        ) in results:
-            yield {
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "email": user.email,
-                "status": hacker_applicant.status,
-                "app_id": hacker_applicant.application_id,
-                "created_at": user_app.created_at,
-                "updated_at": user_app.updated_at,
-                "level_of_study": level_study,
-                "gender": gender_val,
-                "school": school_val,
-            }
-
-    response = list(generate_response())
+        ) in results
+    ]
 
     return {"application": response, "offset": ofs, "limit": limit}
 
