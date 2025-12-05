@@ -101,7 +101,7 @@ class AppConfig:
     """Application-specific configuration."""
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://hackthevalley.io")
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "https://api.hackthevalley.io")
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "https://htb.hackthevalley.io")
 
     EVENT_NAME: str = os.getenv("EVENT_NAME", "Hack the Valley X")
     EVENT_START_DATE: datetime = datetime.fromisoformat(
