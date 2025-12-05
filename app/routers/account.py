@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -237,8 +238,8 @@ async def apple_wallet(application_id: str, session: SessionDep):
     result = session.exec(statement).first()
     if not result:
         return None
-    pkpass_bytes_io = generate_apple_wallet_pass(
-        f"{result[0]} {result[1]}", application_id
+    pkpass_bytes_io = await asyncio.to_thread(
+        generate_apple_wallet_pass, f"{result[0]} {result[1]}", application_id
     )
     if hasattr(pkpass_bytes_io, "getvalue"):
         pkpass_bytes = pkpass_bytes_io.getvalue()
@@ -254,10 +255,21 @@ async def apple_wallet(application_id: str, session: SessionDep):
     )
 
 
-@router.patch("/users/{uid}/rsvp-status")
-async def rsvp_status_update(uid: str, status: StatusEnum, session: SessionDep):
+@router.patch("/rsvp-status")
+async def rsvp_status_update(
+    status: StatusEnum,
+    current_user: Annotated[Account_User, Depends(get_current_user)],
+    session: SessionDep,
+):
+    """
+    Update RSVP status for the authenticated user's application.
+
+    Security: Users can only update their own RSVP status.
+    The user is identified from the authentication token.
+    """
+
     application_statement = select(Forms_Application).where(
-        Forms_Application.uid == uid
+        Forms_Application.uid == current_user.uid
     )
     application = session.exec(application_statement).first()
 

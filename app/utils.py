@@ -2,6 +2,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+import aiofiles
 import google.auth.jwt
 import httpx
 import jwt
@@ -224,10 +225,10 @@ async def sendEmail(
     context: str,
     attachments: list = None,
 ):
-    with open(template, "r", encoding="utf-8") as file:
-        raw_html = file.read()
-        html_template = Template(raw_html)
-        html_content = html_template.render(context)
+    async with aiofiles.open(template, "r", encoding="utf-8") as file:
+        raw_html = await file.read()
+    html_template = Template(raw_html)
+    html_content = html_template.render(context)
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",

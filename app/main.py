@@ -2,6 +2,7 @@ import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import aiofiles
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
@@ -18,11 +19,11 @@ from app.models.meal import MealType, WeekDay
 from app.routers import router
 
 
-def load_form_questions() -> list[dict]:
-    """Load form questions from JSON configuration file."""
+async def load_form_questions() -> list[dict]:
     questions_path = Path(__file__).parent / "data" / "form_questions.json"
-    with open(questions_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    async with aiofiles.open(questions_path, "r", encoding="utf-8") as f:
+        content = await f.read()
+        return json.loads(content)
 
 
 meals = [
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
 
     create_db_and_tables()
 
-    questions = load_form_questions()
+    questions = await load_form_questions()
     with Session(engine) as session:
         seed_questions(questions, session)
         seed_form_time(session)
