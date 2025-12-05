@@ -56,22 +56,17 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # Basic filename validation
     if not filename.lower().endswith(".pdf"):
         return False, "Only PDF files are allowed"
 
     try:
         reader = PdfReader(filepath)
-
-        # Check encryption
         if reader.is_encrypted:
             return False, "Encrypted or password-protected PDFs are not supported"
 
-        # Check pages
         if len(reader.pages) == 0:
             return False, "PDF contains no pages"
 
-        # Security: Scan for forbidden embedded content
         def object_contains(forbidden_keys, obj):
             """Recursively scan PDF dictionaries for forbidden keys."""
             if isinstance(obj, dict):
@@ -90,12 +85,10 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
 
         root = reader.trailer.get("/Root")
 
-        # Check for JavaScript (security risk)
         JS_KEYS = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
         if object_contains(JS_KEYS, root):
             return False, "PDF contains JavaScript actions, which are not allowed"
 
-        # Check for embedded files (security risk)
         EMBED_KEYS = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
         if object_contains(EMBED_KEYS, root):
             return False, "PDF contains embedded files, which are not allowed"
@@ -193,15 +186,21 @@ async def saveAnswers(
                 detail=f"Invalid question_id: {update.question_id}",
             )
 
-    if bulk_updates:
-        session.bulk_update_mappings(Forms_Answer, bulk_updates)
+    try:
+        if bulk_updates:
+            session.bulk_update_mappings(Forms_Answer, bulk_updates)
+
+        application.updated_at = datetime.now(timezone.utc)
+        session.add(application)
+
         session.commit()
-
-    application.updated_at = datetime.now(timezone.utc)
-    session.add(application)
-    session.commit()
-
-    session.refresh(application)
+        session.refresh(application)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save answers: {str(e)}",
+        )
 
     return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
 
@@ -221,7 +220,6 @@ async def uploadresume(
     upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    # Stream directly into temp file
     with tempfile.NamedTemporaryFile(
         delete=False, dir=upload_dir, suffix=".pdf"
     ) as tmp:
@@ -237,7 +235,6 @@ async def uploadresume(
                 raise HTTPException(413, "File too large")
             await out.write(chunk)
 
-    # Validate PDF safely in thread
     is_valid, error_msg = await asyncio.to_thread(
         _validate_pdf, temp_path, file.filename
     )
@@ -245,11 +242,9 @@ async def uploadresume(
         os.unlink(temp_path)
         raise HTTPException(400, detail=error_msg)
 
-    # Ensure application exists
     if current_user.application is None:
         current_user.application = await createapplication(current_user, session)
 
-    # Remove old file
     old = current_user.application.form_answersfile
     if old and old.file_path:
         try:
@@ -257,23 +252,37 @@ async def uploadresume(
         except Exception:
             pass
 
-    # Move to permanent filename
     final_name = f"{uuid4()}.pdf"
     final_path = upload_dir / final_name
     shutil.move(temp_path, final_path)
 
-    # Update DB
     answer_file = current_user.application.form_answersfile
     if not answer_file:
+        try:
+            final_path.unlink(missing_ok=True)
+        except Exception:
+            pass
         raise HTTPException(400, detail="Missing resume model")
 
-    answer_file.original_filename = file.filename
-    answer_file.file_path = str(final_path)
+    try:
+        answer_file.original_filename = file.filename
+        answer_file.file_path = str(final_path)
+        current_user.application.updated_at = datetime.now(timezone.utc)
 
-    current_user.application.updated_at = datetime.now(timezone.utc)
-
-    session.commit()
-    session.refresh(answer_file)
+        session.add(answer_file)
+        session.add(current_user.application)
+        session.commit()
+        session.refresh(answer_file)
+    except Exception as e:
+        session.rollback()
+        try:
+            final_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save resume: {str(e)}",
+        )
 
     return answer_file.original_filename
 
@@ -339,11 +348,19 @@ async def submit(
     else:
         current_user.application.is_draft = False
         current_user.application.updated_at = datetime.now(timezone.utc)
-    session.add(hacker_applicant)
-    session.add(current_user.application)
-    session.commit()
-    session.refresh(hacker_applicant)
-    session.refresh(current_user.application)
+
+    try:
+        session.add(hacker_applicant)
+        session.add(current_user.application)
+        session.commit()
+        session.refresh(hacker_applicant)
+        session.refresh(current_user.application)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to submit application: {str(e)}",
+        )
 
     if is_walk_in_submission:
         from app.utils import send_rsvp

@@ -6,6 +6,7 @@ import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.config import AppConfig, SecurityConfig
@@ -268,8 +269,10 @@ async def rsvp_status_update(
     The user is identified from the authentication token.
     """
 
-    application_statement = select(Forms_Application).where(
-        Forms_Application.uid == current_user.uid
+    application_statement = (
+        select(Forms_Application)
+        .where(Forms_Application.uid == current_user.uid)
+        .options(selectinload(Forms_Application.hackathonapplicant))
     )
     application = session.exec(application_statement).first()
 
@@ -284,13 +287,20 @@ async def rsvp_status_update(
             detail="Only accepted applications can update RSVP status",
         )
 
-    application.hackathonapplicant.status = status.value
-    application.updated_at = datetime.now(timezone.utc)
+    try:
+        application.hackathonapplicant.status = status.value
+        application.updated_at = datetime.now(timezone.utc)
 
-    session.add(application.hackathonapplicant)
-    session.add(application)
-    session.commit()
-    session.refresh(application.hackathonapplicant)
-    session.refresh(application)
+        session.add(application.hackathonapplicant)
+        session.add(application)
+        session.commit()
+        session.refresh(application.hackathonapplicant)
+        session.refresh(application)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update RSVP status: {str(e)}",
+        )
 
     return {"new_status": status.value}

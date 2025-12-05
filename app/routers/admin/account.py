@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -180,19 +180,23 @@ async def get_all_apps(
     date_sort: SortOrder | None = None,
     role: StatusEnum | None = None,
 ):
-    level_of_study_question = session.exec(
-        select(Forms_Question).where(
-            Forms_Question.label == QuestionLabel.CURRENT_LEVEL_OF_STUDY.value
+    questions_statement = select(Forms_Question).where(
+        Forms_Question.label.in_(
+            [
+                QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,
+                QuestionLabel.GENDER.value,
+                QuestionLabel.SCHOOL_NAME.value,
+            ]
         )
-    ).first()
-    gender_question = session.exec(
-        select(Forms_Question).where(Forms_Question.label == QuestionLabel.GENDER.value)
-    ).first()
-    school_question = session.exec(
-        select(Forms_Question).where(
-            Forms_Question.label == QuestionLabel.SCHOOL_NAME.value
-        )
-    ).first()
+    )
+    questions = session.exec(questions_statement).all()
+
+    question_map = {q.label: q for q in questions}
+    level_of_study_question = question_map.get(
+        QuestionLabel.CURRENT_LEVEL_OF_STUDY.value
+    )
+    gender_question = question_map.get(QuestionLabel.GENDER.value)
+    school_question = question_map.get(QuestionLabel.SCHOOL_NAME.value)
 
     level_of_study_data = aliased(Forms_Answer)
     gender_data = aliased(Forms_Answer)
@@ -323,6 +327,7 @@ async def update_application_status(
         select(Forms_Application, Account_User)
         .join(Account_User, Forms_Application.uid == Account_User.uid)
         .where(Forms_Application.application_id == application_id)
+        .options(selectinload(Forms_Application.hackathonapplicant))
     )
     result = session.exec(statement).first()
 
@@ -333,19 +338,28 @@ async def update_application_status(
 
     application, user = result
 
-    application.hackathonapplicant.status = request.value
-    application.updated_at = datetime.now(timezone.utc)
-    if request == StatusEnum.ACCEPTED:
-        from app.utils import send_rsvp
+    try:
+        application.hackathonapplicant.status = request.value
+        application.updated_at = datetime.now(timezone.utc)
 
-        user_full_name = user.full_name
-        await send_rsvp(user.email, user_full_name, application_id)
+        session.add(application.hackathonapplicant)
+        session.add(application)
+        session.commit()
+        session.refresh(application.hackathonapplicant)
+        session.refresh(application)
 
-    session.add(application.hackathonapplicant)
-    session.add(application)
-    session.commit()
-    session.refresh(application.hackathonapplicant)
-    session.refresh(application)
+        if request == StatusEnum.ACCEPTED:
+            from app.utils import send_rsvp
+
+            user_full_name = user.full_name
+            await send_rsvp(user.email, user_full_name, application_id)
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update application status: {str(e)}",
+        )
 
     return {
         "application_id": application_id,

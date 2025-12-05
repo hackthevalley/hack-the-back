@@ -103,7 +103,8 @@ async def track_food(request: dict, session: SessionDep):
     existing_trackings = session.exec(existing_statement).all()
 
     existing_pairs = {
-        (str(tracking.user_id), str(tracking.meal_id)) for tracking in existing_trackings
+        (str(tracking.user_id), str(tracking.meal_id))
+        for tracking in existing_trackings
     }
 
     new_trackings = []
@@ -116,10 +117,16 @@ async def track_food(request: dict, session: SessionDep):
                 )
             )
 
-    if new_trackings:
-        session.add_all(new_trackings)
-
-    session.commit()
+    try:
+        if new_trackings:
+            session.add_all(new_trackings)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to track food: {str(e)}",
+        )
 
     return {
         "message": "Food tracking updated successfully",
