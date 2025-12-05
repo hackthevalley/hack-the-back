@@ -106,7 +106,7 @@ async def signup(user: UserCreate, session: SessionDep):
 
 
 @router.get("/me", response_model=UserPublic)
-async def read_users_me(
+def read_users_me(
     current_user: Annotated[Account_User, Depends(get_current_user)],
 ):
     application_status = None
@@ -210,7 +210,7 @@ async def activate(user: UserUpdate, session: SessionDep):
 
 
 @router.post("/tokens")
-async def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
+def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
     if (
         TokenScope.RESET_PASSWORD.value in token_data.scopes
         or TokenScope.ACCOUNT_ACTIVATE.value in token_data.scopes

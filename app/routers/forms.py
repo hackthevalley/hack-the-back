@@ -100,7 +100,7 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
 
 
 @router.get("/questions")
-async def getquestions(session: SessionDep) -> list[Forms_Question]:
+def getquestions(session: SessionDep) -> list[Forms_Question]:
     statement = select(Forms_Question)
     return session.exec(statement)
 
@@ -396,6 +396,6 @@ async def submissiontime(session: SessionDep):
 
 
 @router.get("/registration-timerange", response_model=Forms_Form)
-async def get_reg_time_range(session: SessionDep) -> Forms_Form:
+def get_reg_time_range(session: SessionDep) -> Forms_Form:
     time_range = session.exec(select(Forms_Form)).first()
     return time_range
