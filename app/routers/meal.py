@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=MealRead, status_code=status.HTTP_201_CREATED)
-async def createmeal(*, session: SessionDep, meal: MealCreate):
+def createmeal(*, session: SessionDep, meal: MealCreate):
     query = select(Meal).where(Meal.day == meal.day, Meal.meal_type == meal.meal_type)
     existing_meal = session.exec(query).first()
     if existing_meal and meal.meal_type != MealType.SNACK:

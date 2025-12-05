@@ -33,7 +33,7 @@ def get_day_number(day_str: str) -> int:
 
 
 @router.get("", response_model=FoodResponse)
-async def get_food_data(session: SessionDep):
+def get_food_data(session: SessionDep):
     statement = select(Meal)
     meals = session.exec(statement).all()
 
