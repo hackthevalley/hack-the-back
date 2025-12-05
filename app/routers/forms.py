@@ -27,6 +27,7 @@ from app.models.forms import (
     Forms_AnswerUpdate,
     Forms_Application,
     Forms_Form,
+    Forms_HackathonApplicant,
     Forms_Question,
     StatusEnum,
 )
@@ -343,7 +344,21 @@ async def submit(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Resume is required"
         )
 
-    hacker_applicant = current_user.application.hackathonapplicant
+    lock_statement = (
+        select(Forms_HackathonApplicant)
+        .where(
+            Forms_HackathonApplicant.application_id
+            == current_user.application.application_id
+        )
+        .with_for_update()
+    )
+    hacker_applicant = session.exec(lock_statement).first()
+
+    if not hacker_applicant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
 
     if hacker_applicant.is_already_submitted():
         raise HTTPException(

@@ -248,11 +248,11 @@ def get_application(application_id: UUID, session: SessionDep):
 async def get_all_apps(
     session: SessionDep,
     ofs: int = 0,
-    limit: int = 25,
-    search: str = "",
-    level_of_study: str = "",
-    gender: str = "",
-    school: str = "",
+    limit: Annotated[int, Query(le=100)] = 25,
+    search: Annotated[str, Query(max_length=100)] = "",
+    level_of_study: Annotated[str, Query(max_length=100)] = "",
+    gender: Annotated[str, Query(max_length=50)] = "",
+    school: Annotated[str, Query(max_length=200)] = "",
     date_sort: SortOrder | None = None,
     role: StatusEnum | None = None,
 ):

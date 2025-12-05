@@ -115,7 +115,7 @@ class Forms_Answer(SQLModel, table=True):
     application_id: uuid.UUID | None = Field(
         default=None, index=True, foreign_key="forms_application.application_id"
     )
-    question_id: uuid.UUID = Field(index=True)
+    question_id: uuid.UUID = Field(index=True, foreign_key="forms_question.question_id")
     answer: str | None = Field(None, max_length=5000)
     applicant: Optional["Forms_Application"] = Relationship(
         back_populates="form_answers"
@@ -134,7 +134,7 @@ class Forms_AnswerFile(SQLModel, table=True):
     )
     original_filename: Optional[str] = Field(None, max_length=255)
     file_path: Optional[str] = Field(None, max_length=500)
-    question_id: uuid.UUID = Field(index=True)
+    question_id: uuid.UUID = Field(index=True, foreign_key="forms_question.question_id")
     applicant: Optional["Forms_Application"] = Relationship(
         back_populates="form_answersfile"
     )
