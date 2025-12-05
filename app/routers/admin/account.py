@@ -78,64 +78,96 @@ async def send_batch_email(
     base_context: dict,
 ):
     """
-    Send emails to multiple users with proper error tracking and logging.
+    Send emails to multiple users concurrently with proper error tracking.
 
-    Logs both successful sends and failures with details to help diagnose issues.
+    Uses asyncio.gather with semaphore to limit concurrent operations.
+    Processes in chunks to balance memory usage and throughput.
+
+    Configuration (via environment variables):
+        BULK_EMAIL_CHUNK_SIZE: Number of emails per chunk (default: 100)
+        BULK_EMAIL_MAX_CONCURRENT: Max concurrent email sends (default: 10)
     """
+    import asyncio
+
+    from app.config import EmailConfig
+
     total = len(users_data)
     successful = 0
     failed = 0
     failures = []
 
+    MAX_CONCURRENT = EmailConfig.BULK_MAX_CONCURRENT
+    CHUNK_SIZE = EmailConfig.BULK_CHUNK_SIZE
+
     logger.info(
-        f"Starting bulk email send: {total} recipients, subject='{subject}', template='{template_path}'"
+        f"Starting bulk email send: {total} recipients, subject='{subject}', "
+        f"template='{template_path}', concurrency={MAX_CONCURRENT}, chunk_size={CHUNK_SIZE}"
     )
 
-    for user_data in users_data:
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+
+    async def send_with_semaphore(user_data: dict) -> tuple[bool, str, dict]:
+        """Send email with rate limiting via semaphore. Uses sendEmail from utils."""
         email = user_data.get("email", "unknown")
-        try:
-            email_context = base_context.copy() if base_context else {}
-            email_context.update(user_data)
+        async with semaphore:
+            try:
+                email_context = base_context.copy() if base_context else {}
+                email_context.update(user_data)
 
-            status_code, response = await sendEmail(
-                template_path,
-                email,
-                subject,
-                text_body,
-                email_context,
-            )
+                status_code, response = await sendEmail(
+                    template_path,
+                    email,
+                    subject,
+                    text_body,
+                    email_context,
+                )
 
-            if status_code == 200:
+                if status_code == 200:
+                    return (True, email, {})
+                else:
+                    return (
+                        False,
+                        email,
+                        {
+                            "email": email,
+                            "reason": f"Status {status_code}",
+                            "response": response,
+                        },
+                    )
+            except Exception as e:
+                return (False, email, {"email": email, "reason": str(e)})
+
+    for i in range(0, total, CHUNK_SIZE):
+        chunk = users_data[i : i + CHUNK_SIZE]
+        chunk_num = (i // CHUNK_SIZE) + 1
+        total_chunks = (total + CHUNK_SIZE - 1) // CHUNK_SIZE
+
+        logger.info(
+            f"Processing chunk {chunk_num}/{total_chunks} ({len(chunk)} emails)"
+        )
+
+        results = await asyncio.gather(
+            *[send_with_semaphore(user_data) for user_data in chunk],
+            return_exceptions=False,
+        )
+
+        for success, email, error_info in results:
+            if success:
                 successful += 1
                 logger.debug(f"Email sent successfully to {email}")
             else:
                 failed += 1
-                failures.append(
-                    {
-                        "email": email,
-                        "reason": f"Status {status_code}",
-                        "response": response,
-                    }
-                )
+                failures.append(error_info)
                 logger.warning(
-                    f"Email send failed to {email}: Status {status_code}, Response: {response}"
+                    f"Email send failed to {email}: {error_info.get('reason')}"
                 )
-
-        except Exception as e:
-            failed += 1
-            error_msg = str(e)
-            failures.append({"email": email, "reason": error_msg})
-            logger.error(
-                f"Exception sending email to {email}: {error_msg}",
-                exc_info=True,
-            )
 
     logger.info(
         f"Bulk email send complete: {successful}/{total} successful, {failed}/{total} failed"
     )
 
     if failures:
-        logger.warning(f"Failed emails summary: {failures}")
+        logger.warning(f"Failed emails summary: {failures[:10]}")
 
 
 @router.get("/users", response_model=list[UserPublic])
@@ -224,18 +256,29 @@ async def get_all_apps(
     date_sort: SortOrder | None = None,
     role: StatusEnum | None = None,
 ):
-    questions_statement = select(Forms_Question).where(
-        Forms_Question.label.in_(
-            [
-                QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,
-                QuestionLabel.GENDER.value,
-                QuestionLabel.SCHOOL_NAME.value,
-            ]
-        )
-    )
-    questions = session.exec(questions_statement).all()
+    from datetime import timedelta
 
-    question_map = {q.label: q for q in questions}
+    from app.cache import cache
+
+    def fetch_questions():
+        questions_statement = select(Forms_Question).where(
+            Forms_Question.label.in_(
+                [
+                    QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,
+                    QuestionLabel.GENDER.value,
+                    QuestionLabel.SCHOOL_NAME.value,
+                ]
+            )
+        )
+        questions = session.exec(questions_statement).all()
+        return {q.label: q for q in questions}
+
+    question_map = cache.get_or_set(
+        key="admin_filter_questions",
+        factory_func=fetch_questions,
+        ttl=timedelta(minutes=10),
+    )
+
     level_of_study_question = question_map.get(
         QuestionLabel.CURRENT_LEVEL_OF_STUDY.value
     )
@@ -336,17 +379,16 @@ async def get_all_apps(
 
     results = session.exec(statement).all()
 
-    response = []
-    for (
-        user,
-        user_app,
-        hacker_applicant,
-        level_study,
-        gender_val,
-        school_val,
-    ) in results:
-        response.append(
-            {
+    def generate_response():
+        for (
+            user,
+            user_app,
+            hacker_applicant,
+            level_study,
+            gender_val,
+            school_val,
+        ) in results:
+            yield {
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email,
@@ -358,7 +400,8 @@ async def get_all_apps(
                 "gender": gender_val,
                 "school": school_val,
             }
-        )
+
+    response = list(generate_response())
 
     return {"application": response, "offset": ofs, "limit": limit}
 
@@ -413,13 +456,14 @@ async def update_application_status(
 
 
 @router.post("/bulk-emails")
-async def send_bulk_email(
+async def send_bulk_email_endpoint(
     request: BulkEmailRequest, session: SessionDep, background_tasks: BackgroundTasks
 ):
     """
     Send an email to all applicants with a specific status.
 
-    Emails are sent asynchronously in the background to avoid blocking the response.
+    Emails are sent asynchronously in the background using concurrent processing.
+    Large datasets are chunked to balance memory usage and throughput.
 
     Args:
         template_path: Path to the email template (e.g., "templates/hacker_package.html")
@@ -436,6 +480,38 @@ async def send_bulk_email(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Template file not found"
         )
+
+    count_statement = (
+        select(func.count())
+        .select_from(Account_User)
+        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
+        .join(
+            Forms_HackathonApplicant,
+            Forms_Application.application_id == Forms_HackathonApplicant.application_id,
+        )
+        .where(
+            Account_User.is_active,
+            Forms_HackathonApplicant.status == request.status,
+        )
+    )
+
+    total_recipients = session.exec(count_statement).one()
+
+    if total_recipients == 0:
+        return {
+            "message": f"No users found with status: {request.status.value}",
+            "total_recipients": 0,
+            "status": "no_recipients",
+        }
+
+    from app.config import EmailConfig
+
+    if total_recipients > EmailConfig.BULK_WARN_THRESHOLD:
+        logger.warning(
+            f"Large bulk email operation: {total_recipients} recipients. "
+            "Consider using a dedicated task queue (Celery/RQ) for production."
+        )
+
     statement = (
         select(
             Account_User.first_name,
@@ -454,13 +530,6 @@ async def send_bulk_email(
     )
 
     results = session.exec(statement).all()
-
-    if not results:
-        return {
-            "message": f"No users found with status: {request.status.value}",
-            "total_recipients": 0,
-            "status": "no_recipients",
-        }
 
     users_data = [
         {
@@ -482,7 +551,7 @@ async def send_bulk_email(
 
     return {
         "message": f"Bulk email job queued for status: {request.status.value}",
-        "total_recipients": len(users_data),
+        "total_recipients": total_recipients,
         "status": "queued",
-        "note": "Emails are being sent in the background. Check server logs for delivery status.",
+        "note": "Emails are being sent concurrently in the background (chunks of 100, max 10 concurrent)",
     }

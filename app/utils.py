@@ -393,9 +393,12 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
     with open(required_files["icon"], "rb") as icon_file:
-        apple_pass.add_file("icon.png", icon_file)
+        icon_data = icon_file.read()
+        apple_pass.add_file("icon.png", icon_data)
+
     with open(required_files["logo"], "rb") as logo_file:
-        apple_pass.add_file("logo.png", logo_file)
+        logo_data = logo_file.read()
+        apple_pass.add_file("logo.png", logo_data)
 
     package = apple_pass.create(
         required_files["cert"],

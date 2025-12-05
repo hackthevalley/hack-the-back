@@ -62,4 +62,8 @@ async def set_reg_time_range(
     session.commit()
     session.refresh(current_time_range)
 
+    from app.cache import cache
+
+    cache.delete("registration_timerange")
+
     return current_time_range

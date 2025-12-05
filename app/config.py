@@ -83,6 +83,10 @@ class EmailConfig:
     POSTMARK_URL: str = "https://api.postmarkapp.com/email"
     FROM_EMAIL: str = os.getenv("EMAIL_FROM", "do-not-reply@hackthevalley.io")
 
+    BULK_MAX_CONCURRENT: int = int(os.getenv("BULK_EMAIL_MAX_CONCURRENT", "10"))
+    BULK_CHUNK_SIZE: int = int(os.getenv("BULK_EMAIL_CHUNK_SIZE", "100"))
+    BULK_WARN_THRESHOLD: int = int(os.getenv("BULK_EMAIL_WARN_THRESHOLD", "1000"))
+
     @classmethod
     def validate(cls):
         """Validate required email configuration."""

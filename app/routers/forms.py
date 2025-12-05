@@ -101,8 +101,22 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
 
 @router.get("/questions")
 def getquestions(session: SessionDep) -> list[Forms_Question]:
-    statement = select(Forms_Question)
-    return session.exec(statement)
+    """
+    Get all form questions.
+
+    Results are cached for 10 minutes since questions rarely change.
+    """
+    from datetime import timedelta
+
+    from app.cache import cache
+
+    def fetch_questions():
+        statement = select(Forms_Question).order_by(Forms_Question.question_order)
+        return list(session.exec(statement).all())
+
+    return cache.get_or_set(
+        key="form_questions", factory_func=fetch_questions, ttl=timedelta(minutes=10)
+    )
 
 
 @router.get("/application", response_model=ApplicationResponse)
@@ -397,5 +411,20 @@ async def submissiontime(session: SessionDep):
 
 @router.get("/registration-timerange", response_model=Forms_Form)
 def get_reg_time_range(session: SessionDep) -> Forms_Form:
-    time_range = session.exec(select(Forms_Form)).first()
-    return time_range
+    """
+    Get registration time range.
+
+    Results are cached for 5 minutes since this rarely changes.
+    """
+    from datetime import timedelta
+
+    from app.cache import cache
+
+    def fetch_time_range():
+        return session.exec(select(Forms_Form)).first()
+
+    return cache.get_or_set(
+        key="registration_timerange",
+        factory_func=fetch_time_range,
+        ttl=timedelta(minutes=5),
+    )
