@@ -75,7 +75,7 @@ class Forms_HackathonApplicant(SQLModel, table=True):
     application_id: uuid.UUID | None = Field(
         default=None, primary_key=True, foreign_key="forms_application.application_id"
     )
-    status: StatusEnum = Field()
+    status: StatusEnum = Field(index=True)
     applicant: Optional["Forms_Application"] = Relationship(
         back_populates="hackathonapplicant"
     )
