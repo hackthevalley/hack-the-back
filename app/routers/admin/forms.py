@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Annotated
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Body, HTTPException, status
 from sqlmodel import select
@@ -17,18 +16,13 @@ async def set_reg_time_range(
     start_at: Annotated[str, Body()],
     end_at: Annotated[str, Body()],
 ) -> Forms_Form:
-    current_est_time = datetime.now(ZoneInfo("America/New_York"))
+    from datetime import timezone as tz
+
+    current_utc_time = datetime.now(tz.utc)
     try:
-        new_start_date = (
-            datetime.strptime(start_at, "%Y-%m-%d")
-            .replace(tzinfo=ZoneInfo("UTC"))
-            .astimezone(ZoneInfo("America/New_York"))
-        )
-        new_end_date = (
-            datetime.strptime(end_at, "%Y-%m-%d")
-            .replace(tzinfo=ZoneInfo("UTC"))
-            .astimezone(ZoneInfo("America/New_York"))
-        )
+
+        new_start_date = datetime.strptime(start_at, "%Y-%m-%d").replace(tzinfo=tz.utc)
+        new_end_date = datetime.strptime(end_at, "%Y-%m-%d").replace(tzinfo=tz.utc)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date format"
@@ -45,7 +39,7 @@ async def set_reg_time_range(
             status_code=status.HTTP_404_NOT_FOUND, detail="Data not found"
         )
 
-    current_time_range.updated_at = current_est_time
+    current_time_range.updated_at = current_utc_time
     current_time_range.start_at = new_start_date
     current_time_range.end_at = new_end_date
 
