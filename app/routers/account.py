@@ -184,6 +184,12 @@ async def reset_password(user: UserUpdate, session: SessionDep):
         )
     statement = select(Account_User).where(Account_User.email == token_data.email)
     selected_user = session.exec(statement).first()
+
+    if not selected_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
     selected_user.password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
@@ -202,6 +208,12 @@ async def activate(user: UserUpdate, session: SessionDep):
         )
     statement = select(Account_User).where(Account_User.email == token_data.email)
     selected_user = session.exec(statement).first()
+
+    if not selected_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
     selected_user.is_active = True
     session.add(selected_user)
     session.commit()
@@ -238,7 +250,10 @@ async def apple_wallet(application_id: str, session: SessionDep):
     )
     result = session.exec(statement).first()
     if not result:
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
+
     pkpass_bytes_io = await asyncio.to_thread(
         generate_apple_wallet_pass, f"{result[0]} {result[1]}", application_id
     )

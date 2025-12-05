@@ -5,6 +5,7 @@ This module provides caching for static/semi-static data that doesn't change
 frequently during runtime to reduce database queries.
 """
 
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -15,6 +16,8 @@ class SimpleCache:
     def __init__(self):
         self._cache: dict[str, tuple[Any, datetime]] = {}
         self._default_ttl = timedelta(minutes=5)
+        self._lock = threading.RLock()
+        self._last_cleanup = datetime.now(timezone.utc)
 
     def get(self, key: str) -> Optional[Any]:
         """
@@ -26,16 +29,16 @@ class SimpleCache:
         Returns:
             Cached value or None if not found/expired
         """
-        if key not in self._cache:
-            return None
+        with self._lock:
+            if key not in self._cache:
+                return None
 
-        value, expiry = self._cache[key]
-        if datetime.now(timezone.utc) > expiry:
-            # Expired, remove from cache
-            del self._cache[key]
-            return None
+            value, expiry = self._cache[key]
+            if datetime.now(timezone.utc) > expiry:
+                del self._cache[key]
+                return None
 
-        return value
+            return value
 
     def set(self, key: str, value: Any, ttl: Optional[timedelta] = None) -> None:
         """
@@ -49,8 +52,10 @@ class SimpleCache:
         if ttl is None:
             ttl = self._default_ttl
 
-        expiry = datetime.now(timezone.utc) + ttl
-        self._cache[key] = (value, expiry)
+        with self._lock:
+            expiry = datetime.now(timezone.utc) + ttl
+            self._cache[key] = (value, expiry)
+            self._cleanup_if_needed()
 
     def delete(self, key: str) -> None:
         """
@@ -59,12 +64,15 @@ class SimpleCache:
         Args:
             key: Cache key to delete
         """
-        if key in self._cache:
-            del self._cache[key]
+        with self._lock:
+            if key in self._cache:
+                del self._cache[key]
 
     def clear(self) -> None:
         """Clear all cached items."""
-        self._cache.clear()
+        with self._lock:
+            self._cache.clear()
+            self._last_cleanup = datetime.now(timezone.utc)
 
     def get_or_set(
         self,
@@ -91,6 +99,27 @@ class SimpleCache:
         self.set(key, value, ttl)
         return value
 
+    def _cleanup_if_needed(self) -> None:
+        """
+        Periodically clean up expired entries to prevent memory leaks.
 
-# Global cache instance
+        Runs cleanup every 5 minutes to remove expired entries that were never
+        accessed again. This prevents unbounded memory growth.
+
+        Note: This method assumes the lock is already held by the caller.
+        """
+        now = datetime.now(timezone.utc)
+        cleanup_interval = timedelta(minutes=5)
+
+        if now - self._last_cleanup < cleanup_interval:
+            return
+
+        # Remove all expired entries
+        expired_keys = [key for key, (_, expiry) in self._cache.items() if now > expiry]
+        for key in expired_keys:
+            del self._cache[key]
+
+        self._last_cleanup = now
+
+
 cache = SimpleCache()
