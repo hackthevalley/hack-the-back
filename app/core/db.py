@@ -1,7 +1,10 @@
+import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
 from typing import Annotated, Callable, List
+
+logger = logging.getLogger(__name__)
 
 from fastapi import Depends
 from sqlalchemy import text
@@ -15,6 +18,7 @@ from app.models.meal import Meal
 # PostgreSQL advisory lock IDs for preventing race conditions during seeding
 # These are arbitrary positive integers used to coordinate access across multiple workers
 # Lock ID range: Using 123456700-123456799 for application-specific locks
+ADVISORY_LOCK_FORM_TIME = 123456787  # Protects form time seeding operations
 ADVISORY_LOCK_QUESTIONS = 123456788  # Protects question seeding operations
 ADVISORY_LOCK_MEALS = 123456789  # Protects meal seeding operations
 
@@ -95,14 +99,7 @@ def with_advisory_lock(lock_id: int):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            session = None
-            for arg in args:
-                if isinstance(arg, Session):
-                    session = arg
-                    break
-            if session is None:
-                session = kwargs.get("session")
-
+            session = kwargs.get("session")
             if session is None:
                 raise ValueError(
                     f"Function {func.__name__} must have a 'session' parameter of type Session"
@@ -126,41 +123,46 @@ def seed_questions(questions: List, session: Session):
     Seed form questions into the database with proper locking.
     """
     try:
-        for index, question in enumerate(questions):
-            statement = select(Forms_Question).where(
-                Forms_Question.label == question["label"]
-            )
-            selected_question = session.exec(statement).first()
+        existing_labels = set(session.exec(select(Forms_Question.label)).all())
 
-            if not selected_question:
+        for index, question in enumerate(questions):
+            if question["label"] not in existing_labels:
                 db_question = Forms_Question.model_validate(
                     question, update={"question_order": index}
                 )
                 session.add(db_question)
 
         session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         session.rollback()
+        logger.warning("Integrity error while seeding questions, skipping: %s", e)
     except Exception:
         session.rollback()
         raise
 
 
+@with_advisory_lock(ADVISORY_LOCK_FORM_TIME)
 def seed_form_time(session: Session):
     """Seed application form timeline into the database."""
-    row = session.exec(select(Forms_Form).limit(1)).first()
-    if row is None:
-        current_time = datetime.now(timezone.utc)
-        db_forms_form = Forms_Form(
-            created_at=current_time,
-            updated_at=current_time,
-            start_at=AppConfig.APPLICATION_START_DATE,
-            end_at=AppConfig.APPLICATION_END_DATE,
-        )
-
-        session.add(db_forms_form)
-        session.commit()
-        session.refresh(db_forms_form)
+    try:
+        row = session.exec(select(Forms_Form).limit(1)).first()
+        if row is None:
+            current_time = datetime.now(timezone.utc)
+            db_forms_form = Forms_Form(
+                created_at=current_time,
+                updated_at=current_time,
+                start_at=AppConfig.APPLICATION_START_DATE,
+                end_at=AppConfig.APPLICATION_END_DATE,
+            )
+            session.add(db_forms_form)
+            session.commit()
+            session.refresh(db_forms_form)
+    except IntegrityError as e:
+        session.rollback()
+        logger.warning("Integrity error while seeding form time, skipping: %s", e)
+    except Exception:
+        session.rollback()
+        raise
 
 
 @with_advisory_lock(ADVISORY_LOCK_MEALS)
@@ -169,23 +171,20 @@ def seed_meals(meals: List, session: Session):
     Seed hackathon meals into the database with proper locking.
     """
     try:
-        for meal_data in meals:
-            statement = select(Meal).where(
-                Meal.day == meal_data["day"],
-                Meal.meal_type == meal_data["meal_type"],
-            )
-            existing_meal = session.exec(statement).first()
+        existing_meals = set(session.exec(select(Meal.day, Meal.meal_type)).all())
 
-            if not existing_meal:
-                db_meal = Meal(
+        for meal_data in meals:
+            key = (meal_data["day"], meal_data["meal_type"])
+            if key not in existing_meals:
+                session.add(Meal(
                     day=meal_data["day"],
                     meal_type=meal_data["meal_type"],
                     is_active=meal_data.get("is_active", False),
-                )
-                session.add(db_meal)
+                ))
         session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         session.rollback()
+        logger.warning("Integrity error while seeding meals, skipping: %s", e)
     except Exception:
         session.rollback()
         raise
