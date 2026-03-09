@@ -5,8 +5,6 @@ from datetime import datetime, timezone
 from functools import wraps
 from typing import Annotated, Callable, List
 
-logger = logging.getLogger(__name__)
-
 from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +13,8 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.config import AppConfig, DatabaseConfig
 from app.models.forms import Forms_Form, Forms_Question
 from app.models.meal import Meal
+
+logger = logging.getLogger(__name__)
 
 # PostgreSQL advisory lock IDs for preventing race conditions during seeding
 # These are arbitrary positive integers used to coordinate access across multiple workers
