@@ -1,3 +1,4 @@
+import inspect
 import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -97,9 +98,12 @@ def with_advisory_lock(lock_id: int):
     """
 
     def decorator(func: Callable) -> Callable:
+        sig = inspect.signature(func)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
-            session = kwargs.get("session")
+            bound = sig.bind(*args, **kwargs)
+            session = bound.arguments.get("session")
             if session is None:
                 raise ValueError(
                     f"Function {func.__name__} must have a 'session' parameter of type Session"
@@ -176,11 +180,13 @@ def seed_meals(meals: List, session: Session):
         for meal_data in meals:
             key = (meal_data["day"], meal_data["meal_type"])
             if key not in existing_meals:
-                session.add(Meal(
-                    day=meal_data["day"],
-                    meal_type=meal_data["meal_type"],
-                    is_active=meal_data.get("is_active", False),
-                ))
+                session.add(
+                    Meal(
+                        day=meal_data["day"],
+                        meal_type=meal_data["meal_type"],
+                        is_active=meal_data.get("is_active", False),
+                    )
+                )
         session.commit()
     except IntegrityError as e:
         session.rollback()
