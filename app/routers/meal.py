@@ -14,7 +14,7 @@ router = APIRouter()
 def createmeal(*, session: SessionDep, meal: MealCreate):
     query = select(Meal).where(Meal.day == meal.day, Meal.meal_type == meal.meal_type)
     existing_meal = session.exec(query).first()
-    if existing_meal and meal.meal_type != MealType.SNACK:
+    if existing_meal:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Meal for {existing_meal.name} already exists",
