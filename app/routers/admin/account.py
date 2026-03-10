@@ -188,9 +188,9 @@ def getapplicants(
 ):
     applicants = session.exec(
         select(Account_User)
+        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .offset(offset)
         .limit(limit)
-        .where(Account_User.application.application_id is not None)
     ).all()
     return applicants
 
