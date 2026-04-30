@@ -6,6 +6,7 @@ frequently during runtime to reduce database queries.
 """
 
 import threading
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -77,7 +78,7 @@ class SimpleCache:
     def get_or_set(
         self,
         key: str,
-        factory_func: callable,
+        factory_func: Callable[[], Any],
         ttl: Optional[timedelta] = None,
     ) -> Any:
         """
