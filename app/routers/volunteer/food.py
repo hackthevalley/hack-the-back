@@ -78,7 +78,7 @@ def get_food_data(session: SessionDep):
 
 
 @router.post("/tracking")
-async def track_food(request: FoodTrackingRequest, session: SessionDep):
+def track_food(request: FoodTrackingRequest, session: SessionDep):
     from app.models.food_tracking import Food_Tracking
     from app.models.forms import Forms_Application
 

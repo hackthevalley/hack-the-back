@@ -2,10 +2,10 @@ import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import aiofiles
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.config import validate_config
 from app.core.db import (
@@ -19,10 +19,10 @@ from app.models.meal import MealType, WeekDay
 from app.routers import router
 
 
-async def load_form_questions() -> list[dict]:
+def load_form_questions() -> list[dict]:
     questions_path = Path(__file__).parent / "data" / "form_questions.json"
-    async with aiofiles.open(questions_path, "r", encoding="utf-8") as f:
-        content = await f.read()
+    with open(questions_path, encoding="utf-8") as f:
+        content = f.read()
         return json.loads(content)
 
 
@@ -36,17 +36,19 @@ meals = [
 ]
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def initialize_database():
     validate_config()
-
     create_db_and_tables()
-
-    questions = await load_form_questions()
+    questions = load_form_questions()
     with Session(engine) as session:
         seed_questions(questions, session)
         seed_form_time(session)
         seed_meals(meals, session)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await run_in_threadpool(initialize_database)
     yield
 
 
@@ -70,5 +72,5 @@ app = get_application()
 
 
 @app.get("/")
-async def read_root():
+def read_root():
     return {"Hello": "World"}

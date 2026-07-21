@@ -2,7 +2,6 @@ import base64
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-import aiofiles
 import google.auth.jwt
 import httpx
 import jwt
@@ -52,7 +51,7 @@ credentials_exception = HTTPException(
 )
 
 
-async def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
+def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
         payload = jwt.decode(
             token, SecurityConfig.SECRET_KEY, algorithms=[SecurityConfig.ALGORITHM]
@@ -76,7 +75,7 @@ async def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
     return token_data
 
 
-async def get_current_user(
+def get_current_user(
     token_data: Annotated[TokenData, Depends(decode_jwt)], session: SessionDep
 ) -> Account_User:
     if (
@@ -110,7 +109,7 @@ def create_access_token(
     return encoded_jwt
 
 
-async def createapplication(
+def createapplication(
     current_user: Account_User,
     session: SessionDep,
 ) -> Forms_Application:
@@ -200,7 +199,7 @@ async def createapplication(
     return session.exec(statement).first()
 
 
-async def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
+def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
     if user and user.application and user.application.hackathonapplicant:
         status = user.application.hackathonapplicant.status
         if status in [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]:
@@ -212,7 +211,7 @@ async def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
     return time.start_at < datetime.now(timezone.utc) < time.end_at
 
 
-async def sendEmail(
+def sendEmail(
     template: str,
     receiver: str,
     subject: str,
@@ -220,8 +219,8 @@ async def sendEmail(
     context: str,
     attachments: list = None,
 ):
-    async with aiofiles.open(template, "r", encoding="utf-8") as file:
-        raw_html = await file.read()
+    with open(template, encoding="utf-8") as file:
+        raw_html = file.read()
     html_template = Template(raw_html)
     html_content = html_template.render(context)
     headers = {
@@ -251,14 +250,12 @@ async def sendEmail(
                     "ContentID": f"cid:{cid}",
                 }
             )
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            EmailConfig.POSTMARK_URL, json=data, headers=headers
-        )
+    with httpx.Client() as client:
+        response = client.post(EmailConfig.POSTMARK_URL, json=data, headers=headers)
     return (response.status_code, response.json())
 
 
-async def sendActivate(email: str, session: SessionDep):
+def sendActivate(email: str, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == email)
     selected_user = session.exec(statement).first()
     if not selected_user:
@@ -303,7 +300,7 @@ async def sendActivate(email: str, session: SessionDep):
         expires_delta=access_token_expires,
     )
     activation_url = AppConfig.get_activation_url(access_token)
-    response = await sendEmail(
+    response = sendEmail(
         EmailTemplate.ACTIVATION,
         email,
         EmailSubject.ACTIVATION,
@@ -313,7 +310,7 @@ async def sendActivate(email: str, session: SessionDep):
     return response
 
 
-async def createQRCode(application_id: str):
+def createQRCode(application_id: str):
     qr = qrcode.QRCode(
         version=3,
         box_size=5,
@@ -448,10 +445,10 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
     return save_url
 
 
-async def send_rsvp(user_email: str, user_full_name: str, application_id: str):
+def send_rsvp(user_email: str, user_full_name: str, application_id: str):
     import io
 
-    img = await createQRCode(application_id)
+    img = createQRCode(application_id)
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="PNG")
     img_bytes.seek(0)
@@ -461,7 +458,7 @@ async def send_rsvp(user_email: str, user_full_name: str, application_id: str):
     start_date_str = AppConfig.EVENT_START_DATE.strftime("%B %d %Y")
     end_date_str = AppConfig.EVENT_END_DATE.strftime("%B %d %Y")
 
-    await sendEmail(
+    sendEmail(
         EmailTemplate.RSVP,
         user_email,
         EmailSubject.rsvp(AppConfig.EVENT_NAME),

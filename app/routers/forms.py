@@ -1,4 +1,3 @@
-import asyncio
 import os
 import shutil
 import tempfile
@@ -7,7 +6,6 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from pypdf import PdfReader
 from sqlalchemy.orm import selectinload
@@ -112,18 +110,18 @@ def getquestions(session: SessionDep) -> list[Forms_Question]:
 
 
 @router.get("/application", response_model=ApplicationResponse)
-async def getapplication(
+def getapplication(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not await isValidSubmissionTime(session, current_user):
+    if not isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Submitting outside submission time",
         )
 
     if current_user.application is None:
-        application = await createapplication(current_user, session)
+        application = createapplication(current_user, session)
     else:
         statement = (
             select(Forms_Application)
@@ -146,19 +144,19 @@ async def getapplication(
 
 
 @router.put("/answers")
-async def saveAnswers(
+def saveAnswers(
     forms_batchupdate: list[Forms_AnswerUpdate],
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not await isValidSubmissionTime(session, current_user):
+    if not isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Submission is currently closed",
         )
 
     if current_user.application is None:
-        current_user.application = await createapplication(current_user, session)
+        current_user.application = createapplication(current_user, session)
 
     statement = (
         select(Forms_Application)
@@ -213,12 +211,12 @@ async def saveAnswers(
 
 
 @router.post("/resume")
-async def uploadresume(
+def uploadresume(
     file: UploadFile,
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not await isValidSubmissionTime(session, current_user):
+    if not isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Submission is closed"
         )
@@ -241,29 +239,26 @@ async def uploadresume(
         delete=False, dir=upload_dir, suffix=DEFAULT_FILE_EXTENSION
     ) as tmp:
         temp_path = tmp.name
-    async with aiofiles.open(temp_path, "wb") as out:
+    with open(temp_path, "wb") as out:
         bytes_written = 0
 
-        while chunk := await file.read(FileUploadConfig.CHUNK_SIZE_BYTES):
+        while chunk := file.file.read(FileUploadConfig.CHUNK_SIZE_BYTES):
             bytes_written += len(chunk)
             if bytes_written > FileUploadConfig.MAX_FILE_SIZE_BYTES:
-                await out.close()
                 os.unlink(temp_path)
                 raise HTTPException(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     detail="File too large",
                 )
-            await out.write(chunk)
+            out.write(chunk)
 
-    is_valid, error_msg = await asyncio.to_thread(
-        _validate_pdf, temp_path, file.filename
-    )
+    is_valid, error_msg = _validate_pdf(temp_path, file.filename)
     if not is_valid:
         os.unlink(temp_path)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     if current_user.application is None:
-        current_user.application = await createapplication(current_user, session)
+        current_user.application = createapplication(current_user, session)
 
     old = current_user.application.form_answersfile
     if old and old.file_path:
@@ -310,11 +305,11 @@ async def uploadresume(
 
 
 @router.post("/submission", status_code=status.HTTP_201_CREATED)
-async def submit(
+def submit(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not await isValidSubmissionTime(session, current_user):
+    if not isValidSubmissionTime(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Submission is currently closed",
@@ -403,9 +398,9 @@ async def submit(
 
         application_id = str(current_user.application.application_id)
         user_full_name = current_user.full_name
-        await send_rsvp(current_user.email, user_full_name, application_id)
+        send_rsvp(current_user.email, user_full_name, application_id)
     else:
-        await sendEmail(
+        sendEmail(
             EmailTemplate.CONFIRMATION,
             current_user.email,
             EmailSubject.CONFIRMATION,
@@ -417,8 +412,8 @@ async def submit(
 
 
 @router.get("/submission-time")
-async def submissiontime(session: SessionDep):
-    return await isValidSubmissionTime(session)
+def submissiontime(session: SessionDep):
+    return isValidSubmissionTime(session)
 
 
 @router.get("/registration-timerange", response_model=Forms_Form)
