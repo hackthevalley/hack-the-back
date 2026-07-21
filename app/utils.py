@@ -7,13 +7,12 @@ import google.auth.jwt
 import httpx
 import jwt
 import qrcode
-from applepassgenerator.client import ApplePassGeneratorClient
-from applepassgenerator.models import Barcode, BarcodeFormat, EventTicket
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from google.oauth2 import service_account
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
+from py_pkpass.models import Barcode, BarcodeFormat, EventTicket, Pass
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -357,28 +356,30 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
 
     date_range_str = AppConfig.get_event_date_range()
     card_info = EventTicket()
-    card_info.add_primary_field("role", "Hacker", "Role")
-    card_info.add_secondary_field("name", user_name, "Name")
-    card_info.add_secondary_field("date", date_range_str, "Date")
-    card_info.add_auxiliary_field("location", AppConfig.EVENT_LOCATION, "Location")
+    card_info.addPrimaryField("role", "Hacker", "Role")
+    card_info.addSecondaryField("name", user_name, "Name")
+    card_info.addSecondaryField("date", date_range_str, "Date")
+    card_info.addAuxiliaryField("location", AppConfig.EVENT_LOCATION, "Location")
 
-    client = ApplePassGeneratorClient(
-        team_identifier=AppConfig.APPLE_TEAM_IDENTIFIER,
-        pass_type_identifier=AppConfig.APPLE_PASS_TYPE_IDENTIFIER,
-        organization_name="Hack the Valley",
+    apple_pass = Pass(
+        card_info,
+        teamIdentifier=AppConfig.APPLE_TEAM_IDENTIFIER,
+        passTypeIdentifier=AppConfig.APPLE_PASS_TYPE_IDENTIFIER,
+        organizationName="Hack the Valley",
     )
-    apple_pass = client.get_pass(card_info)
-    apple_pass.logo_text = AppConfig.EVENT_NAME
-    apple_pass.background_color = "rgb(25, 24, 32)"
-    apple_pass.foreground_color = "rgb(255,255,255)"
-    apple_pass.label_color = "rgb(255, 255, 255)"
+    apple_pass.serialNumber = application_id
+    apple_pass.description = f"{AppConfig.EVENT_NAME} hacker pass"
+    apple_pass.logoText = AppConfig.EVENT_NAME
+    apple_pass.backgroundColor = "rgb(25, 24, 32)"
+    apple_pass.foregroundColor = "rgb(255,255,255)"
+    apple_pass.labelColor = "rgb(255, 255, 255)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
     with open(required_files["icon"], "rb") as icon_file:
-        apple_pass.add_file("icon.png", icon_file)
+        apple_pass.addFile("icon.png", icon_file)
 
     with open(required_files["logo"], "rb") as logo_file:
-        apple_pass.add_file("logo.png", logo_file)
+        apple_pass.addFile("logo.png", logo_file)
 
     package = apple_pass.create(
         required_files["cert"],
