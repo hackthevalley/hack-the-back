@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.put("/registration-timerange", response_model=Forms_Form)
-async def set_reg_time_range(
+def set_reg_time_range(
     session: SessionDep,
     start_at: Annotated[str, Body()],
     end_at: Annotated[str, Body()],

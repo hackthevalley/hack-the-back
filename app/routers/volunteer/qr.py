@@ -25,7 +25,7 @@ class QRScanRequest(BaseModel):
 
 
 @router.post("")
-async def scan_qr(request: QRScanRequest, session: SessionDep):
+def scan_qr(request: QRScanRequest, session: SessionDep):
     try:
         application_id = UUID(request.id)
     except ValueError:

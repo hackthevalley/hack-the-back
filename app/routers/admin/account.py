@@ -22,7 +22,7 @@ from app.models.forms import (
 )
 from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
-from app.utils import sendEmail
+from app.services.email import send_email, send_rsvp
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -58,14 +58,14 @@ def _sanitize_filename(filename: str) -> str:
     return filename
 
 
-async def send_batch_email(
+def send_batch_email(
     users_data: list[dict],
     template_path: str,
     subject: str,
     text_body: str,
     base_context: dict,
 ):
-    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
 
     from app.config import EmailConfig
 
@@ -74,59 +74,53 @@ async def send_batch_email(
     failed = 0
     failures = []
 
-    MAX_CONCURRENT = EmailConfig.BULK_MAX_CONCURRENT
-    CHUNK_SIZE = EmailConfig.BULK_CHUNK_SIZE
+    max_concurrent = EmailConfig.BULK_MAX_CONCURRENT
+    chunk_size = EmailConfig.BULK_CHUNK_SIZE
 
     logger.info(
         f"Starting bulk email send: {total} recipients, subject='{subject}', "
-        f"template='{template_path}', concurrency={MAX_CONCURRENT}, chunk_size={CHUNK_SIZE}"
+        f"template='{template_path}', concurrency={max_concurrent}, chunk_size={chunk_size}"
     )
 
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT)
-
-    async def send_with_semaphore(user_data: dict) -> tuple[bool, str, dict]:
+    def send_one(user_data: dict) -> tuple[bool, str, dict]:
         email = user_data.get("email", "unknown")
-        async with semaphore:
-            try:
-                email_context = base_context.copy() if base_context else {}
-                email_context.update(user_data)
+        try:
+            email_context = base_context.copy() if base_context else {}
+            email_context.update(user_data)
 
-                status_code, response = await sendEmail(
-                    template_path,
-                    email,
-                    subject,
-                    text_body,
-                    email_context,
-                )
+            status_code, response = send_email(
+                template_path,
+                email,
+                subject,
+                text_body,
+                email_context,
+            )
 
-                if status_code == 200:
-                    return (True, email, {})
-                else:
-                    return (
-                        False,
-                        email,
-                        {
-                            "email": email,
-                            "reason": f"Status {status_code}",
-                            "response": response,
-                        },
-                    )
-            except Exception as e:
-                return (False, email, {"email": email, "reason": str(e)})
+            if status_code == 200:
+                return (True, email, {})
+            return (
+                False,
+                email,
+                {
+                    "email": email,
+                    "reason": f"Status {status_code}",
+                    "response": response,
+                },
+            )
+        except Exception as e:
+            return (False, email, {"email": email, "reason": str(e)})
 
-    for i in range(0, total, CHUNK_SIZE):
-        chunk = users_data[i : i + CHUNK_SIZE]
-        chunk_num = (i // CHUNK_SIZE) + 1
-        total_chunks = (total + CHUNK_SIZE - 1) // CHUNK_SIZE
+    for i in range(0, total, chunk_size):
+        chunk = users_data[i : i + chunk_size]
+        chunk_num = (i // chunk_size) + 1
+        total_chunks = (total + chunk_size - 1) // chunk_size
 
         logger.info(
             f"Processing chunk {chunk_num}/{total_chunks} ({len(chunk)} emails)"
         )
 
-        results = await asyncio.gather(
-            *[send_with_semaphore(user_data) for user_data in chunk],
-            return_exceptions=False,
-        )
+        with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
+            results = list(executor.map(send_one, chunk))
 
         for success, email, error_info in results:
             if success:
@@ -158,7 +152,7 @@ def get_users(
 
 
 @router.get("/applicants")
-def getapplicants(
+def get_applicants(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
@@ -224,7 +218,7 @@ def get_application(application_id: UUID, session: SessionDep):
 
 
 @router.get("/applications")
-async def get_all_apps(
+def get_all_apps(
     session: SessionDep,
     ofs: int = 0,
     limit: Annotated[int, Query(le=100)] = 25,
@@ -385,7 +379,7 @@ async def get_all_apps(
 
 
 @router.patch("/applications/{application_id}/status")
-async def update_application_status(
+def update_application_status(
     application_id: str, request: StatusEnum, session: SessionDep
 ):
     statement = (
@@ -414,10 +408,8 @@ async def update_application_status(
         session.refresh(application)
 
         if request == StatusEnum.ACCEPTED:
-            from app.utils import send_rsvp
-
             user_full_name = user.full_name
-            await send_rsvp(user.email, user_full_name, application_id)
+            send_rsvp(user.email, user_full_name, application_id)
 
     except Exception as e:
         session.rollback()
@@ -434,7 +426,7 @@ async def update_application_status(
 
 
 @router.post("/bulk-emails")
-async def send_bulk_email_endpoint(
+def send_bulk_email_endpoint(
     request: BulkEmailRequest, session: SessionDep, background_tasks: BackgroundTasks
 ):
     template_file = Path(request.template_path)

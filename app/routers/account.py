@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -27,20 +26,15 @@ from app.models.user import (
     UserPublic,
     UserUpdate,
 )
-from app.utils import (
-    create_access_token,
-    decode_jwt,
-    generate_apple_wallet_pass,
-    get_current_user,
-    sendActivate,
-    sendEmail,
-)
+from app.services.auth import create_access_token, decode_jwt, get_current_user
+from app.services.email import send_activation_email, send_email
+from app.services.wallet import generate_apple_wallet_pass
 
 router = APIRouter()
 
 
 @router.post("/sessions")
-async def login(
+def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
 ) -> Token:
     statement = select(Account_User).where(Account_User.email == form_data.username)
@@ -56,7 +50,7 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect"
         )
     if not selected_user.is_active:
-        await sendActivate(selected_user.email, session)
+        send_activation_email(selected_user.email, session)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not activated"
         )
@@ -74,15 +68,15 @@ async def login(
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SecurityConfig.SECRET_KEY,
-        ALGORITHM=SecurityConfig.ALGORITHM,
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
 
 
 @router.post("/users", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
-async def signup(user: UserCreate, session: SessionDep):
+def signup(user: UserCreate, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == user.email)
     selected_user = session.exec(statement).first()
     if selected_user:
@@ -101,7 +95,7 @@ async def signup(user: UserCreate, session: SessionDep):
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    await sendActivate(user.email, session)
+    send_activation_email(user.email, session)
     return db_user
 
 
@@ -125,7 +119,7 @@ def read_users_me(
 
 
 @router.post("/password-resets")
-async def send_reset_password(user: PasswordReset, session: SessionDep):
+def send_reset_password(user: PasswordReset, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == user.email)
     selected_user = session.exec(statement).first()
     if not selected_user:
@@ -160,12 +154,12 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SecurityConfig.SECRET_KEY,
-        ALGORITHM=SecurityConfig.ALGORITHM,
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     password_reset_url = AppConfig.get_password_reset_url(access_token)
-    response = await sendEmail(
+    response = send_email(
         EmailTemplate.PASSWORD_RESET,
         user.email,
         EmailSubject.PASSWORD_RESET,
@@ -176,8 +170,8 @@ async def send_reset_password(user: PasswordReset, session: SessionDep):
 
 
 @router.put("/password-resets")
-async def reset_password(user: UserUpdate, session: SessionDep):
-    token_data = await decode_jwt(user.token)
+def reset_password(user: UserUpdate, session: SessionDep):
+    token_data = decode_jwt(user.token)
     if TokenScope.RESET_PASSWORD.value not in token_data.scopes:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
@@ -200,8 +194,8 @@ async def reset_password(user: UserUpdate, session: SessionDep):
 
 
 @router.post("/activations")
-async def activate(user: UserUpdate, session: SessionDep):
-    token_data = await decode_jwt(user.token)
+def activate(user: UserUpdate, session: SessionDep):
+    token_data = decode_jwt(user.token)
     if TokenScope.ACCOUNT_ACTIVATE.value not in token_data.scopes:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
@@ -234,15 +228,15 @@ def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(token_data.email), "scopes": token_data.scopes},
-        SECRET_KEY=SecurityConfig.SECRET_KEY,
-        ALGORITHM=SecurityConfig.ALGORITHM,
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
 
 
 @router.get("/apple-wallet/{application_id}")
-async def apple_wallet(application_id: str, session: SessionDep):
+def apple_wallet(application_id: str, session: SessionDep):
     statement = (
         select(Account_User.first_name, Account_User.last_name)
         .join(Forms_Application, Forms_Application.uid == Account_User.uid)
@@ -254,8 +248,8 @@ async def apple_wallet(application_id: str, session: SessionDep):
             status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
         )
 
-    pkpass_bytes_io = await asyncio.to_thread(
-        generate_apple_wallet_pass, f"{result[0]} {result[1]}", application_id
+    pkpass_bytes_io = generate_apple_wallet_pass(
+        f"{result[0]} {result[1]}", application_id
     )
     if hasattr(pkpass_bytes_io, "getvalue"):
         pkpass_bytes = pkpass_bytes_io.getvalue()
@@ -272,7 +266,7 @@ async def apple_wallet(application_id: str, session: SessionDep):
 
 
 @router.patch("/rsvp-status")
-async def rsvp_status_update(
+def rsvp_status_update(
     status: StatusEnum,
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,

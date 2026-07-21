@@ -4,13 +4,14 @@ from sqlmodel import select
 from app.core.db import SessionDep
 from app.models.forms import StatusEnum, WalkInRequest
 from app.models.user import Account_User
-from app.utils import createapplication, send_rsvp
+from app.services.applications import create_application
+from app.services.email import send_rsvp
 
 router = APIRouter()
 
 
 @router.post("/walk-ins")
-async def mark_walkin(request: WalkInRequest, session: SessionDep):
+def mark_walkin(request: WalkInRequest, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == request.email)
     user = session.exec(statement).first()
 
@@ -24,7 +25,7 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
         )
 
     if not user.application:
-        user.application = await createapplication(user, session)
+        user.application = create_application(user, session)
 
     if not user.application.hackathonapplicant:
         raise HTTPException(
@@ -58,7 +59,7 @@ async def mark_walkin(request: WalkInRequest, session: SessionDep):
     session.refresh(user.application.hackathonapplicant)
 
     if send_email:
-        await send_rsvp(user.email, user.full_name, application_id)
+        send_rsvp(user.email, user.full_name, application_id)
 
     return {
         "message": message,
