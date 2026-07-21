@@ -4,7 +4,8 @@ from sqlmodel import select
 from app.core.db import SessionDep
 from app.models.forms import StatusEnum, WalkInRequest
 from app.models.user import Account_User
-from app.utils import create_application, send_rsvp
+from app.services.applications import create_application
+from app.services.email import send_rsvp
 
 router = APIRouter()
 

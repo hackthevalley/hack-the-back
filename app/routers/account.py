@@ -26,14 +26,9 @@ from app.models.user import (
     UserPublic,
     UserUpdate,
 )
-from app.utils import (
-    create_access_token,
-    decode_jwt,
-    generate_apple_wallet_pass,
-    get_current_user,
-    send_activation_email,
-    send_email,
-)
+from app.services.auth import create_access_token, decode_jwt, get_current_user
+from app.services.email import send_activation_email, send_email
+from app.services.wallet import generate_apple_wallet_pass
 
 router = APIRouter()
 

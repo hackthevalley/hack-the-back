@@ -22,7 +22,7 @@ from app.models.forms import (
 )
 from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
-from app.utils import send_email
+from app.services.email import send_email, send_rsvp
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -408,8 +408,6 @@ def update_application_status(
         session.refresh(application)
 
         if request == StatusEnum.ACCEPTED:
-            from app.utils import send_rsvp
-
             user_full_name = user.full_name
             send_rsvp(user.email, user_full_name, application_id)
 

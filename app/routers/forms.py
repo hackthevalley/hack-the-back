@@ -39,12 +39,9 @@ from app.models.forms import (
     StatusEnum,
 )
 from app.models.user import Account_User
-from app.utils import (
-    create_application,
-    get_current_user,
-    is_valid_submission_time,
-    send_email,
-)
+from app.services.applications import create_application, is_valid_submission_time
+from app.services.auth import get_current_user
+from app.services.email import send_email, send_rsvp
 
 router = APIRouter()
 
@@ -394,8 +391,6 @@ def submit(
         )
 
     if is_walk_in_submission:
-        from app.utils import send_rsvp
-
         application_id = str(current_user.application.application_id)
         user_full_name = current_user.full_name
         send_rsvp(current_user.email, user_full_name, application_id)
