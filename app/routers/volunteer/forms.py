@@ -4,7 +4,7 @@ from sqlmodel import select
 from app.core.db import SessionDep
 from app.models.forms import StatusEnum, WalkInRequest
 from app.models.user import Account_User
-from app.utils import createapplication, send_rsvp
+from app.utils import create_application, send_rsvp
 
 router = APIRouter()
 
@@ -24,7 +24,7 @@ def mark_walkin(request: WalkInRequest, session: SessionDep):
         )
 
     if not user.application:
-        user.application = createapplication(user, session)
+        user.application = create_application(user, session)
 
     if not user.application.hackathonapplicant:
         raise HTTPException(

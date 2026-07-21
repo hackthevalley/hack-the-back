@@ -40,10 +40,10 @@ from app.models.forms import (
 )
 from app.models.user import Account_User
 from app.utils import (
-    createapplication,
+    create_application,
     get_current_user,
-    isValidSubmissionTime,
-    sendEmail,
+    is_valid_submission_time,
+    send_email,
 )
 
 router = APIRouter()
@@ -80,12 +80,12 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
 
         root = reader.trailer.get("/Root")
 
-        JS_KEYS = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
-        if object_contains(JS_KEYS, root):
+        javascript_keys = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
+        if object_contains(javascript_keys, root):
             return False, PDF_JAVASCRIPT_ERROR
 
-        EMBED_KEYS = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
-        if object_contains(EMBED_KEYS, root):
+        embedded_file_keys = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
+        if object_contains(embedded_file_keys, root):
             return False, PDF_EMBEDDED_FILES_ERROR
 
     except Exception as e:
@@ -95,7 +95,7 @@ def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
 
 
 @router.get("/questions")
-def getquestions(session: SessionDep) -> list[Forms_Question]:
+def get_questions(session: SessionDep) -> list[Forms_Question]:
     from datetime import timedelta
 
     from app.cache import cache
@@ -110,18 +110,18 @@ def getquestions(session: SessionDep) -> list[Forms_Question]:
 
 
 @router.get("/application", response_model=ApplicationResponse)
-def getapplication(
+def get_application(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not isValidSubmissionTime(session, current_user):
+    if not is_valid_submission_time(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Submitting outside submission time",
         )
 
     if current_user.application is None:
-        application = createapplication(current_user, session)
+        application = create_application(current_user, session)
     else:
         statement = (
             select(Forms_Application)
@@ -144,19 +144,19 @@ def getapplication(
 
 
 @router.put("/answers")
-def saveAnswers(
+def save_answers(
     forms_batchupdate: list[Forms_AnswerUpdate],
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not isValidSubmissionTime(session, current_user):
+    if not is_valid_submission_time(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Submission is currently closed",
         )
 
     if current_user.application is None:
-        current_user.application = createapplication(current_user, session)
+        current_user.application = create_application(current_user, session)
 
     statement = (
         select(Forms_Application)
@@ -211,12 +211,12 @@ def saveAnswers(
 
 
 @router.post("/resume")
-def uploadresume(
+def upload_resume(
     file: UploadFile,
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not isValidSubmissionTime(session, current_user):
+    if not is_valid_submission_time(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Submission is closed"
         )
@@ -258,7 +258,7 @@ def uploadresume(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     if current_user.application is None:
-        current_user.application = createapplication(current_user, session)
+        current_user.application = create_application(current_user, session)
 
     old = current_user.application.form_answersfile
     if old and old.file_path:
@@ -309,7 +309,7 @@ def submit(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not isValidSubmissionTime(session, current_user):
+    if not is_valid_submission_time(session, current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Submission is currently closed",
@@ -400,7 +400,7 @@ def submit(
         user_full_name = current_user.full_name
         send_rsvp(current_user.email, user_full_name, application_id)
     else:
-        sendEmail(
+        send_email(
             EmailTemplate.CONFIRMATION,
             current_user.email,
             EmailSubject.CONFIRMATION,
@@ -412,8 +412,8 @@ def submit(
 
 
 @router.get("/submission-time")
-def submissiontime(session: SessionDep):
-    return isValidSubmissionTime(session)
+def submission_time(session: SessionDep):
+    return is_valid_submission_time(session)
 
 
 @router.get("/registration-timerange", response_model=Forms_Form)

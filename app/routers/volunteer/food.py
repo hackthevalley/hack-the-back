@@ -1,4 +1,3 @@
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
@@ -19,8 +18,8 @@ class FoodItem(BaseModel):
 
 
 class FoodResponse(BaseModel):
-    allFood: List[FoodItem]
-    currentMeal: str | None
+    all_food: list[FoodItem] = Field(alias="allFood")
+    current_meal: str | None = Field(alias="currentMeal")
 
 
 class FoodTrackingItem(BaseModel):
@@ -40,7 +39,7 @@ class FoodTrackingItem(BaseModel):
 
 class FoodTrackingRequest(BaseModel):
 
-    food: List[FoodTrackingItem] = Field(
+    food: list[FoodTrackingItem] = Field(
         max_length=100, description="List of food items to track (max 100 per request)"
     )
 

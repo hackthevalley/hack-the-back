@@ -22,7 +22,7 @@ from app.models.forms import (
 )
 from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
-from app.utils import sendEmail
+from app.utils import send_email
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -74,12 +74,12 @@ def send_batch_email(
     failed = 0
     failures = []
 
-    MAX_CONCURRENT = EmailConfig.BULK_MAX_CONCURRENT
-    CHUNK_SIZE = EmailConfig.BULK_CHUNK_SIZE
+    max_concurrent = EmailConfig.BULK_MAX_CONCURRENT
+    chunk_size = EmailConfig.BULK_CHUNK_SIZE
 
     logger.info(
         f"Starting bulk email send: {total} recipients, subject='{subject}', "
-        f"template='{template_path}', concurrency={MAX_CONCURRENT}, chunk_size={CHUNK_SIZE}"
+        f"template='{template_path}', concurrency={max_concurrent}, chunk_size={chunk_size}"
     )
 
     def send_one(user_data: dict) -> tuple[bool, str, dict]:
@@ -88,7 +88,7 @@ def send_batch_email(
             email_context = base_context.copy() if base_context else {}
             email_context.update(user_data)
 
-            status_code, response = sendEmail(
+            status_code, response = send_email(
                 template_path,
                 email,
                 subject,
@@ -110,16 +110,16 @@ def send_batch_email(
         except Exception as e:
             return (False, email, {"email": email, "reason": str(e)})
 
-    for i in range(0, total, CHUNK_SIZE):
-        chunk = users_data[i : i + CHUNK_SIZE]
-        chunk_num = (i // CHUNK_SIZE) + 1
-        total_chunks = (total + CHUNK_SIZE - 1) // CHUNK_SIZE
+    for i in range(0, total, chunk_size):
+        chunk = users_data[i : i + chunk_size]
+        chunk_num = (i // chunk_size) + 1
+        total_chunks = (total + chunk_size - 1) // chunk_size
 
         logger.info(
             f"Processing chunk {chunk_num}/{total_chunks} ({len(chunk)} emails)"
         )
 
-        with ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
+        with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
             results = list(executor.map(send_one, chunk))
 
         for success, email, error_info in results:
@@ -152,7 +152,7 @@ def get_users(
 
 
 @router.get("/applicants")
-def getapplicants(
+def get_applicants(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,

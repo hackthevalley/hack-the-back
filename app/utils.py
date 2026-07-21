@@ -58,16 +58,16 @@ def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
         )
         email: str = payload.get("sub")
         scopes: list[str] = payload.get("scopes", [])
-        fullName: str = payload.get("fullName")
-        firstName: str = payload.get("firstName")
-        lastName: str = payload.get("lastName")
+        full_name: str = payload.get("fullName")
+        first_name: str = payload.get("firstName")
+        last_name: str = payload.get("lastName")
         if email is None:
             raise credentials_exception
         token_data = TokenData(
             email=email,
-            fullName=fullName,
-            firstName=firstName,
-            lastName=lastName,
+            fullName=full_name,
+            firstName=first_name,
+            lastName=last_name,
             scopes=scopes,
         )
     except InvalidTokenError:
@@ -97,7 +97,7 @@ def get_current_user(
 
 
 def create_access_token(
-    data: dict, SECRET_KEY: str, ALGORITHM: str, expires_delta: timedelta | None = None
+    data: dict, secret_key: str, algorithm: str, expires_delta: timedelta | None = None
 ):
     to_encode = data.copy()
     if expires_delta:
@@ -105,11 +105,11 @@ def create_access_token(
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=1)
     to_encode.update({"iat": datetime.now(timezone.utc), "exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
 
-def createapplication(
+def create_application(
     current_user: Account_User,
     session: SessionDep,
 ) -> Forms_Application:
@@ -199,7 +199,7 @@ def createapplication(
     return session.exec(statement).first()
 
 
-def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
+def is_valid_submission_time(session: SessionDep, user: Account_User = None):
     if user and user.application and user.application.hackathonapplicant:
         status = user.application.hackathonapplicant.status
         if status in [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]:
@@ -211,7 +211,7 @@ def isValidSubmissionTime(session: SessionDep, user: Account_User = None):
     return time.start_at < datetime.now(timezone.utc) < time.end_at
 
 
-def sendEmail(
+def send_email(
     template: str,
     receiver: str,
     subject: str,
@@ -255,7 +255,7 @@ def sendEmail(
     return (response.status_code, response.json())
 
 
-def sendActivate(email: str, session: SessionDep):
+def send_activation_email(email: str, session: SessionDep):
     statement = select(Account_User).where(Account_User.email == email)
     selected_user = session.exec(statement).first()
     if not selected_user:
@@ -295,12 +295,12 @@ def sendActivate(email: str, session: SessionDep):
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SecurityConfig.SECRET_KEY,
-        ALGORITHM=SecurityConfig.ALGORITHM,
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     activation_url = AppConfig.get_activation_url(access_token)
-    response = sendEmail(
+    response = send_email(
         EmailTemplate.ACTIVATION,
         email,
         EmailSubject.ACTIVATION,
@@ -310,7 +310,7 @@ def sendActivate(email: str, session: SessionDep):
     return response
 
 
-def createQRCode(application_id: str):
+def create_qr_code(application_id: str):
     qr = qrcode.QRCode(
         version=3,
         box_size=5,
@@ -392,11 +392,11 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
 def generate_google_wallet_pass(user_name: str, application_id: str):
     from pathlib import Path
 
-    GOOGLE_CREDENTIALS_FILE = "certs/google/credentials.json"
+    google_credentials_file = "certs/google/credentials.json"
 
-    if not Path(GOOGLE_CREDENTIALS_FILE).exists():
+    if not Path(google_credentials_file).exists():
         raise FileNotFoundError(
-            f"Google Wallet credentials file not found: {GOOGLE_CREDENTIALS_FILE}"
+            f"Google Wallet credentials file not found: {google_credentials_file}"
         )
 
     if not AppConfig.GOOGLE_WALLET_ISSUER_ID:
@@ -405,7 +405,7 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
         raise RuntimeError("GOOGLE_WALLET_CLASS_ID not configured")
 
     creds = service_account.Credentials.from_service_account_file(
-        GOOGLE_CREDENTIALS_FILE,
+        google_credentials_file,
         scopes=["https://www.googleapis.com/auth/wallet_object.issuer"],
     )
 
@@ -448,7 +448,7 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
 def send_rsvp(user_email: str, user_full_name: str, application_id: str):
     import io
 
-    img = createQRCode(application_id)
+    img = create_qr_code(application_id)
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="PNG")
     img_bytes.seek(0)
@@ -458,7 +458,7 @@ def send_rsvp(user_email: str, user_full_name: str, application_id: str):
     start_date_str = AppConfig.EVENT_START_DATE.strftime("%B %d %Y")
     end_date_str = AppConfig.EVENT_END_DATE.strftime("%B %d %Y")
 
-    sendEmail(
+    send_email(
         EmailTemplate.RSVP,
         user_email,
         EmailSubject.rsvp(AppConfig.EVENT_NAME),

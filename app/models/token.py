@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Token(BaseModel):
@@ -8,7 +8,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: str | None = None
-    fullName: str | None = None
-    firstName: str | None = None
-    lastName: str | None = None
-    scopes: list[str] = []
+    full_name: str | None = Field(default=None, alias="fullName")
+    first_name: str | None = Field(default=None, alias="firstName")
+    last_name: str | None = Field(default=None, alias="lastName")
+    scopes: list[str] = Field(default_factory=list)

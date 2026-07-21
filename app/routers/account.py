@@ -31,8 +31,8 @@ from app.utils import (
     decode_jwt,
     generate_apple_wallet_pass,
     get_current_user,
-    sendActivate,
-    sendEmail,
+    send_activation_email,
+    send_email,
 )
 
 router = APIRouter()
@@ -55,7 +55,7 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect"
         )
     if not selected_user.is_active:
-        sendActivate(selected_user.email, session)
+        send_activation_email(selected_user.email, session)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not activated"
         )
@@ -73,8 +73,8 @@ def login(
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SecurityConfig.SECRET_KEY,
-        ALGORITHM=SecurityConfig.ALGORITHM,
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
@@ -100,7 +100,7 @@ def signup(user: UserCreate, session: SessionDep):
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    sendActivate(user.email, session)
+    send_activation_email(user.email, session)
     return db_user
 
 
@@ -159,12 +159,12 @@ def send_reset_password(user: PasswordReset, session: SessionDep):
             "lastName": selected_user.last_name,
             "scopes": scopes,
         },
-        SECRET_KEY=SecurityConfig.SECRET_KEY,
-        ALGORITHM=SecurityConfig.ALGORITHM,
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     password_reset_url = AppConfig.get_password_reset_url(access_token)
-    response = sendEmail(
+    response = send_email(
         EmailTemplate.PASSWORD_RESET,
         user.email,
         EmailSubject.PASSWORD_RESET,
@@ -233,8 +233,8 @@ def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(token_data.email), "scopes": token_data.scopes},
-        SECRET_KEY=SecurityConfig.SECRET_KEY,
-        ALGORITHM=SecurityConfig.ALGORITHM,
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     return Token(access_token=access_token, token_type="bearer")
