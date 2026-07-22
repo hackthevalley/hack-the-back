@@ -69,7 +69,9 @@ class FileUploadConfig:
 class EmailConfig:
 
     POSTMARK_API_KEY: str = os.getenv("POSTMARK_KEY", "")
-    POSTMARK_URL: str = "https://api.postmarkapp.com/email"
+    POSTMARK_URL: str = os.getenv(
+        "POSTMARK_URL", "https://api.postmarkapp.com/email"
+    )
     FROM_EMAIL: str = os.getenv("EMAIL_FROM", "do-not-reply@hackthevalley.io")
 
     BULK_MAX_CONCURRENT: int = int(os.getenv("BULK_EMAIL_MAX_CONCURRENT", "10"))
@@ -112,6 +114,7 @@ class AppConfig:
     APPLE_WALLET_KEY_PASSWORD: Optional[str] = os.getenv("APPLE_WALLET_KEY_PASSWORD")
     GOOGLE_WALLET_ISSUER_ID: Optional[str] = os.getenv("GOOGLE_WALLET_ISSUER_ID")
     GOOGLE_WALLET_CLASS_ID: Optional[str] = os.getenv("GOOGLE_WALLET_CLASS_ID")
+    GOOGLE_WALLET_PASS_URL: Optional[str] = os.getenv("GOOGLE_WALLET_PASS_URL")
 
     @staticmethod
     def get_activation_url(token: str) -> str:

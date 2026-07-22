@@ -138,9 +138,8 @@ def send_rsvp(user_email: str, user_full_name: str, application_id: str):
             "end_date": AppConfig.EVENT_END_DATE.strftime("%B %d %Y"),
             "due_date": AppConfig.RSVP_DUE_DATE,
             "apple_url": AppConfig.get_apple_wallet_url(application_id),
-            "google_url": generate_google_wallet_pass(
-                user_full_name, application_id
-            ),
+            "google_url": AppConfig.GOOGLE_WALLET_PASS_URL
+            or generate_google_wallet_pass(user_full_name, application_id),
         },
         attachments=[("qr_code", image_bytes, "image/png")],
     )

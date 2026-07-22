@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -26,15 +26,6 @@ class FoodTrackingItem(BaseModel):
 
     application: UUID
     serving: UUID
-
-    @field_validator("application", "serving")
-    @classmethod
-    def validate_uuid(cls, v: str) -> str:
-        try:
-            UUID(v)
-            return v
-        except ValueError:
-            raise ValueError(f"Invalid UUID format: {v}")
 
 
 class FoodTrackingRequest(BaseModel):
@@ -86,15 +77,15 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
     if not food_items:
         return {"message": "No food items to track"}
 
-    application_ids = [UUID(item.application) for item in food_items]
-    meal_ids = [UUID(item.serving) for item in food_items]
+    application_ids = [item.application for item in food_items]
+    meal_ids = [item.serving for item in food_items]
 
     app_statement = select(Forms_Application).where(
         Forms_Application.application_id.in_(application_ids)
     )
     applications = session.exec(app_statement).all()
 
-    app_map = {str(app.application_id): app for app in applications}
+    app_map = {app.application_id: app for app in applications}
 
     for item in food_items:
         if item.application not in app_map:
@@ -106,7 +97,7 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
     tracking_pairs = []
     for item in food_items:
         application = app_map[item.application]
-        meal_id = UUID(item.serving)
+        meal_id = item.serving
         tracking_pairs.append((application.uid, meal_id))
 
     user_ids = [pair[0] for pair in tracking_pairs]

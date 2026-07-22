@@ -1,0 +1,62 @@
+services:
+  e2e-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: hack_the_back_e2e
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hack_the_back_e2e"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  e2e-mail:
+    image: python:3.14.6-slim-bookworm
+    working_dir: /workspace
+    command: python tests/e2e/fake_postmark.py
+    volumes:
+      - .:/workspace:ro
+    ports:
+      - "58080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  e2e-api:
+    image: hack-the-back-e2e-api:ci
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run coverage run --rcfile=/htb/.coveragerc -m fastapi run app/main.py --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@e2e-db:5432/hack_the_back_e2e
+      SECRET_KEY: e2e-only-secret-key-not-for-production
+      POSTMARK_KEY: e2e-postmark-key
+      POSTMARK_URL: http://e2e-mail:8080/email
+      FRONTEND_URL: http://frontend.e2e.test
+      BACKEND_URL: http://localhost:58000
+      GOOGLE_WALLET_PASS_URL: http://wallet.e2e.test/pass
+      APPLICATION_START_DATE: "2020-01-01T00:00:00+00:00"
+      APPLICATION_END_DATE: "2099-01-01T00:00:00+00:00"
+      UPLOAD_DIR: /tmp/hack-the-back-e2e-uploads
+      COVERAGE_FILE: /coverage/.coverage.e2e
+    volumes:
+      - ./test-artifacts/coverage:/coverage
+      - ./.coveragerc:/htb/.coveragerc:ro
+    ports:
+      - "58000:8000"
+    depends_on:
+      e2e-db:
+        condition: service_healthy
+      e2e-mail:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
