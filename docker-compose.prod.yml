@@ -32,6 +32,8 @@ services:
       - ${APP_ENV_FILE:-.env.prod}
     environment:
       UPLOAD_DIR: /htb/media
+      DB_POOL_SIZE: "5"
+      DB_MAX_OVERFLOW: "5"
     depends_on:
       db:
         condition: service_healthy
