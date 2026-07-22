@@ -96,9 +96,10 @@ class AppConfig:
         for origin in os.getenv("CORS_ORIGINS", "*").split(",")
         if origin.strip()
     ]
+    ENABLE_API_DOCS: bool = os.getenv("ENABLE_API_DOCS", "true").lower() == "true"
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://hackthevalley.io")
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "https://htb.hackthevalley.io")
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
     EVENT_NAME: str = os.getenv("EVENT_NAME", "Hack the Valley X")
     EVENT_START_DATE: datetime = datetime.fromisoformat(

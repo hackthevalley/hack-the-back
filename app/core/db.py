@@ -9,7 +9,7 @@ from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, create_engine, select
 
 from app.config import AppConfig, DatabaseConfig
 from app.models.forms import Forms_Form, Forms_Question
@@ -95,10 +95,6 @@ def with_advisory_lock(lock_id: int):
         return wrapper
 
     return decorator
-
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
 
 
 @with_advisory_lock(ADVISORY_LOCK_QUESTIONS)

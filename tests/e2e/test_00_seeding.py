@@ -15,6 +15,7 @@ EXPECTED_MEALS = {
 
 
 def test_seed_contract_matches_source_data(client, admin_headers):
+    assert db_query("SELECT version_num FROM alembic_version") == ["bf8b33c13520"]
     expected_questions = json.loads(
         (ROOT / "app/data/form_questions.json").read_text(encoding="utf-8")
     )
