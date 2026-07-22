@@ -10,51 +10,48 @@ data_path="./certbot-data"
 email="dev@hackthevalley.io"
 staging=0
 
+certificate_exists=0
 if [ -d "$data_path/conf/live/${domains[0]}" ]; then
+  certificate_exists=1
   read -p "Existing certificate found. Overwrite? (y/N) " decision
   if [[ "$decision" != "Y" && "$decision" != "y" ]]; then exit; fi
 fi
 
 mkdir -p "$data_path/conf"
 
-echo "### Creating dummy certificate ..."
-path="/etc/letsencrypt/live/${domains[0]}"
-mkdir -p "$data_path/conf/live/${domains[0]}"
-"${compose[@]}" run --rm --entrypoint "\
-  openssl req -x509 -nodes -newkey rsa:$rsa_key_size -days 1\
-  -keyout '$path/privkey.pem' \
-  -out '$path/fullchain.pem' \
-  -subj '/CN=localhost'" certbot
+echo "### Stopping nginx so Certbot can listen on port 80 ..."
+"${compose[@]}" stop nginx
 
-echo "### Starting nginx ..."
-"${compose[@]}" up --build -d nginx
+if [ "$certificate_exists" = "1" ]; then
+  echo "### Removing existing certificate ..."
+  "${compose[@]}" run --rm --entrypoint sh certbot -c "\
+    rm -rf /etc/letsencrypt/live/${domains[0]} \
+           /etc/letsencrypt/archive/${domains[0]} \
+           /etc/letsencrypt/renewal/${domains[0]}.conf"
+fi
 
-echo "### Removing dummy certificate ..."
-"${compose[@]}" run --rm --entrypoint "\
-  rm -Rf /etc/letsencrypt/live/${domains[0]} && \
-  rm -Rf /etc/letsencrypt/archive/${domains[0]} && \
-  rm -Rf /etc/letsencrypt/renewal/${domains[0]}.conf" certbot
+certbot_args=(
+  certonly
+  --standalone
+  --preferred-challenges http
+  --email "$email"
+  --rsa-key-size "$rsa_key_size"
+  --agree-tos
+  --no-eff-email
+  --non-interactive
+)
 
-echo "### Requesting Let's Encrypt certificate ..."
-domain_args=""
 for domain in "${domains[@]}"; do
-  domain_args="$domain_args -d $domain"
+  certbot_args+=(-d "$domain")
 done
 
-email_arg="--email $email"
-staging_arg=""
-[ "$staging" != "0" ] && staging_arg="--staging"
+if [ "$staging" != "0" ]; then
+  certbot_args+=(--staging)
+fi
 
-"${compose[@]}" run --rm --entrypoint "\
-  certbot certonly --webroot -w /var/www/certbot \
-  $staging_arg \
-  $email_arg \
-  $domain_args \
-  --rsa-key-size $rsa_key_size \
-  --agree-tos \
-  --no-eff-email \
-  --non-interactive \
-  --force-renewal" certbot
+echo "### Requesting Let's Encrypt certificate on port 80 ..."
+"${compose[@]}" run --rm --publish 80:80 \
+  --entrypoint certbot certbot "${certbot_args[@]}"
 
-echo "### Reloading nginx ..."
-"${compose[@]}" exec nginx nginx -s reload
+echo "### Starting the production services ..."
+"${compose[@]}" up --build -d nginx certbot
