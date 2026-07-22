@@ -23,6 +23,8 @@ ENV PYTHONPATH=/htb/
 COPY ./pyproject.toml ./uv.lock ./.env /htb/
 
 COPY ./app /htb/app
+COPY ./templates /htb/templates
+COPY ./images /htb/images
 
 WORKDIR /htb
 # install python dependencies

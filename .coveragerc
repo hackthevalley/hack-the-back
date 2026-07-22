@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = app
+sigterm = True
+relative_files = True
+
+[report]
+show_missing = True
+skip_empty = True

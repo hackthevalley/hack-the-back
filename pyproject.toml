@@ -20,3 +20,15 @@ dependencies = [
     "qrcode>=8.2",
     "sqlmodel>=0.0.39",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "e2e: tests requiring the isolated Docker Compose stack",
+]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.10",
+    "pytest>=8.4",
+]

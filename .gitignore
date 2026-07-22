@@ -12,3 +12,6 @@ wheels/
 media
 certs
 .vscode
+test-artifacts/
+.coverage
+htmlcov/
