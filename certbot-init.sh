@@ -16,8 +16,28 @@ if [ -d "$data_path/conf/live/${domains[0]}" ]; then
 fi
 
 mkdir -p "$data_path/conf"
-curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf > "$data_path/conf/options-ssl-nginx.conf"
-curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem > "$data_path/conf/ssl-dhparams.pem"
+options_url="https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf"
+dhparams_url="https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem"
+options_tmp="$data_path/conf/options-ssl-nginx.conf.tmp"
+dhparams_tmp="$data_path/conf/ssl-dhparams.pem.tmp"
+
+curl --fail --show-error --silent --location --retry 3 \
+  "$options_url" --output "$options_tmp"
+curl --fail --show-error --silent --location --retry 3 \
+  "$dhparams_url" --output "$dhparams_tmp"
+
+if ! grep -q '^ssl_protocols TLSv1.2 TLSv1.3;' "$options_tmp"; then
+  echo "Downloaded options-ssl-nginx.conf failed validation" >&2
+  exit 1
+fi
+if ! grep -q '^-----BEGIN DH PARAMETERS-----$' "$dhparams_tmp" || \
+   ! grep -q '^-----END DH PARAMETERS-----$' "$dhparams_tmp"; then
+  echo "Downloaded ssl-dhparams.pem failed validation" >&2
+  exit 1
+fi
+
+mv "$options_tmp" "$data_path/conf/options-ssl-nginx.conf"
+mv "$dhparams_tmp" "$data_path/conf/ssl-dhparams.pem"
 
 echo "### Creating dummy certificate ..."
 path="/etc/letsencrypt/live/${domains[0]}"
@@ -54,6 +74,8 @@ staging_arg=""
   $domain_args \
   --rsa-key-size $rsa_key_size \
   --agree-tos \
+  --no-eff-email \
+  --non-interactive \
   --force-renewal" certbot
 
 echo "### Reloading nginx ..."
