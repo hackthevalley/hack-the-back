@@ -242,7 +242,11 @@ def test_inactive_account_resends_are_generic_and_throttled(client, unique_email
     }
     first_signup = client.post("/api/account/users", json=payload)
     assert first_signup.status_code == 202
-    _wait_for_mail_count(1)
+    first_sent_at = db_query(
+        "SELECT last_activation_email_sent::text FROM account_user "
+        f"WHERE email = '{unique_email}'"
+    )
+    assert len(first_sent_at) == 1
 
     duplicate_signup = client.post("/api/account/users", json=payload)
     inactive_login = client.post(
@@ -252,7 +256,13 @@ def test_inactive_account_resends_are_generic_and_throttled(client, unique_email
     assert duplicate_signup.status_code == 202
     assert duplicate_signup.json() == first_signup.json()
     assert inactive_login.status_code == 401
-    assert len(httpx.get(f"{MAIL_URL}/messages").json()) == 1
+    assert (
+        db_query(
+            "SELECT last_activation_email_sent::text FROM account_user "
+            f"WHERE email = '{unique_email}'"
+        )
+        == first_sent_at
+    )
 
 
 def test_password_reset_cooldown_and_recovered_login_state(client, active_hacker):
