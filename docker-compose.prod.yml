@@ -37,6 +37,7 @@ services:
         condition: service_healthy
     volumes:
       - uploads:/htb/media
+      - ./certs:/htb/certs:ro
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000/"]
       interval: 30s

@@ -9,15 +9,38 @@ ports, and unrestricted CORS.
 1. Copy `.env.prod.example` to `.env.prod` on the production server.
 2. Replace every placeholder. Generate `SECRET_KEY` and a URL-safe database
    password with `openssl rand -hex 32`.
-3. Confirm DNS for `htb.hackthevalley.io` points to the server and ports 80 and
+3. Copy the wallet credentials to these paths on the server:
+
+   ```text
+   certs/apple/cert.pem
+   certs/apple/key.pem
+   certs/apple/wwdr.pem
+   certs/google/credentials.json
+   ```
+
+   Protect the private credentials:
+
+   ```bash
+   chmod 600 certs/apple/key.pem certs/google/credentials.json
+   ```
+
+   These files stay outside Git and are mounted read-only into the API
+   container.
+4. Run the production preflight:
+
+   ```bash
+   ./prod-preflight.sh
+   ```
+
+5. Confirm DNS for `htb.hackthevalley.io` points to the server and ports 80 and
    443 are open.
-4. Initialize the TLS certificate:
+6. Initialize the TLS certificate:
 
    ```bash
    ./certbot-init.sh
    ```
 
-5. Check the services:
+7. Check the services:
 
    ```bash
    docker compose --env-file .env.prod -f docker-compose.prod.yml ps
@@ -27,8 +50,7 @@ ports, and unrestricted CORS.
 ## Subsequent deployments
 
 ```bash
-git pull --ff-only
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+./deploy.sh
 ```
 
 Do not use `docker compose down --volumes`: the named volumes contain the

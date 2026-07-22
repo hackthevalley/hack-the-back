@@ -4,6 +4,11 @@ set -euo pipefail
 
 compose=(docker compose --env-file .env.prod -f docker-compose.prod.yml)
 
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$repo_dir"
+
+./prod-preflight.sh
+
 domains=(htb.hackthevalley.io)
 rsa_key_size=4096
 data_path="./certbot-data"
