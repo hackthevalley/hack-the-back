@@ -5,11 +5,11 @@ import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.config import AppConfig, SecurityConfig
 from app.core.db import SessionDep
+from app.core.orm import eager_load
 from app.models.constants import (
     EmailMessage,
     EmailSubject,
@@ -171,6 +171,11 @@ def send_reset_password(user: PasswordReset, session: SessionDep):
 
 @router.put("/password-resets")
 def reset_password(user: UserUpdate, session: SessionDep):
+    if user.password is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Password is required",
+        )
     token_data = decode_jwt(user.token)
     if TokenScope.RESET_PASSWORD.value not in token_data.scopes:
         raise HTTPException(
@@ -275,7 +280,7 @@ def rsvp_status_update(
     application_statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)
-        .options(selectinload(Forms_Application.hackathonapplicant))
+        .options(eager_load(Forms_Application.hackathonapplicant))
     )
     application = session.exec(application_statement).first()
 
@@ -284,20 +289,26 @@ def rsvp_status_update(
             status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
         )
 
-    if application.hackathonapplicant.status != StatusEnum.ACCEPTED:
+    hacker_applicant = application.hackathonapplicant
+    if hacker_applicant is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Applicant status not found"
+        )
+
+    if hacker_applicant.status != StatusEnum.ACCEPTED:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only accepted applications can update RSVP status",
         )
 
     try:
-        application.hackathonapplicant.status = status.value
+        hacker_applicant.status = status.value
         application.updated_at = datetime.now(timezone.utc)
 
-        session.add(application.hackathonapplicant)
+        session.add(hacker_applicant)
         session.add(application)
         session.commit()
-        session.refresh(application.hackathonapplicant)
+        session.refresh(hacker_applicant)
         session.refresh(application)
     except Exception as e:
         session.rollback()

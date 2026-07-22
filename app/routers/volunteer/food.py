@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.core.db import SessionDep
 from app.models.meal import Meal
@@ -81,7 +81,7 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
     meal_ids = [item.serving for item in food_items]
 
     app_statement = select(Forms_Application).where(
-        Forms_Application.application_id.in_(application_ids)
+        col(Forms_Application.application_id).in_(application_ids)
     )
     applications = session.exec(app_statement).all()
 
@@ -102,7 +102,8 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
 
     user_ids = [pair[0] for pair in tracking_pairs]
     existing_statement = select(Food_Tracking).where(
-        Food_Tracking.user_id.in_(user_ids), Food_Tracking.meal_id.in_(meal_ids)
+        col(Food_Tracking.user_id).in_(user_ids),
+        col(Food_Tracking.meal_id).in_(meal_ids),
     )
     existing_trackings = session.exec(existing_statement).all()
 

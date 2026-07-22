@@ -1,0 +1,8 @@
+{
+  "include": ["app"],
+  "typeCheckingMode": "basic",
+  "reportImportCycles": false,
+  "reportArgumentType": false,
+  "reportAttributeAccessIssue": false,
+  "reportCallIssue": false
+}

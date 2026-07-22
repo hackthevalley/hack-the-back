@@ -5,11 +5,11 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
-from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.config import SecurityConfig
 from app.core.db import SessionDep
+from app.core.orm import eager_load
 from app.models.constants import TokenScope
 from app.models.token import TokenData
 from app.models.user import Account_User
@@ -34,9 +34,9 @@ def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
         payload = jwt.decode(
             token, SecurityConfig.SECRET_KEY, algorithms=[SecurityConfig.ALGORITHM]
         )
-        email: str = payload.get("sub")
+        email = payload.get("sub")
         scopes: list[str] = payload.get("scopes", [])
-        if email is None:
+        if not isinstance(email, str):
             raise credentials_exception
         return TokenData(
             email=email,
@@ -61,7 +61,7 @@ def get_current_user(
     statement = (
         select(Account_User)
         .where(Account_User.email == token_data.email)
-        .options(selectinload(Account_User.application))
+        .options(eager_load(Account_User.application))
     )
     user = session.exec(statement).first()
     if user is None:
