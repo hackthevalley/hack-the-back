@@ -89,6 +89,14 @@ class EmailConfig:
 
 class AppConfig:
 
+    # Local development accepts requests from any origin by default. Production
+    # must set CORS_ORIGINS to a comma-separated allowlist.
+    CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "*").split(",")
+        if origin.strip()
+    ]
+
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://hackthevalley.io")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "https://htb.hackthevalley.io")
 
