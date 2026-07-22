@@ -46,8 +46,11 @@ def e2e_stack(request):
 
     coverage_dir = ROOT / "test-artifacts" / "coverage"
     coverage_dir.mkdir(parents=True, exist_ok=True)
-    (coverage_dir / ".coverage").unlink(missing_ok=True)
-    subprocess.run(COMPOSE + ["up", "--build", "--wait"], cwd=ROOT, check=True)
+    (coverage_dir / ".coverage.e2e").unlink(missing_ok=True)
+    up_command = COMPOSE + ["up", "--wait"]
+    if os.getenv("E2E_SKIP_BUILD") != "1":
+        up_command.insert(-1, "--build")
+    subprocess.run(up_command, cwd=ROOT, check=True)
     try:
         _wait_for_api()
         yield

@@ -18,6 +18,12 @@ jobs:
     name: Python 3.14 tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Import-time configuration for unit tests. The E2E API overrides these
+      # values with its isolated Compose environment.
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/hack_the_back_e2e
+      SECRET_KEY: ci-only-secret-key
+      POSTMARK_KEY: ci-only-postmark-key
 
     steps:
       - name: Check out repository
@@ -32,20 +38,33 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build cached E2E API image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: hack-the-back-e2e-api:ci
+          cache-from: type=gha,scope=hack-the-back-e2e-api
+          cache-to: type=gha,mode=max,scope=hack-the-back-e2e-api
+
       - name: Run Docker-backed E2E tests
         run: uv run pytest -m e2e tests/e2e -q
+        env:
+          E2E_SKIP_BUILD: "1"
 
       - name: Run unit tests and combine coverage
-        run: >-
-          uv run coverage run
-          --append
-          --data-file=test-artifacts/coverage/.coverage
-          -m pytest tests/unit -q
+        run: |
+          uv run coverage run \
+            --data-file=test-artifacts/coverage/.coverage.unit \
+            -m pytest tests/unit -q
+          uv run coverage combine test-artifacts/coverage
 
       - name: Enforce coverage threshold
         run: >-
           uv run coverage report
-          --data-file=test-artifacts/coverage/.coverage
           --fail-under=85
 
       - name: Clean up E2E containers

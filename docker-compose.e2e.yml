@@ -28,6 +28,7 @@ services:
       retries: 30
 
   e2e-api:
+    image: hack-the-back-e2e-api:ci
     build:
       context: .
       dockerfile: Dockerfile
@@ -43,7 +44,7 @@ services:
       APPLICATION_START_DATE: "2020-01-01T00:00:00+00:00"
       APPLICATION_END_DATE: "2099-01-01T00:00:00+00:00"
       UPLOAD_DIR: /tmp/hack-the-back-e2e-uploads
-      COVERAGE_FILE: /coverage/.coverage
+      COVERAGE_FILE: /coverage/.coverage.e2e
     volumes:
       - ./test-artifacts/coverage:/coverage
       - ./.coveragerc:/htb/.coveragerc:ro
