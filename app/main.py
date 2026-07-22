@@ -9,6 +9,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import AppConfig, validate_config
 from app.core.db import (
+    ADVISORY_LOCK_DATABASE_INIT,
+    advisory_lock,
     create_db_and_tables,
     engine,
     seed_form_time,
@@ -38,12 +40,15 @@ meals = [
 
 def initialize_database():
     validate_config()
-    create_db_and_tables()
     questions = load_form_questions()
     with Session(engine) as session:
-        seed_questions(questions, session)
-        seed_form_time(session)
-        seed_meals(meals, session)
+        # Every Uvicorn worker executes its lifespan. Serialize schema creation
+        # and seeding so concurrent workers cannot race while creating enums.
+        with advisory_lock(session, ADVISORY_LOCK_DATABASE_INIT):
+            create_db_and_tables()
+            seed_questions(questions, session)
+            seed_form_time(session)
+            seed_meals(meals, session)
 
 
 @asynccontextmanager

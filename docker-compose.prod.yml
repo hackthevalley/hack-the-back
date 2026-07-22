@@ -2,6 +2,7 @@ services:
   nginx:
     build: ./nginx
     restart: unless-stopped
+    stop_grace_period: 30s
     ports:
       - "80:80"
       - "443:443"
@@ -17,6 +18,7 @@ services:
   certbot:
     image: certbot/certbot
     restart: unless-stopped
+    stop_grace_period: 30s
     entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'
     volumes:
       - ./certbot-data/conf:/etc/letsencrypt
@@ -27,6 +29,7 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    stop_grace_period: 30s
     command: uv run fastapi run --workers 2 --host 0.0.0.0 --port 8000
     env_file:
       - ${APP_ENV_FILE:-.env.prod}
@@ -50,6 +53,7 @@ services:
   db:
     image: postgres:17
     restart: unless-stopped
+    stop_grace_period: 60s
     command: postgres -c max_connections=200
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}

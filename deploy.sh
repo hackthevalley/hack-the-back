@@ -22,7 +22,7 @@ echo "### Checking production secrets and certificates ..."
 echo "### Validating the production Compose configuration ..."
 "${compose[@]}" config --quiet
 
-echo "### Building and starting production services ..."
+echo "### Gracefully replacing changed services and waiting for health checks ..."
 "${compose[@]}" up -d --build --remove-orphans --wait --wait-timeout 180
 
 echo "### Removing dangling images from previous builds ..."
