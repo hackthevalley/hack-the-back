@@ -9,9 +9,19 @@ wheels/
 # Virtual environments
 .venv
 .env
-media
-certs
+.env.*
+!.env.example
+!.env.prod.example
+media/
+app/media/
+uploads/
+certs/
 .vscode
 test-artifacts/
 .coverage
 htmlcov/
+resumes/
+certbot-data/
+*.pem
+*.key
+*.p12

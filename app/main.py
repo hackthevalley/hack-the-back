@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.config import validate_config
+from app.config import AppConfig, validate_config
 from app.core.db import (
     create_db_and_tables,
     engine,
@@ -57,7 +57,7 @@ def get_application():
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=AppConfig.CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

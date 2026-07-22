@@ -1,0 +1,65 @@
+services:
+  nginx:
+    build: ./nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      htb:
+        condition: service_healthy
+    volumes:
+      - ./certbot-data/conf:/etc/letsencrypt:ro
+      - ./certbot-data/www:/var/www/certbot:ro
+      - uploads:/var/www/media:ro
+    command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec nginx -g "daemon off;"'
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'
+    volumes:
+      - ./certbot-data/conf:/etc/letsencrypt
+      - ./certbot-data/www:/var/www/certbot
+
+  htb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: uv run fastapi run --workers 4 --host 0.0.0.0 --port 8000
+    env_file:
+      - ${APP_ENV_FILE:-.env.prod}
+    environment:
+      UPLOAD_DIR: /htb/media
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/htb/media
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    command: postgres -c max_connections=200
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db:
+  uploads:
