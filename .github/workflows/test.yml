@@ -1,0 +1,57 @@
+name: Backend tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python 3.14 tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Run Docker-backed E2E tests
+        run: uv run pytest -m e2e tests/e2e -q
+
+      - name: Run unit tests and combine coverage
+        run: >-
+          uv run coverage run
+          --append
+          --data-file=test-artifacts/coverage/.coverage
+          -m pytest tests/unit -q
+
+      - name: Enforce coverage threshold
+        run: >-
+          uv run coverage report
+          --data-file=test-artifacts/coverage/.coverage
+          --fail-under=85
+
+      - name: Clean up E2E containers
+        if: always()
+        run: >-
+          docker compose
+          -p hack-the-back-e2e
+          -f docker-compose.e2e.yml
+          down --volumes --remove-orphans
