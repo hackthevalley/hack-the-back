@@ -78,3 +78,80 @@ def test_admin_listing_and_input_validation(client, admin_headers, volunteer_hea
     assert client.post(
         "/api/volunteer/check-ins", json={"id": "not-a-uuid"}, headers=volunteer_headers
     ).status_code == 400
+
+
+def test_complete_meal_crud(client, admin_headers):
+    created = client.post(
+        "/api/meals",
+        json={"day": "friday", "meal_type": "snack", "is_active": True},
+        headers=admin_headers,
+    )
+    assert created.status_code == 201, created.text
+    meal = created.json()
+    assert meal["name"] == "Friday Snack"
+
+    assert client.post(
+        "/api/meals",
+        json={"day": "friday", "meal_type": "snack", "is_active": True},
+        headers=admin_headers,
+    ).status_code == 409
+    assert client.get(
+        f"/api/meals/{meal['id']}", headers=admin_headers
+    ).status_code == 200
+    filtered = client.get(
+        "/api/meals",
+        params={"day": "friday", "meal_type": "snack", "is_active": True},
+        headers=admin_headers,
+    )
+    assert [row["id"] for row in filtered.json()] == [meal["id"]]
+    assert client.delete(f"/api/meals/{meal['id']}", headers=admin_headers).status_code == 204
+    assert client.get(f"/api/meals/{meal['id']}", headers=admin_headers).status_code == 404
+    assert client.delete(f"/api/meals/{meal['id']}", headers=admin_headers).status_code == 404
+
+
+def test_registration_window_and_bulk_email_paths(client, admin_headers):
+    endpoint = "/api/admin/forms/registration-timerange"
+    assert client.put(
+        endpoint,
+        json={"start_at": "bad-date", "end_at": "2099-01-01"},
+        headers=admin_headers,
+    ).status_code == 400
+    assert client.put(
+        endpoint,
+        json={"start_at": "2099-01-01", "end_at": "2020-01-01"},
+        headers=admin_headers,
+    ).status_code == 400
+    changed = client.put(
+        endpoint,
+        json={"start_at": "2020-01-01", "end_at": "2099-01-01"},
+        headers=admin_headers,
+    )
+    assert changed.status_code == 200, changed.text
+    assert client.get("/api/forms/registration-timerange").status_code == 200
+    assert client.get("/api/forms/submission-time").json() is True
+
+    missing_template = client.post(
+        "/api/admin/account/bulk-emails",
+        json={
+            "template_path": "templates/does-not-exist.html",
+            "status": "REJECTED",
+            "subject": "E2E",
+            "text_body": "E2E",
+            "context": {},
+        },
+        headers=admin_headers,
+    )
+    assert missing_template.status_code == 404
+    no_recipients = client.post(
+        "/api/admin/account/bulk-emails",
+        json={
+            "template_path": "templates/confirmation.html",
+            "status": "REJECTED_INVITE",
+            "subject": "E2E",
+            "text_body": "E2E",
+            "context": {},
+        },
+        headers=admin_headers,
+    )
+    assert no_recipients.status_code == 200
+    assert no_recipients.json()["status"] == "no_recipients"

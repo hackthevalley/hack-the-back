@@ -45,6 +45,25 @@ def test_complete_application_submission_and_admin_review(
         "/api/forms/submission", headers=active_hacker["headers"]
     )
     assert submitted.status_code == 201, submitted.text
+    assert client.post(
+        "/api/forms/submission", headers=active_hacker["headers"]
+    ).status_code in (403, 409)
+
+    listing = client.get(
+        "/api/admin/account/applications",
+        params={
+            "search": active_hacker["email"],
+            "role": "APPLIED",
+            "date_sort": "latest",
+        },
+        headers=admin_headers,
+    )
+    assert listing.status_code == 200, listing.text
+    assert any(row["app_id"] == app_id for row in listing.json()["application"])
+
+    applicants = client.get("/api/admin/account/applicants", headers=admin_headers)
+    assert applicants.status_code == 200
+    assert any(row["email"] == active_hacker["email"] for row in applicants.json())
 
     detail = client.get(f"/api/admin/account/applications/{app_id}", headers=admin_headers)
     assert detail.status_code == 200, detail.text
@@ -68,6 +87,34 @@ def test_complete_application_submission_and_admin_review(
         headers=active_hacker["headers"],
     )
     assert rsvp.status_code == 200, rsvp.text
+
+
+def test_application_and_admin_not_found_paths(client, admin_headers):
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert client.get(
+        f"/api/admin/account/applications/{missing}", headers=admin_headers
+    ).status_code == 404
+    assert client.get(
+        f"/api/admin/account/applications/{missing}/resume", headers=admin_headers
+    ).status_code == 404
+    assert client.patch(
+        f"/api/admin/account/applications/{missing}/status",
+        params={"request": "REJECTED"},
+        headers=admin_headers,
+    ).status_code == 404
+
+    invalid_answer = client.put(
+        "/api/forms/answers",
+        json=[
+            {
+                "question_id": "00000000-0000-0000-0000-000000000000",
+                "answer": "invalid",
+            }
+        ],
+        headers=admin_headers,
+    )
+    # Admin JWT belongs to a real user but the endpoint still requires an application.
+    assert invalid_answer.status_code in (400, 500)
 
 
 def test_rejects_invalid_resume(client, active_hacker):

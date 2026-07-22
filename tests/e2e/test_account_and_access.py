@@ -75,3 +75,54 @@ def test_password_reset_changes_login_password(client, active_hacker):
         data={"username": active_hacker["email"], "password": new_password},
     )
     assert login.status_code == 200
+
+
+def test_account_validation_and_failure_paths(client, active_hacker):
+    duplicate = client.post(
+        "/api/account/users",
+        json={
+            "first_name": "Duplicate",
+            "last_name": "User",
+            "email": active_hacker["email"],
+            "password": PASSWORD,
+        },
+    )
+    assert duplicate.status_code == 409
+
+    weak_password = client.post(
+        "/api/account/users",
+        json={
+            "first_name": "Weak",
+            "last_name": "Password",
+            "email": "weak-password@example.com",
+            "password": "lowercase",
+        },
+    )
+    assert weak_password.status_code == 422
+
+    wrong_password = client.post(
+        "/api/account/sessions",
+        data={"username": active_hacker["email"], "password": "WrongPassword1"},
+    )
+    assert wrong_password.status_code == 401
+    assert client.post(
+        "/api/account/sessions",
+        data={"username": "missing@example.com", "password": PASSWORD},
+    ).status_code == 404
+    assert client.post(
+        "/api/account/password-resets", json={"email": "missing@example.com"}
+    ).status_code == 404
+
+    wrong_scope = token(active_hacker["email"], ["account_activate"])
+    assert client.put(
+        "/api/account/password-resets",
+        json={"token": wrong_scope, "password": "AnotherPassword1"},
+    ).status_code == 401
+    assert client.post(
+        "/api/account/tokens",
+        headers={"Authorization": f"Bearer {wrong_scope}"},
+    ).status_code == 401
+
+    assert client.get(
+        "/api/account/apple-wallet/00000000-0000-0000-0000-000000000000"
+    ).status_code == 404
