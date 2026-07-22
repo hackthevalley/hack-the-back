@@ -231,3 +231,79 @@ def test_account_validation_and_failure_paths(client, active_hacker):
         ).status_code
         == 404
     )
+
+
+def test_inactive_account_resends_are_generic_and_throttled(client, unique_email):
+    payload = {
+        "first_name": "Inactive",
+        "last_name": "User",
+        "email": unique_email,
+        "password": PASSWORD,
+    }
+    first_signup = client.post("/api/account/users", json=payload)
+    assert first_signup.status_code == 202
+    _wait_for_mail_count(1)
+
+    duplicate_signup = client.post("/api/account/users", json=payload)
+    inactive_login = client.post(
+        "/api/account/sessions",
+        data={"username": unique_email, "password": PASSWORD},
+    )
+    assert duplicate_signup.status_code == 202
+    assert duplicate_signup.json() == first_signup.json()
+    assert inactive_login.status_code == 401
+    assert len(httpx.get(f"{MAIL_URL}/messages").json()) == 1
+
+
+def test_password_reset_cooldown_and_recovered_login_state(client, active_hacker):
+    first_reset = client.post(
+        "/api/account/password-resets", json={"email": active_hacker["email"]}
+    )
+    assert first_reset.status_code == 200
+    _wait_for_mail_count(1)
+
+    second_reset = client.post(
+        "/api/account/password-resets", json={"email": active_hacker["email"]}
+    )
+    assert second_reset.status_code == 200
+    assert second_reset.json() == first_reset.json()
+    assert len(httpx.get(f"{MAIL_URL}/messages").json()) == 1
+
+    db_query(
+        "UPDATE account_user SET failed_login_attempts = 2, "
+        "locked_until = NOW() - INTERVAL '1 minute' "
+        f"WHERE email = '{active_hacker['email']}'"
+    )
+    recovered_login = client.post(
+        "/api/account/sessions",
+        data={"username": active_hacker["email"], "password": PASSWORD},
+    )
+    assert recovered_login.status_code == 200
+
+
+def test_reset_and_activation_reject_invalid_payloads_and_unknown_users(client):
+    missing_email = "missing-token-user@example.com"
+    reset_token = token(missing_email, ["reset_password"])
+    activation_token = token(missing_email, ["account_activate"])
+
+    missing_password = client.put(
+        "/api/account/password-resets",
+        json={"token": reset_token, "password": None},
+    )
+    missing_reset_user = client.put(
+        "/api/account/password-resets",
+        json={"token": reset_token, "password": "AnotherPassword1"},
+    )
+    wrong_activation_scope = client.post(
+        "/api/account/activations",
+        json={"token": reset_token, "password": None},
+    )
+    missing_activation_user = client.post(
+        "/api/account/activations",
+        json={"token": activation_token, "password": None},
+    )
+
+    assert missing_password.status_code == 422
+    assert missing_reset_user.status_code == 404
+    assert wrong_activation_scope.status_code == 401
+    assert missing_activation_user.status_code == 404

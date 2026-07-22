@@ -68,7 +68,7 @@ jobs:
       - name: Enforce coverage threshold
         run: >-
           uv run coverage report
-          --fail-under=85
+          --fail-under=90
 
       - name: Clean up E2E containers
         if: always()
