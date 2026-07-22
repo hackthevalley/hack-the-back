@@ -20,7 +20,7 @@ RUN mkdir /htb/
 
 ENV PYTHONPATH=/htb/
 
-COPY ./pyproject.toml ./uv.lock ./.env /htb/
+COPY ./pyproject.toml ./uv.lock /htb/
 
 COPY ./app /htb/app
 COPY ./templates /htb/templates
