@@ -7,6 +7,7 @@ from typing import Annotated, Callable, List
 
 from fastapi import Depends
 from sqlalchemy import text
+from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -57,13 +58,21 @@ def advisory_lock(session: Session, lock_id: int):
     if not isinstance(lock_id, int) or lock_id <= 0:
         raise ValueError(f"lock_id must be a positive integer, got: {lock_id}")
 
-    try:
-        session.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
-        yield
-    finally:
-        session.execute(
-            text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
-        )
+    # Session.commit() may release the session's connection back to its pool.
+    # Hold a separate physical connection so PostgreSQL receives lock and
+    # unlock on the same backend session regardless of commits inside `yield`.
+    bind = session.get_bind()
+    lock_engine = bind.engine if isinstance(bind, Connection) else bind
+    with lock_engine.connect() as lock_connection:
+        try:
+            lock_connection.execute(
+                text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id}
+            )
+            yield
+        finally:
+            lock_connection.execute(
+                text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id}
+            )
 
 
 def with_advisory_lock(lock_id: int):
