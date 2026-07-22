@@ -94,12 +94,11 @@ def send_activation_email(email: str, session: SessionDep):
             "firstName": selected_user.first_name,
             "lastName": selected_user.last_name,
             "scopes": [TokenScope.ACCOUNT_ACTIVATE.value],
+            "ver": selected_user.token_version,
         },
         secret_key=SecurityConfig.SECRET_KEY,
         algorithm=SecurityConfig.ALGORITHM,
-        expires_delta=timedelta(
-            minutes=SecurityConfig.ACTIVATION_TOKEN_EXPIRE_MINUTES
-        ),
+        expires_delta=timedelta(minutes=SecurityConfig.ACTIVATION_TOKEN_EXPIRE_MINUTES),
     )
     activation_url = AppConfig.get_activation_url(access_token)
     return send_email(

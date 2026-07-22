@@ -53,6 +53,31 @@ ports, and unrestricted CORS.
 ./deploy.sh
 ```
 
+## One-time Alembic adoption
+
+The existing production database was originally created with SQLModel
+`create_all()` and therefore has no Alembic revision marker. Before the first
+deployment containing the migration service, take a database backup, copy the
+new files to the server, and mark the existing schema as the reviewed baseline:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml build migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate \
+  uv run alembic stamp bf8b33c13520
+```
+
+This command does not alter application tables; it records that the existing
+schema corresponds to the initial revision. Confirm it before deploying:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate \
+  uv run alembic current
+```
+
+Future deployments run `alembic upgrade head` once before FastAPI starts. Fresh
+databases are created entirely from the migration history; application workers
+only seed default rows.
+
 Do not use `docker compose down --volumes`: the named volumes contain the
 PostgreSQL database and uploaded resumes. Back up both volumes before upgrades.
 

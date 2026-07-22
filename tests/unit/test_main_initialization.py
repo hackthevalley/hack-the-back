@@ -31,9 +31,6 @@ def test_database_initialization_is_serialized(monkeypatch):
     monkeypatch.setattr(main, "Session", lambda engine: SessionContext())
     monkeypatch.setattr(main, "advisory_lock", fake_advisory_lock)
     monkeypatch.setattr(
-        main, "create_db_and_tables", lambda: events.append("create-schema")
-    )
-    monkeypatch.setattr(
         main,
         "seed_questions",
         lambda loaded_questions, session: events.append("seed-questions"),
@@ -51,7 +48,6 @@ def test_database_initialization_is_serialized(monkeypatch):
         "validate",
         "session-enter",
         "lock-enter",
-        "create-schema",
         "seed-questions",
         "seed-form-time",
         "seed-meals",

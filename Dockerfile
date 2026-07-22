@@ -23,6 +23,8 @@ ENV PYTHONPATH=/htb/
 COPY ./pyproject.toml ./uv.lock /htb/
 
 COPY ./app /htb/app
+COPY ./alembic.ini /htb/alembic.ini
+COPY ./alembic /htb/alembic
 COPY ./templates /htb/templates
 COPY ./images /htb/images
 

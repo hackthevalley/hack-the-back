@@ -1,4 +1,3 @@
-
 import os
 from datetime import datetime
 from typing import Optional
@@ -9,7 +8,6 @@ load_dotenv()
 
 
 class DatabaseConfig:
-
     URL: str = os.getenv("DATABASE_URL", "")
     POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "20"))
     MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
@@ -31,7 +29,6 @@ class DatabaseConfig:
 
 
 class SecurityConfig:
-
     SECRET_KEY: str = os.getenv("SECRET_KEY", "")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
@@ -49,6 +46,8 @@ class SecurityConfig:
     ACTIVATION_EMAIL_COOLDOWN_MINUTES: int = int(
         os.getenv("ACTIVATION_EMAIL_COOLDOWN_MINUTES", "120")
     )
+    LOGIN_MAX_FAILED_ATTEMPTS: int = int(os.getenv("LOGIN_MAX_FAILED_ATTEMPTS", "5"))
+    LOGIN_LOCKOUT_MINUTES: int = int(os.getenv("LOGIN_LOCKOUT_MINUTES", "15"))
 
     @classmethod
     def validate(cls):
@@ -60,18 +59,14 @@ class SecurityConfig:
 
 
 class FileUploadConfig:
-
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
     MAX_FILE_SIZE_BYTES: int = int(os.getenv("MAX_FILE_SIZE_MB", "5")) * 1024 * 1024
     CHUNK_SIZE_BYTES: int = 1024 * 1024
 
 
 class EmailConfig:
-
     POSTMARK_API_KEY: str = os.getenv("POSTMARK_KEY", "")
-    POSTMARK_URL: str = os.getenv(
-        "POSTMARK_URL", "https://api.postmarkapp.com/email"
-    )
+    POSTMARK_URL: str = os.getenv("POSTMARK_URL", "https://api.postmarkapp.com/email")
     FROM_EMAIL: str = os.getenv("EMAIL_FROM", "do-not-reply@hackthevalley.io")
 
     BULK_MAX_CONCURRENT: int = int(os.getenv("BULK_EMAIL_MAX_CONCURRENT", "10"))
@@ -88,7 +83,6 @@ class EmailConfig:
 
 
 class AppConfig:
-
     # Local development accepts requests from any origin by default. Production
     # must set CORS_ORIGINS to a comma-separated allowlist.
     CORS_ORIGINS: list[str] = [
@@ -96,9 +90,10 @@ class AppConfig:
         for origin in os.getenv("CORS_ORIGINS", "*").split(",")
         if origin.strip()
     ]
+    ENABLE_API_DOCS: bool = os.getenv("ENABLE_API_DOCS", "true").lower() == "true"
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://hackthevalley.io")
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "https://htb.hackthevalley.io")
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
     EVENT_NAME: str = os.getenv("EVENT_NAME", "Hack the Valley X")
     EVENT_START_DATE: datetime = datetime.fromisoformat(

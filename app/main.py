@@ -11,7 +11,6 @@ from app.config import AppConfig, validate_config
 from app.core.db import (
     ADVISORY_LOCK_DATABASE_INIT,
     advisory_lock,
-    create_db_and_tables,
     engine,
     seed_form_time,
     seed_meals,
@@ -43,9 +42,8 @@ def initialize_database():
     questions = load_form_questions()
     with Session(engine) as session:
         # Every Uvicorn worker executes its lifespan. Serialize schema creation
-        # and seeding so concurrent workers cannot race while creating enums.
+        # and seeding so concurrent workers cannot race while seeding defaults.
         with advisory_lock(session, ADVISORY_LOCK_DATABASE_INIT):
-            create_db_and_tables()
             seed_questions(questions, session)
             seed_form_time(session)
             seed_meals(meals, session)
@@ -58,7 +56,15 @@ async def lifespan(app: FastAPI):
 
 
 def get_application():
-    app = FastAPI(lifespan=lifespan)
+    docs_url = "/docs" if AppConfig.ENABLE_API_DOCS else None
+    redoc_url = "/redoc" if AppConfig.ENABLE_API_DOCS else None
+    openapi_url = "/openapi.json" if AppConfig.ENABLE_API_DOCS else None
+    app = FastAPI(
+        lifespan=lifespan,
+        docs_url=docs_url,
+        redoc_url=redoc_url,
+        openapi_url=openapi_url,
+    )
 
     app.add_middleware(
         CORSMiddleware,

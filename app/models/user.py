@@ -31,6 +31,9 @@ class Account_User(UserBase, table=True):
     password: str
     role: UserRole
     is_active: bool
+    token_version: int = Field(default=0, nullable=False)
+    failed_login_attempts: int = Field(default=0, nullable=False)
+    locked_until: Optional[datetime] = None
     last_password_reset_request: Optional[datetime] = None
     last_activation_email_sent: Optional[datetime] = None
     application: Optional["Forms_Application"] = Relationship(back_populates="user")

@@ -15,6 +15,7 @@ EXPECTED_MEALS = {
 
 
 def test_seed_contract_matches_source_data(client, admin_headers):
+    assert db_query("SELECT version_num FROM alembic_version") == ["2c1d5e7a9b30"]
     expected_questions = json.loads(
         (ROOT / "app/data/form_questions.json").read_text(encoding="utf-8")
     )
@@ -33,8 +34,7 @@ def test_seed_contract_matches_source_data(client, admin_headers):
     meals = client.get("/api/meals", headers=admin_headers)
     assert meals.status_code == 200
     actual_meals = {
-        (meal["day"], meal["meal_type"], meal["is_active"])
-        for meal in meals.json()
+        (meal["day"], meal["meal_type"], meal["is_active"]) for meal in meals.json()
     }
     assert actual_meals == EXPECTED_MEALS
 

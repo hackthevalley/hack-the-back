@@ -27,6 +27,15 @@ services:
       timeout: 3s
       retries: 30
 
+  e2e-migrate:
+    image: hack-the-back-e2e-api:ci
+    command: uv run alembic upgrade head
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@e2e-db:5432/hack_the_back_e2e
+    depends_on:
+      e2e-db:
+        condition: service_healthy
+
   e2e-api:
     image: hack-the-back-e2e-api:ci
     build:
@@ -51,8 +60,8 @@ services:
     ports:
       - "58000:8000"
     depends_on:
-      e2e-db:
-        condition: service_healthy
+      e2e-migrate:
+        condition: service_completed_successfully
       e2e-mail:
         condition: service_healthy
     healthcheck:

@@ -24,6 +24,18 @@ services:
       - ./certbot-data/conf:/etc/letsencrypt
       - ./certbot-data/www:/var/www/certbot
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    command: uv run alembic upgrade head
+    env_file:
+      - ${APP_ENV_FILE:-.env.prod}
+    depends_on:
+      db:
+        condition: service_healthy
+
   htb:
     build:
       context: .
@@ -37,9 +49,10 @@ services:
       UPLOAD_DIR: /htb/media
       DB_POOL_SIZE: "5"
       DB_MAX_OVERFLOW: "5"
+      ENABLE_API_DOCS: "false"
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - uploads:/htb/media
       - ./certs:/htb/certs:ro

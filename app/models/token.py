@@ -12,3 +12,4 @@ class TokenData(BaseModel):
     first_name: str | None = Field(default=None, alias="firstName")
     last_name: str | None = Field(default=None, alias="lastName")
     scopes: list[str] = Field(default_factory=list)
+    token_version: int = Field(alias="ver")

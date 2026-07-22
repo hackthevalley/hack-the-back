@@ -5,6 +5,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import httpx
+import jwt
 import pytest
 
 
@@ -110,14 +111,19 @@ def clear_mail():
     httpx.delete(f"{MAIL_URL}/messages")
 
 
-def token(email: str, scopes: list[str] | None = None, expires: timedelta | None = None):
-    import jwt
+def token(
+    email: str,
+    scopes: list[str] | None = None,
+    expires: timedelta | None = None,
+    token_version: int = 0,
+):
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
     payload = {
         "sub": email,
         "scopes": scopes or [],
+        "ver": token_version,
         # Avoid a one-second host/container clock-boundary race in PyJWT's iat check.
         "iat": now - timedelta(seconds=5),
         "exp": now + (expires or timedelta(minutes=10)),
@@ -141,7 +147,7 @@ def active_hacker(client, unique_email):
             "password": PASSWORD,
         },
     )
-    assert response.status_code == 201, response.text
+    assert response.status_code == 202, response.text
     activation = token(unique_email, ["account_activate"])
     response = client.post(
         "/api/account/activations",
@@ -158,17 +164,52 @@ def active_hacker(client, unique_email):
         "email": unique_email,
         "password": PASSWORD,
         "token": login.json()["access_token"],
+        "token_version": jwt.decode(
+            login.json()["access_token"], SECRET, algorithms=["HS256"]
+        )["ver"],
+        "headers": {"Authorization": f"Bearer {login.json()['access_token']}"},
+    }
+
+
+def _role_identity(client, role: str):
+    email = f"e2e-{role.lower()}-{time.time_ns()}@example.com"
+    signup = client.post(
+        "/api/account/users",
+        json={
+            "first_name": "E2E",
+            "last_name": role.title(),
+            "email": email,
+            "password": PASSWORD,
+        },
+    )
+    assert signup.status_code == 202, signup.text
+    activation = token(email, ["account_activate"])
+    activated = client.post(
+        "/api/account/activations", json={"token": activation, "password": None}
+    )
+    assert activated.status_code == 200, activated.text
+    db_query(f"UPDATE account_user SET role = '{role}' WHERE email = '{email}'")
+    login = client.post(
+        "/api/account/sessions",
+        data={"username": email, "password": PASSWORD},
+    )
+    assert login.status_code == 200, login.text
+    return {
+        "email": email,
         "headers": {"Authorization": f"Bearer {login.json()['access_token']}"},
     }
 
 
 @pytest.fixture
-def admin_headers(active_hacker):
-    value = token(active_hacker["email"], ["admin"])
-    return {"Authorization": f"Bearer {value}"}
+def admin_identity(client):
+    return _role_identity(client, "ADMIN")
 
 
 @pytest.fixture
-def volunteer_headers(active_hacker):
-    value = token(active_hacker["email"], ["volunteer"])
-    return {"Authorization": f"Bearer {value}"}
+def admin_headers(admin_identity):
+    return admin_identity["headers"]
+
+
+@pytest.fixture
+def volunteer_headers(client):
+    return _role_identity(client, "VOLUNTEER")["headers"]

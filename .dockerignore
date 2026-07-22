@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+.env
+.env.*
+!.env.example
+!.env.prod.example
+certs
+certbot-data
+media
+resumes
+test-artifacts
+**/__pycache__
+**/*.pyc
+.coverage
+htmlcov

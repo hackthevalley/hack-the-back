@@ -10,7 +10,7 @@ from sqlmodel import select
 from app.config import SecurityConfig
 from app.core.db import SessionDep
 from app.core.orm import eager_load
-from app.models.constants import TokenScope
+from app.models.constants import TokenScope, UserRole
 from app.models.token import TokenData
 from app.models.user import Account_User
 
@@ -36,7 +36,8 @@ def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
         )
         email = payload.get("sub")
         scopes: list[str] = payload.get("scopes", [])
-        if not isinstance(email, str):
+        token_version = payload.get("ver")
+        if not isinstance(email, str) or type(token_version) is not int:
             raise credentials_exception
         return TokenData(
             email=email,
@@ -44,6 +45,7 @@ def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
             firstName=payload.get("firstName"),
             lastName=payload.get("lastName"),
             scopes=scopes,
+            ver=token_version,
         )
     except InvalidTokenError:
         raise credentials_exception
@@ -56,7 +58,7 @@ def get_current_user(
         TokenScope.RESET_PASSWORD.value in token_data.scopes
         or TokenScope.ACCOUNT_ACTIVATE.value in token_data.scopes
     ):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weak token")
+        raise credentials_exception
 
     statement = (
         select(Account_User)
@@ -66,7 +68,17 @@ def get_current_user(
     user = session.exec(statement).first()
     if user is None:
         raise credentials_exception
+    if not user.is_active or user.token_version != token_data.token_version:
+        raise credentials_exception
     return user
+
+
+def scopes_for_user(user: Account_User) -> list[str]:
+    if user.role == UserRole.ADMIN:
+        return [TokenScope.ADMIN.value]
+    if user.role == UserRole.VOLUNTEER:
+        return [TokenScope.VOLUNTEER.value]
+    return []
 
 
 def create_access_token(
