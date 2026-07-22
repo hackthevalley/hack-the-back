@@ -67,6 +67,35 @@ def _wait_for_api():
     raise RuntimeError(f"E2E API did not become ready at {API_URL}")
 
 
+def db_query(sql: str) -> list[str]:
+    result = subprocess.run(
+        COMPOSE
+        + [
+            "exec",
+            "-T",
+            "e2e-db",
+            "psql",
+            "-U",
+            "postgres",
+            "-d",
+            "hack_the_back_e2e",
+            "-At",
+            "-c",
+            sql,
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def restart_api():
+    subprocess.run(COMPOSE + ["restart", "e2e-api"], cwd=ROOT, check=True)
+    _wait_for_api()
+
+
 @pytest.fixture
 def client():
     with httpx.Client(base_url=API_URL, timeout=15) as value:

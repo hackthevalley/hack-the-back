@@ -26,8 +26,16 @@ def test_complete_application_submission_and_admin_review(
     answers = []
     for question in questions:
         if "resume" not in question["label"].lower():
+            values = {
+                "School Name": "University of Toronto",
+                "Current Level of Study": "Undergraduate",
+                "Gender": "Prefer not to say",
+            }
             answers.append(
-                {"question_id": question["question_id"], "answer": "E2E answer"}
+                {
+                    "question_id": question["question_id"],
+                    "answer": values.get(question["label"], "E2E answer"),
+                }
             )
     saved = client.put(
         "/api/forms/answers", json=answers, headers=active_hacker["headers"]
@@ -60,6 +68,19 @@ def test_complete_application_submission_and_admin_review(
     )
     assert listing.status_code == 200, listing.text
     assert any(row["app_id"] == app_id for row in listing.json()["application"])
+
+    filtered = client.get(
+        "/api/admin/account/applications",
+        params={
+            "level_of_study": "undergraduate",
+            "gender": "prefer not to say",
+            "school": "university of toronto",
+            "date_sort": "oldest",
+        },
+        headers=admin_headers,
+    )
+    assert filtered.status_code == 200, filtered.text
+    assert any(row["app_id"] == app_id for row in filtered.json()["application"])
 
     applicants = client.get("/api/admin/account/applicants", headers=admin_headers)
     assert applicants.status_code == 200
@@ -125,3 +146,87 @@ def test_rejects_invalid_resume(client, active_hacker):
         headers=active_hacker["headers"],
     )
     assert response.status_code == 400
+
+
+def test_form_validation_upload_limits_and_prefilled_fields(client, active_hacker):
+    questions_response = client.get("/api/forms/questions")
+    assert questions_response.status_code == 200
+    questions = questions_response.json()
+    # Exercise the cached response path too.
+    assert client.get("/api/forms/questions").json() == questions
+
+    application = client.get(
+        "/api/forms/application", headers=active_hacker["headers"]
+    )
+    assert application.status_code == 200
+
+    incomplete = client.post(
+        "/api/forms/submission", headers=active_hacker["headers"]
+    )
+    assert incomplete.status_code == 400
+
+    first_name = next(q for q in questions if q["label"] == "First Name")
+    preserved = client.put(
+        "/api/forms/answers",
+        json=[{"question_id": first_name["question_id"], "answer": ""}],
+        headers=active_hacker["headers"],
+    )
+    assert preserved.status_code == 200
+    assert preserved.json()["updated_count"] == 0
+
+    invalid_question = client.put(
+        "/api/forms/answers",
+        json=[
+            {
+                "question_id": "00000000-0000-0000-0000-000000000000",
+                "answer": "invalid",
+            }
+        ],
+        headers=active_hacker["headers"],
+    )
+    assert invalid_question.status_code == 400
+
+    wrong_type = client.post(
+        "/api/forms/resume",
+        files={"file": ("resume.txt", b"plain text", "text/plain")},
+        headers=active_hacker["headers"],
+    )
+    assert wrong_type.status_code == 400
+    too_large = client.post(
+        "/api/forms/resume",
+        files={"file": ("resume.pdf", b"x" * (6 * 1024 * 1024), "application/pdf")},
+        headers=active_hacker["headers"],
+    )
+    assert too_large.status_code == 413
+
+
+def test_closed_registration_blocks_form_access(client, active_hacker, admin_headers):
+    endpoint = "/api/admin/forms/registration-timerange"
+    try:
+        closed = client.put(
+            endpoint,
+            json={"start_at": "2098-01-01", "end_at": "2099-01-01"},
+            headers=admin_headers,
+        )
+        assert closed.status_code == 200
+        assert client.get(
+            "/api/forms/application", headers=active_hacker["headers"]
+        ).status_code == 404
+        assert client.put(
+            "/api/forms/answers", json=[], headers=active_hacker["headers"]
+        ).status_code == 403
+        assert client.post(
+            "/api/forms/resume",
+            files={"file": ("resume.pdf", _pdf(), "application/pdf")},
+            headers=active_hacker["headers"],
+        ).status_code == 403
+        assert client.post(
+            "/api/forms/submission", headers=active_hacker["headers"]
+        ).status_code == 403
+    finally:
+        restored = client.put(
+            endpoint,
+            json={"start_at": "2020-01-01", "end_at": "2099-01-01"},
+            headers=admin_headers,
+        )
+        assert restored.status_code == 200

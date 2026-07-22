@@ -109,7 +109,9 @@ def test_complete_meal_crud(client, admin_headers):
     assert client.delete(f"/api/meals/{meal['id']}", headers=admin_headers).status_code == 404
 
 
-def test_registration_window_and_bulk_email_paths(client, admin_headers):
+def test_registration_window_and_bulk_email_paths(
+    client, active_hacker, admin_headers
+):
     endpoint = "/api/admin/forms/registration-timerange"
     assert client.put(
         endpoint,
@@ -155,3 +157,22 @@ def test_registration_window_and_bulk_email_paths(client, admin_headers):
     )
     assert no_recipients.status_code == 200
     assert no_recipients.json()["status"] == "no_recipients"
+
+    application = client.get(
+        "/api/forms/application", headers=active_hacker["headers"]
+    )
+    assert application.status_code == 200
+    queued = client.post(
+        "/api/admin/account/bulk-emails",
+        json={
+            "template_path": "templates/confirmation.html",
+            "status": "APPLYING",
+            "subject": "E2E bulk email",
+            "text_body": "E2E bulk email",
+            "context": {},
+        },
+        headers=admin_headers,
+    )
+    assert queued.status_code == 200, queued.text
+    assert queued.json()["status"] == "queued"
+    assert queued.json()["total_recipients"] >= 1

@@ -23,6 +23,7 @@ dependencies = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
     "e2e: tests requiring the isolated Docker Compose stack",
 ]
