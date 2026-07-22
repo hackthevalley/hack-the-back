@@ -38,6 +38,9 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
+      - name: Run static type checks
+        run: uv run basedpyright app --level error
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 

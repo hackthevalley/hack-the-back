@@ -28,8 +28,17 @@ markers = [
     "e2e: tests requiring the isolated Docker Compose stack",
 ]
 
+[tool.basedpyright]
+include = ["app"]
+typeCheckingMode = "basic"
+reportImportCycles = false
+reportArgumentType = false
+reportAttributeAccessIssue = false
+reportCallIssue = false
+
 [dependency-groups]
 dev = [
+    "basedpyright>=1.39.9",
     "coverage>=7.10",
     "pytest>=8.4",
 ]

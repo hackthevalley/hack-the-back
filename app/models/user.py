@@ -34,7 +34,7 @@ class Account_User(UserBase, table=True):
     last_password_reset_request: Optional[datetime] = None
     last_activation_email_sent: Optional[datetime] = None
     application: Optional["Forms_Application"] = Relationship(back_populates="user")
-    meals: Optional["Food_Tracking"] = Relationship(back_populates="user")
+    meals: list["Food_Tracking"] = Relationship(back_populates="user")
 
     @property
     def full_name(self) -> str:

@@ -55,7 +55,7 @@ class Forms_Application(SQLModel, table=True):
         unique=True,
     )
     user: Optional["Account_User"] = Relationship(back_populates="application")
-    form_answers: Optional[list["Forms_Answer"]] = Relationship(
+    form_answers: list["Forms_Answer"] = Relationship(
         back_populates="applicant"
     )
     hackathonapplicant: Optional["Forms_HackathonApplicant"] = Relationship(

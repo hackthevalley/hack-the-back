@@ -7,10 +7,11 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import aliased, selectinload
-from sqlmodel import select
+from sqlalchemy.orm import aliased
+from sqlmodel import col, select
 
 from app.core.db import SessionDep
+from app.core.orm import eager_load
 from app.models.constants import DEFAULT_FILE_EXTENSION, QuestionLabel, SortOrder
 from app.models.forms import (
     Forms_Answer,
@@ -148,7 +149,7 @@ def get_users(
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> list[UserPublic]:
     users = session.exec(select(Account_User).offset(offset).limit(limit)).all()
-    return users
+    return [UserPublic.model_validate(user) for user in users]
 
 
 @router.get("/applicants")
@@ -235,7 +236,7 @@ def get_all_apps(
 
     def fetch_questions():
         questions_statement = select(Forms_Question).where(
-            Forms_Question.label.in_(
+            col(Forms_Question.label).in_(
                 [
                     QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,
                     QuestionLabel.GENDER.value,
@@ -267,9 +268,9 @@ def get_all_apps(
             Account_User,
             Forms_Application,
             Forms_HackathonApplicant,
-            level_of_study_data.answer.label("level_of_study_answer"),
-            gender_data.answer.label("gender_answer"),
-            school_data.answer.label("school_answer"),
+            col(level_of_study_data.answer).label("level_of_study_answer"),
+            col(gender_data.answer).label("gender_answer"),
+            col(school_data.answer).label("school_answer"),
         )
         .where(
             Account_User.is_active,
@@ -313,10 +314,10 @@ def get_all_apps(
         search_pattern = f"%{search}%"
         statement = statement.where(
             or_(
-                Account_User.first_name.ilike(search_pattern),
-                Account_User.last_name.ilike(search_pattern),
-                Account_User.email.ilike(search_pattern),
-                (Account_User.first_name + " " + Account_User.last_name).ilike(
+                col(Account_User.first_name).ilike(search_pattern),
+                col(Account_User.last_name).ilike(search_pattern),
+                col(Account_User.email).ilike(search_pattern),
+                (col(Account_User.first_name) + " " + col(Account_User.last_name)).ilike(
                     search_pattern
                 ),
             )
@@ -336,7 +337,7 @@ def get_all_apps(
     if school and school_question:
         statement = statement.where(
             and_(
-                school_data.answer.isnot(None),
+                col(school_data.answer).isnot(None),
                 school_data.answer != "",
                 func.lower(school_data.answer) == school.lower(),
             )
@@ -344,9 +345,9 @@ def get_all_apps(
 
     if date_sort:
         if date_sort == SortOrder.OLDEST:
-            statement = statement.order_by(Forms_Application.updated_at.asc())
+            statement = statement.order_by(col(Forms_Application.updated_at).asc())
         elif date_sort == SortOrder.LATEST:
-            statement = statement.order_by(Forms_Application.updated_at.desc())
+            statement = statement.order_by(col(Forms_Application.updated_at).desc())
 
     statement = statement.offset(ofs).limit(limit)
 
@@ -386,7 +387,7 @@ def update_application_status(
         select(Forms_Application, Account_User)
         .join(Account_User, Forms_Application.uid == Account_User.uid)
         .where(Forms_Application.application_id == application_id)
-        .options(selectinload(Forms_Application.hackathonapplicant))
+        .options(eager_load(Forms_Application.hackathonapplicant))
     )
     result = session.exec(statement).first()
 
@@ -396,15 +397,20 @@ def update_application_status(
         )
 
     application, user = result
+    hacker_applicant = application.hackathonapplicant
+    if hacker_applicant is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Applicant status not found"
+        )
 
     try:
-        application.hackathonapplicant.status = request.value
+        hacker_applicant.status = request.value
         application.updated_at = datetime.now(timezone.utc)
 
-        session.add(application.hackathonapplicant)
+        session.add(hacker_applicant)
         session.add(application)
         session.commit()
-        session.refresh(application.hackathonapplicant)
+        session.refresh(hacker_applicant)
         session.refresh(application)
 
         if request == StatusEnum.ACCEPTED:

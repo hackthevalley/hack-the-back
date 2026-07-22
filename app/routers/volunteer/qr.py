@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlmodel import func, select
+from sqlmodel import col, func, select
 
 from app.core.db import SessionDep
 from app.models.constants import QuestionLabel
@@ -139,7 +139,7 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
 
     walkin_count = session.exec(
         select(func.count(Forms_HackathonApplicant.application_id)).where(
-            Forms_HackathonApplicant.status.in_(
+            col(Forms_HackathonApplicant.status).in_(
                 [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]
             )
         )

@@ -8,11 +8,11 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from pypdf import PdfReader
-from sqlalchemy.orm import selectinload
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.config import FileUploadConfig
 from app.core.db import SessionDep
+from app.core.orm import eager_load
 from app.models.constants import (
     ALLOWED_FILE_EXTENSIONS,
     ALLOWED_FILE_TYPES_MESSAGE,
@@ -98,7 +98,7 @@ def get_questions(session: SessionDep) -> list[Forms_Question]:
     from app.cache import cache
 
     def fetch_questions():
-        statement = select(Forms_Question).order_by(Forms_Question.question_order)
+        statement = select(Forms_Question).order_by(col(Forms_Question.question_order))
         return list(session.exec(statement).all())
 
     return cache.get_or_set(
@@ -124,12 +124,17 @@ def get_application(
             select(Forms_Application)
             .where(Forms_Application.uid == current_user.uid)
             .options(
-                selectinload(Forms_Application.form_answers),
-                selectinload(Forms_Application.form_answersfile),
-                selectinload(Forms_Application.hackathonapplicant),
+                eager_load(Forms_Application.form_answers),
+                eager_load(Forms_Application.form_answersfile),
+                eager_load(Forms_Application.hackathonapplicant),
             )
         )
         application = session.exec(statement).first()
+
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
 
     return {
         "application": application,
@@ -158,9 +163,13 @@ def save_answers(
     statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)
-        .options(selectinload(Forms_Application.form_answers))
+        .options(eager_load(Forms_Application.form_answers))
     )
     application = session.exec(statement).first()
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
 
     answer_map = {str(ans.question_id): ans for ans in application.form_answers}
 
@@ -312,11 +321,17 @@ def submit(
             detail="Submission is currently closed",
         )
 
+    application = current_user.application
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
+
     questions_statement = select(Forms_Question)
     all_questions = session.exec(questions_statement).all()
     question_map = {str(q.question_id): q for q in all_questions}
 
-    for answer in current_user.application.form_answers:
+    for answer in application.form_answers:
         selected_question = question_map.get(str(answer.question_id))
         if selected_question and selected_question.required:
             if (
@@ -328,7 +343,8 @@ def submit(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Required field not answered: {selected_question.label}",
                 )
-    if current_user.application.form_answersfile.original_filename is None:
+    answer_file = application.form_answersfile
+    if answer_file is None or answer_file.original_filename is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Resume is required"
         )
@@ -337,7 +353,7 @@ def submit(
         select(Forms_HackathonApplicant)
         .where(
             Forms_HackathonApplicant.application_id
-            == current_user.application.application_id
+            == application.application_id
         )
         .with_for_update()
     )
@@ -368,21 +384,21 @@ def submit(
     elif current_status == StatusEnum.WALK_IN:
         hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         is_walk_in_submission = True
-    if not current_user.application.is_draft:
+    if not application.is_draft:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Application has already been submitted",
         )
     else:
-        current_user.application.is_draft = False
-        current_user.application.updated_at = datetime.now(timezone.utc)
+        application.is_draft = False
+        application.updated_at = datetime.now(timezone.utc)
 
     try:
         session.add(hacker_applicant)
-        session.add(current_user.application)
+        session.add(application)
         session.commit()
         session.refresh(hacker_applicant)
-        session.refresh(current_user.application)
+        session.refresh(application)
     except Exception as e:
         session.rollback()
         raise HTTPException(
@@ -391,7 +407,7 @@ def submit(
         )
 
     if is_walk_in_submission:
-        application_id = str(current_user.application.application_id)
+        application_id = str(application.application_id)
         user_full_name = current_user.full_name
         send_rsvp(current_user.email, user_full_name, application_id)
     else:
