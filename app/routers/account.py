@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
@@ -18,7 +18,7 @@ from app.models.constants import (
     UserRole,
 )
 from app.models.forms import Forms_Application, StatusEnum
-from app.models.token import Token, TokenData
+from app.models.token import Token
 from app.models.user import (
     Account_User,
     PasswordReset,
@@ -26,11 +26,30 @@ from app.models.user import (
     UserPublic,
     UserUpdate,
 )
-from app.services.auth import create_access_token, decode_jwt, get_current_user
+from app.services.auth import (
+    create_access_token,
+    decode_jwt,
+    get_current_user,
+    scopes_for_user,
+)
 from app.services.email import send_activation_email, send_email
 from app.services.wallet import generate_apple_wallet_pass
 
 router = APIRouter()
+
+_DUMMY_PASSWORD_HASH = "$2b$12$5GljN3FRaeC4ZllCHoeZwuIaAX6fLi1eSK3hW/MNvIe3W3BPW2c42"
+_GENERIC_LOGIN_ERROR = "Invalid email or password"
+_GENERIC_ACCOUNT_EMAIL_RESPONSE = {
+    "message": "If the account is eligible, an email will be sent shortly."
+}
+
+
+def _invalid_login() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=_GENERIC_LOGIN_ERROR,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 @router.post("/sessions")
@@ -39,26 +58,48 @@ def login(
 ) -> Token:
     statement = select(Account_User).where(Account_User.email == form_data.username)
     selected_user = session.exec(statement).first()
-    if not selected_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
-        )
-    if not bcrypt.checkpw(
-        form_data.password.encode("utf-8"), selected_user.password.encode("utf-8")
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Password is incorrect"
-        )
+    password_hash = selected_user.password if selected_user else _DUMMY_PASSWORD_HASH
+    password_matches = bcrypt.checkpw(
+        form_data.password.encode("utf-8"), password_hash.encode("utf-8")
+    )
+    if selected_user is None:
+        raise _invalid_login()
+
+    now = datetime.now(timezone.utc)
+    locked_until = selected_user.locked_until
+    if locked_until and locked_until.tzinfo is None:
+        locked_until = locked_until.replace(tzinfo=timezone.utc)
+    is_locked = locked_until is not None and locked_until > now
+
+    if not password_matches or is_locked:
+        if not is_locked:
+            selected_user.failed_login_attempts += 1
+            if (
+                selected_user.failed_login_attempts
+                >= SecurityConfig.LOGIN_MAX_FAILED_ATTEMPTS
+            ):
+                selected_user.locked_until = now + timedelta(
+                    minutes=SecurityConfig.LOGIN_LOCKOUT_MINUTES
+                )
+                selected_user.failed_login_attempts = 0
+            session.add(selected_user)
+            session.commit()
+        raise _invalid_login()
+
     if not selected_user.is_active:
-        send_activation_email(selected_user.email, session)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not activated"
-        )
-    scopes = []
-    if selected_user.role == UserRole.ADMIN:
-        scopes.append(TokenScope.ADMIN.value)
-    if selected_user.role == UserRole.VOLUNTEER:
-        scopes.append(TokenScope.VOLUNTEER.value)
+        try:
+            send_activation_email(selected_user.email, session)
+        except HTTPException:
+            pass
+        raise _invalid_login()
+
+    if selected_user.failed_login_attempts or selected_user.locked_until:
+        selected_user.failed_login_attempts = 0
+        selected_user.locked_until = None
+        session.add(selected_user)
+        session.commit()
+
+    scopes = scopes_for_user(selected_user)
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
@@ -67,6 +108,7 @@ def login(
             "firstName": selected_user.first_name,
             "lastName": selected_user.last_name,
             "scopes": scopes,
+            "ver": selected_user.token_version,
         },
         secret_key=SecurityConfig.SECRET_KEY,
         algorithm=SecurityConfig.ALGORITHM,
@@ -75,17 +117,20 @@ def login(
     return Token(access_token=access_token, token_type="bearer")
 
 
-@router.post("/users", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+@router.post("/users", status_code=status.HTTP_202_ACCEPTED)
 def signup(user: UserCreate, session: SessionDep):
-    statement = select(Account_User).where(Account_User.email == user.email)
-    selected_user = session.exec(statement).first()
-    if selected_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="User already exists"
-        )
     hashed_password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
+    statement = select(Account_User).where(Account_User.email == user.email)
+    selected_user = session.exec(statement).first()
+    if selected_user:
+        if not selected_user.is_active:
+            try:
+                send_activation_email(selected_user.email, session)
+            except HTTPException:
+                pass
+        return _GENERIC_ACCOUNT_EMAIL_RESPONSE
     extra_data = {
         "password": hashed_password,
         "role": UserRole.HACKER,
@@ -96,7 +141,7 @@ def signup(user: UserCreate, session: SessionDep):
     session.commit()
     session.refresh(db_user)
     send_activation_email(user.email, session)
-    return db_user
+    return _GENERIC_ACCOUNT_EMAIL_RESPONSE
 
 
 @router.get("/me", response_model=UserPublic)
@@ -119,13 +164,13 @@ def read_users_me(
 
 
 @router.post("/password-resets")
-def send_reset_password(user: PasswordReset, session: SessionDep):
+def send_reset_password(
+    user: PasswordReset, session: SessionDep, background_tasks: BackgroundTasks
+):
     statement = select(Account_User).where(Account_User.email == user.email)
     selected_user = session.exec(statement).first()
     if not selected_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
-        )
+        return _GENERIC_ACCOUNT_EMAIL_RESPONSE
     now = datetime.now(timezone.utc)
     cooldown = timedelta(minutes=SecurityConfig.PASSWORD_RESET_COOLDOWN_MINUTES)
     if selected_user.last_password_reset_request:
@@ -133,10 +178,7 @@ def send_reset_password(user: PasswordReset, session: SessionDep):
         if last_sent.tzinfo is None:
             last_sent = last_sent.replace(tzinfo=timezone.utc)
         if now - last_sent < cooldown:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Sent too many emails, please wait before requesting another password reset email.",
-            )
+            return _GENERIC_ACCOUNT_EMAIL_RESPONSE
 
     selected_user.last_password_reset_request = now
     session.add(selected_user)
@@ -153,20 +195,22 @@ def send_reset_password(user: PasswordReset, session: SessionDep):
             "firstName": selected_user.first_name,
             "lastName": selected_user.last_name,
             "scopes": scopes,
+            "ver": selected_user.token_version,
         },
         secret_key=SecurityConfig.SECRET_KEY,
         algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
     )
     password_reset_url = AppConfig.get_password_reset_url(access_token)
-    response = send_email(
+    background_tasks.add_task(
+        send_email,
         EmailTemplate.PASSWORD_RESET,
         user.email,
         EmailSubject.PASSWORD_RESET,
         EmailMessage.password_reset_text(password_reset_url),
         {"url": access_token},
     )
-    return response
+    return _GENERIC_ACCOUNT_EMAIL_RESPONSE
 
 
 @router.put("/password-resets")
@@ -188,10 +232,15 @@ def reset_password(user: UserUpdate, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
+    if token_data.token_version != selected_user.token_version:
+        raise _invalid_login()
 
     selected_user.password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
+    selected_user.token_version += 1
+    selected_user.failed_login_attempts = 0
+    selected_user.locked_until = None
     session.add(selected_user)
     session.commit()
     session.refresh(selected_user)
@@ -212,8 +261,11 @@ def activate(user: UserUpdate, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
+    if token_data.token_version != selected_user.token_version:
+        raise _invalid_login()
 
     selected_user.is_active = True
+    selected_user.token_version += 1
     session.add(selected_user)
     session.commit()
     session.refresh(selected_user)
@@ -221,18 +273,16 @@ def activate(user: UserUpdate, session: SessionDep):
 
 
 @router.post("/tokens")
-def refresh(token_data: Annotated[TokenData, Depends(decode_jwt)]) -> Token:
-    if (
-        TokenScope.RESET_PASSWORD.value in token_data.scopes
-        or TokenScope.ACCOUNT_ACTIVATE.value in token_data.scopes
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token type not eligible for refresh",
-        )
+def refresh(
+    current_user: Annotated[Account_User, Depends(get_current_user)],
+) -> Token:
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(token_data.email), "scopes": token_data.scopes},
+        data={
+            "sub": str(current_user.email),
+            "scopes": scopes_for_user(current_user),
+            "ver": current_user.token_version,
+        },
         secret_key=SecurityConfig.SECRET_KEY,
         algorithm=SecurityConfig.ALGORITHM,
         expires_delta=access_token_expires,
@@ -276,7 +326,6 @@ def rsvp_status_update(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-
     application_statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)

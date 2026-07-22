@@ -1,25 +1,23 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.models.constants import TokenScope
-from app.models.token import TokenData
+from app.models.constants import UserRole
+from app.models.user import Account_User
 from app.routers.account import router as account
 from app.routers.admin import router as admin
 from app.routers.forms import router as forms
 from app.routers.meal import router as meal
 from app.routers.volunteer import router as volunteer
-from app.services.auth import decode_jwt
+from app.services.auth import get_current_user
 
 router = APIRouter()
 
 
 def is_admin(
-    token_data: Annotated[
-        TokenData, Security(decode_jwt, scopes=[TokenScope.ADMIN.value])
-    ],
+    current_user: Annotated[Account_User, Depends(get_current_user)],
 ) -> bool:
-    if TokenScope.ADMIN.value not in token_data.scopes:
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User does not have permission",
@@ -28,12 +26,9 @@ def is_admin(
 
 
 def is_volunteer(
-    token_data: Annotated[TokenData, Security(decode_jwt)],
+    current_user: Annotated[Account_User, Depends(get_current_user)],
 ) -> bool:
-    if (
-        TokenScope.ADMIN.value not in token_data.scopes
-        and TokenScope.VOLUNTEER.value not in token_data.scopes
-    ):
+    if current_user.role not in (UserRole.ADMIN, UserRole.VOLUNTEER):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User does not have permission",
