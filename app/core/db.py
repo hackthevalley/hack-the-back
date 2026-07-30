@@ -12,7 +12,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, create_engine, select
 
 from app.config import AppConfig, DatabaseConfig
-from app.models.forms import Forms_Form, Forms_Question
+from app.models.constants import QuestionLabel
+from app.models.forms import (
+    Forms_Answer,
+    Forms_Application,
+    Forms_Form,
+    Forms_Question,
+)
 from app.models.meal import Meal
 
 logger = logging.getLogger(__name__)
@@ -100,6 +106,7 @@ def with_advisory_lock(lock_id: int):
 @with_advisory_lock(ADVISORY_LOCK_QUESTIONS)
 def seed_questions(questions: List, session: Session):
     try:
+        added_questions: list[Forms_Question] = []
         existing_questions = {
             question.label: question
             for question in session.exec(select(Forms_Question)).all()
@@ -108,16 +115,34 @@ def seed_questions(questions: List, session: Session):
         for index, question in enumerate(questions):
             existing_question = existing_questions.get(question["label"])
             if existing_question is None:
-                session.add(
-                    Forms_Question.model_validate(
-                        question, update={"question_order": index}
-                    )
+                new_question = Forms_Question.model_validate(
+                    question, update={"question_order": index}
                 )
+                session.add(new_question)
+                added_questions.append(new_question)
                 continue
 
             existing_question.question_order = index
             existing_question.required = question["required"]
             session.add(existing_question)
+
+        if added_questions:
+            session.flush()
+            application_ids = session.exec(
+                select(Forms_Application.application_id)
+            ).all()
+            session.add_all(
+                [
+                    Forms_Answer(
+                        application_id=application_id,
+                        question_id=question.question_id,
+                        answer=None,
+                    )
+                    for question in added_questions
+                    if not QuestionLabel.contains_resume(question.label)
+                    for application_id in application_ids
+                ]
+            )
 
         session.commit()
     except IntegrityError as e:
