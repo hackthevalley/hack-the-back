@@ -157,17 +157,27 @@ def seed_questions(questions: List, session: Session):
 def seed_form_time(session: Session):
     try:
         row = session.exec(select(Forms_Form).limit(1)).first()
+        current_time = datetime.now(timezone.utc)
         if row is None:
-            current_time = datetime.now(timezone.utc)
-            db_forms_form = Forms_Form(
+            row = Forms_Form(
                 created_at=current_time,
                 updated_at=current_time,
                 start_at=AppConfig.APPLICATION_START_DATE,
                 end_at=AppConfig.APPLICATION_END_DATE,
             )
-            session.add(db_forms_form)
+            session.add(row)
             session.commit()
-            session.refresh(db_forms_form)
+            session.refresh(row)
+        elif (
+            row.start_at != AppConfig.APPLICATION_START_DATE
+            or row.end_at != AppConfig.APPLICATION_END_DATE
+        ):
+            row.start_at = AppConfig.APPLICATION_START_DATE
+            row.end_at = AppConfig.APPLICATION_END_DATE
+            row.updated_at = current_time
+            session.add(row)
+            session.commit()
+            session.refresh(row)
     except IntegrityError as e:
         session.rollback()
         logger.warning("Integrity error while seeding form time, skipping: %s", e)

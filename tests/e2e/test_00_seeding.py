@@ -86,3 +86,18 @@ def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
     # The repaired seed data is usable through the public API, not just present in SQL.
     assert len(client.get("/api/forms/questions").json()) == question_count
     assert len(client.get("/api/meals", headers=admin_headers).json()) == 6
+
+
+def test_form_time_seed_reconciles_existing_row_with_environment(client):
+    db_query(
+        "UPDATE forms_form "
+        "SET start_at = '2021-01-01T00:00:00+00:00', "
+        "end_at = '2021-01-02T00:00:00+00:00'"
+    )
+
+    restart_api()
+
+    form = client.get("/api/forms/registration-timerange")
+    assert form.status_code == 200
+    assert datetime.fromisoformat(form.json()["start_at"]).year == 2020
+    assert datetime.fromisoformat(form.json()["end_at"]).year == 2099
