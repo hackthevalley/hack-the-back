@@ -121,7 +121,7 @@ class AppConfig:
 
     @staticmethod
     def get_activation_url(token: str) -> str:
-        return f"{AppConfig.FRONTEND_URL}/account-activate?token={token}"
+        return f"{AppConfig.FRONTEND_URL}/activate?token={token}"
 
     @staticmethod
     def get_password_reset_url(token: str) -> str:

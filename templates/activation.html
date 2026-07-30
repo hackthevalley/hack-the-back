@@ -314,10 +314,9 @@ url|safe }} {% endblock text_body %} {% block html_body %} -->
                             Please go to the following page to activate your
                             account:
                             <a
-                              href="https://hackthevalley.io/activate?token={{ url|safe }}"
+                              href="{{ url|safe }}"
                               target="_blank"
-                              >https://hackthevalley.io/activate?token={{
-                              url|safe }}</a
+                              >{{ url|safe }}</a
                             >
                           </div>
                         </td>

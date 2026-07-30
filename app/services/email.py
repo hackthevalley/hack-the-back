@@ -106,7 +106,7 @@ def send_activation_email(email: str, session: SessionDep):
         email,
         EmailSubject.ACTIVATION,
         EmailMessage.activation_text(activation_url),
-        {"url": access_token},
+        {"url": activation_url},
     )
 
 
