@@ -19,6 +19,12 @@ def test_seed_contract_matches_source_data(client, admin_headers):
     expected_questions = json.loads(
         (ROOT / "app/data/form_questions.json").read_text(encoding="utf-8")
     )
+    expected_by_label = {
+        question["label"]: question for question in expected_questions
+    }
+    assert expected_by_label["Avatar"]["required"] is True
+    assert expected_by_label["Accessory"]["required"] is True
+
     actual_questions = client.get("/api/forms/questions")
     assert actual_questions.status_code == 200
     actual_questions = actual_questions.json()

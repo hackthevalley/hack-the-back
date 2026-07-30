@@ -30,6 +30,8 @@ class QuestionLabel(str, Enum):
     SCHOOL_NAME = "School Name"
     CURRENT_LEVEL_OF_STUDY = "Current Level of Study"
     GENDER = "Gender"
+    AVATAR = "Avatar"
+    ACCESSORY = "Accessory"
     RESUME = "Attach Your Resume"
     DIETARY_RESTRICTIONS = "Dietary Restrictions"
     T_SHIRT_SIZE = "T-Shirt Size"

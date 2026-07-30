@@ -60,6 +60,14 @@
     "required": true
   },
   {
+    "label": "Avatar",
+    "required": true
+  },
+  {
+    "label": "Accessory",
+    "required": true
+  },
+  {
     "label": "Github",
     "required": false
   },

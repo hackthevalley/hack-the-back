@@ -100,14 +100,24 @@ def with_advisory_lock(lock_id: int):
 @with_advisory_lock(ADVISORY_LOCK_QUESTIONS)
 def seed_questions(questions: List, session: Session):
     try:
-        existing_labels = set(session.exec(select(Forms_Question.label)).all())
+        existing_questions = {
+            question.label: question
+            for question in session.exec(select(Forms_Question)).all()
+        }
 
         for index, question in enumerate(questions):
-            if question["label"] not in existing_labels:
-                db_question = Forms_Question.model_validate(
-                    question, update={"question_order": index}
+            existing_question = existing_questions.get(question["label"])
+            if existing_question is None:
+                session.add(
+                    Forms_Question.model_validate(
+                        question, update={"question_order": index}
+                    )
                 )
-                session.add(db_question)
+                continue
+
+            existing_question.question_order = index
+            existing_question.required = question["required"]
+            session.add(existing_question)
 
         session.commit()
     except IntegrityError as e:
