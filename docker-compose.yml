@@ -4,7 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .:/htb/
+      - ./alembic:/htb/alembic
+      - ./alembic.ini:/htb/alembic.ini
+      - ./app:/htb/app
     command: uv run alembic upgrade head
     env_file:
       - .env
@@ -17,7 +19,11 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .:/htb/
+      - ./alembic:/htb/alembic
+      - ./alembic.ini:/htb/alembic.ini
+      - ./app:/htb/app
+      - ./images:/htb/images
+      - ./templates:/htb/templates
     command: uv run fastapi run --reload --workers 4 --host 0.0.0.0 --port 8000
     env_file:
       - .env
