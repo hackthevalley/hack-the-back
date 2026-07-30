@@ -202,6 +202,11 @@ def test_form_validation_upload_limits_and_prefilled_fields(client, active_hacke
 
 def test_closed_registration_blocks_form_access(client, active_hacker, admin_headers):
     endpoint = "/api/admin/forms/registration-timerange"
+    existing_application = client.get(
+        "/api/forms/application", headers=active_hacker["headers"]
+    )
+    assert existing_application.status_code == 200
+
     try:
         closed = client.put(
             endpoint,
@@ -211,7 +216,7 @@ def test_closed_registration_blocks_form_access(client, active_hacker, admin_hea
         assert closed.status_code == 200
         assert client.get(
             "/api/forms/application", headers=active_hacker["headers"]
-        ).status_code == 404
+        ).status_code == 200
         assert client.put(
             "/api/forms/answers", json=[], headers=active_hacker["headers"]
         ).status_code == 403

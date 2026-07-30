@@ -111,13 +111,12 @@ def get_application(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not is_valid_submission_time(session, current_user):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Submitting outside submission time",
-        )
-
     if current_user.application is None:
+        if not is_valid_submission_time(session, current_user):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Submitting outside submission time",
+            )
         application = create_application(current_user, session)
     else:
         statement = (
