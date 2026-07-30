@@ -33,7 +33,9 @@ def test_signup_activation_login_refresh_and_me(client, unique_email):
         "/api/account/sessions",
         data={"username": unique_email, "password": PASSWORD},
     )
-    assert inactive_login.status_code in (401, 429)
+    assert inactive_login.status_code in (403, 429)
+    if inactive_login.status_code == 403:
+        assert inactive_login.json()["detail"] == "Account is not activated"
 
     activation = token(unique_email, ["account_activate"])
     assert (
@@ -255,7 +257,8 @@ def test_inactive_account_resends_are_generic_and_throttled(client, unique_email
     )
     assert duplicate_signup.status_code == 202
     assert duplicate_signup.json() == first_signup.json()
-    assert inactive_login.status_code == 401
+    assert inactive_login.status_code == 403
+    assert inactive_login.json()["detail"] == "Account is not activated"
     assert (
         db_query(
             "SELECT last_activation_email_sent::text FROM account_user "

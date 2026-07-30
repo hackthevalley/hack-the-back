@@ -39,6 +39,7 @@ router = APIRouter()
 
 _DUMMY_PASSWORD_HASH = "$2b$12$5GljN3FRaeC4ZllCHoeZwuIaAX6fLi1eSK3hW/MNvIe3W3BPW2c42"
 _GENERIC_LOGIN_ERROR = "Invalid email or password"
+_INACTIVE_ACCOUNT_ERROR = "Account is not activated"
 _GENERIC_ACCOUNT_EMAIL_RESPONSE = {
     "message": "If the account is eligible, an email will be sent shortly."
 }
@@ -91,7 +92,10 @@ def login(
             send_activation_email(selected_user.email, session)
         except HTTPException:
             pass
-        raise _invalid_login()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=_INACTIVE_ACCOUNT_ERROR,
+        )
 
     if selected_user.failed_login_attempts or selected_user.locked_until:
         selected_user.failed_login_attempts = 0
