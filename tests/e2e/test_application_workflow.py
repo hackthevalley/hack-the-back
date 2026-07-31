@@ -30,6 +30,9 @@ def test_complete_application_submission_and_admin_review(
                 "School Name": "University of Toronto",
                 "Current Level of Study": "Undergraduate",
                 "Gender": "Prefer not to say",
+                "Github": "https://github.com/hackthevalley",
+                "LinkedIn": "https://www.linkedin.com/company/hack-the-valley",
+                "Devpost": "https://hackthevalley.devpost.com",
             }
             answers.append(
                 {
@@ -185,6 +188,20 @@ def test_form_validation_upload_limits_and_prefilled_fields(client, active_hacke
         headers=active_hacker["headers"],
     )
     assert invalid_question.status_code == 400
+
+    github = next(q for q in questions if q["label"] == "Github")
+    invalid_profile = client.put(
+        "/api/forms/answers",
+        json=[
+            {
+                "question_id": github["question_id"],
+                "answer": "https://gitlab.com/not-github",
+            }
+        ],
+        headers=active_hacker["headers"],
+    )
+    assert invalid_profile.status_code == 400
+    assert "github.com" in invalid_profile.json()["detail"]
 
     wrong_type = client.post(
         "/api/forms/resume",

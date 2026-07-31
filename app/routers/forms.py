@@ -42,6 +42,7 @@ from app.models.user import Account_User
 from app.services.applications import create_application, is_valid_submission_time
 from app.services.auth import get_current_user
 from app.services.email import send_email, send_rsvp
+from app.validators import validate_profile_url
 
 router = APIRouter()
 
@@ -188,6 +189,14 @@ def save_answers(
 
                 if is_prefilled_field and has_existing_value and is_empty_update:
                     continue
+
+                try:
+                    validate_profile_url(question.label, update.answer)
+                except ValueError as error:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=str(error),
+                    ) from error
 
             bulk_updates.append({"id": form_answer.id, "answer": update.answer})
         else:

@@ -1,3 +1,6 @@
+from urllib.parse import urlsplit
+
+
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 PASSWORD_REQUIRE_UPPERCASE = True
@@ -29,3 +32,49 @@ def validate_password_requirements(password: str) -> str:
             )
 
     return password
+
+
+PROFILE_HOSTS = {
+    "github": "github.com",
+    "linkedin": "linkedin.com",
+    "devpost": "devpost.com",
+}
+
+
+def validate_profile_url(
+    question_label: str, value: str | None
+) -> str | None:
+    """Validate optional GitHub, LinkedIn, and Devpost answer URLs."""
+    platform = question_label.strip().lower()
+    expected_host = PROFILE_HOSTS.get(platform)
+    if expected_host is None or value is None or not value.strip():
+        return value
+
+    try:
+        parsed = urlsplit(value.strip())
+        hostname = (parsed.hostname or "").lower()
+    except ValueError as error:
+        raise ValueError(f"Enter a valid {question_label} profile URL") from error
+
+    is_expected_host = hostname in {expected_host, f"www.{expected_host}"}
+    if platform != "github":
+        is_expected_host = is_expected_host or hostname.endswith(
+            f".{expected_host}"
+        )
+    has_profile_path = any(parsed.path.split("/")) or (
+        platform == "devpost"
+        and hostname not in {expected_host, f"www.{expected_host}"}
+    )
+
+    if (
+        parsed.scheme.lower() != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or not is_expected_host
+        or not has_profile_path
+    ):
+        raise ValueError(
+            f"Enter a valid {question_label} profile URL on {expected_host}"
+        )
+
+    return value
