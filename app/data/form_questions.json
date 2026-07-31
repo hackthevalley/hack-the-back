@@ -76,6 +76,10 @@
     "required": false
   },
   {
+    "label": "Devpost",
+    "required": false
+  },
+  {
     "label": "Portfolio",
     "required": false
   },

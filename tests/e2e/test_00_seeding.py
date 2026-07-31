@@ -24,6 +24,7 @@ def test_seed_contract_matches_source_data(client, admin_headers):
     }
     assert expected_by_label["Avatar"]["required"] is True
     assert expected_by_label["Accessory"]["required"] is True
+    assert expected_by_label["Devpost"]["required"] is False
 
     actual_questions = client.get("/api/forms/questions")
     assert actual_questions.status_code == 200
