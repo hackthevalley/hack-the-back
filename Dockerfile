@@ -1,26 +1,24 @@
 FROM python:3.14.6-slim-bookworm
 
-ENV PYTHONUNBUFFERED 1
- 
-WORKDIR /app
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/ 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/htb/.venv/bin:$PATH"
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates postgresql && apt-get clean
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /htb
+
+COPY ./pyproject.toml ./uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project
-
-
-RUN mkdir /htb/
+    uv sync --frozen --no-dev --no-install-project
 
 ENV PYTHONPATH=/htb/
-
-COPY ./pyproject.toml ./uv.lock /htb/
 
 COPY ./app /htb/app
 COPY ./alembic.ini /htb/alembic.ini
@@ -28,8 +26,4 @@ COPY ./alembic /htb/alembic
 COPY ./templates /htb/templates
 COPY ./images /htb/images
 
-WORKDIR /htb
-# install python dependencies
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen
 EXPOSE 8000

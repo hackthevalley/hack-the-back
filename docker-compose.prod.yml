@@ -25,11 +25,9 @@ services:
       - ./certbot-data/www:/var/www/certbot
 
   migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: hack-the-back-app:latest
     restart: "no"
-    command: uv run alembic upgrade head
+    command: uv run --no-sync alembic upgrade head
     env_file:
       - ${APP_ENV_FILE:-.env.prod}
     depends_on:
@@ -37,12 +35,13 @@ services:
         condition: service_healthy
 
   htb:
+    image: hack-the-back-app:latest
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     stop_grace_period: 30s
-    command: uv run fastapi run --workers 2 --host 0.0.0.0 --port 8000
+    command: uv run --no-sync fastapi run --workers 2 --host 0.0.0.0 --port 8000
     env_file:
       - ${APP_ENV_FILE:-.env.prod}
     environment:
@@ -58,10 +57,10 @@ services:
       - ./certs:/htb/certs:ro
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000/"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
 
   db:
     image: postgres:17
