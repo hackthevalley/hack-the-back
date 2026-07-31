@@ -1,7 +1,6 @@
-<!-- {% block subject %} Hack The Valley - Your account has been
-successfully created and activated!{% endblock %} {% block
-text_body %} Hello Hacker! Your account has been created and is ready to use! {%
-endblock text_body %} {% block html_body %} -->
+<!-- {% block subject %} Application Submitted - Hack The Valley {% endblock subject %} {% block text_body %} Hello Hacker!
+You have successfully submitted your application to Hack the Valley.
+We'll email you again with updates as the review process continues. {% endblock text_body %} {% block html_body %} -->
 <!DOCTYPE html>
 <html
   xmlns="http://www.w3.org/1999/xhtml"
@@ -9,22 +8,18 @@ endblock text_body %} {% block html_body %} -->
   xmlns:o="urn:schemas-microsoft-com:office:office"
 >
   <head>
-    <title> </title>
-    <!--[if !mso]><!-->
+    <title>Application Submitted</title>
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!--<![endif]-->
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style type="text/css">
-      #outlook a {
-        padding: 0;
-      }
-
       body {
         margin: 0;
         padding: 0;
         -webkit-text-size-adjust: 100%;
         -ms-text-size-adjust: 100%;
+        background: #e8e3f5;
+        background-image: linear-gradient(180deg, #e8e3f5 0%, #f2eef8 45%, #e7e1f2 100%);
       }
 
       table,
@@ -36,771 +31,324 @@ endblock text_body %} {% block html_body %} -->
 
       img {
         border: 0;
+        display: block;
         height: auto;
         line-height: 100%;
         outline: none;
         text-decoration: none;
         -ms-interpolation-mode: bicubic;
-      }
-
-      p {
-        display: block;
-        margin: 13px 0;
-      }
-    </style>
-    <!--[if mso]>
-      <noscript>
-        <xml>
-          <o:OfficeDocumentSettings>
-            <o:AllowPNG />
-            <o:PixelsPerInch>96</o:PixelsPerInch>
-          </o:OfficeDocumentSettings>
-        </xml>
-      </noscript>
-    <![endif]-->
-    <!--[if lte mso 11]>
-      <style type="text/css">
-        .mj-outlook-group-fix {
-          width: 100% !important;
-        }
-      </style>
-    <![endif]-->
-    <!--[if !mso]><!-->
-    <link
-      href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700"
-      rel="stylesheet"
-      type="text/css"
-    />
-    <style type="text/css">
-      @import url(https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700);
-    </style>
-    <!--<![endif]-->
-    <style type="text/css">
-      @media only screen and (min-width: 480px) {
-        .mj-column-per-100 {
-          width: 100% !important;
-          max-width: 100%;
-        }
-
-        .mj-column-per-33-333333333333336 {
-          width: 33.333333333333336% !important;
-          max-width: 33.333333333333336%;
-        }
-      }
-    </style>
-    <style media="screen and (min-width:480px)">
-      .moz-text-html .mj-column-per-100 {
-        width: 100% !important;
         max-width: 100%;
       }
 
-      .moz-text-html .mj-column-per-33-333333333333336 {
-        width: 33.333333333333336% !important;
-        max-width: 33.333333333333336%;
+      a {
+        color: #5840b7;
       }
-    </style>
-    <style type="text/css">
-      @media only screen and (max-width: 480px) {
-        table.mj-full-width-mobile {
-          width: 100% !important;
+
+      .page-shell {
+        width: 100%;
+        background: #e8e3f5;
+        background-image: linear-gradient(180deg, #e8e3f5 0%, #f2eef8 45%, #e7e1f2 100%);
+      }
+
+      .frame {
+        width: 100%;
+        max-width: 1000px;
+        background: #f8f6fc;
+        border: 1px solid #d8d0e8;
+        table-layout: fixed;
+      }
+
+      .banner-cell {
+        padding: 18px 18px 0;
+        background: #f8f6fc;
+      }
+
+      .content-band {
+        padding: 0 18px;
+        background: #f8f6fc;
+      }
+
+      .content-panel {
+        background: #ffffff;
+        background-image: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%);
+        border-top: 5px solid #7550df;
+        border-bottom: 1px solid #ddd4ef;
+      }
+
+      .content-inner {
+        padding: 42px 70px 44px;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        font-size: 12px;
+        font-weight: bold;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        color: #6e56c7;
+      }
+
+      .heading {
+        margin: 0 0 18px;
+        font-size: 34px;
+        line-height: 1.15;
+        font-weight: bold;
+        color: #221b36;
+      }
+
+      .body-copy {
+        margin: 0 0 18px;
+        font-size: 18px;
+        line-height: 1.7;
+        color: #3f3757;
+      }
+
+      .footer-shell {
+        padding: 0 18px 18px;
+        background: #f8f6fc;
+      }
+
+      .footer {
+        width: 100%;
+        background: #2a2736;
+        border-top: 4px solid #775fe0;
+      }
+
+      .footer-top {
+        padding: 22px 44px 0;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .footer-message {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.6;
+        text-align: center;
+        color: #e6e0f1;
+      }
+
+      .footer-main {
+        padding: 24px 44px 36px;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .footer-heading {
+        margin: 0 0 12px;
+        font-size: 13px;
+        font-weight: bold;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        color: #ffffff;
+      }
+
+      .footer-copy,
+      .footer-link {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.7;
+        color: #ddd6eb;
+      }
+
+      .footer-link a {
+        color: #f2dcff;
+        text-decoration: none;
+      }
+
+      @media only screen and (max-width: 720px) {
+        .mobile-pad {
+          padding-top: 18px !important;
+          padding-bottom: 18px !important;
         }
 
-        td.mj-full-width-mobile {
-          width: auto !important;
+        .banner-cell {
+          padding: 12px 12px 0 !important;
+        }
+
+        .content-band {
+          padding: 0 12px !important;
+        }
+
+        .footer-shell {
+          padding: 0 12px 12px !important;
+        }
+
+        .content-inner {
+          padding: 28px 24px 32px !important;
+        }
+
+        .heading {
+          font-size: 28px !important;
+        }
+
+        .body-copy {
+          font-size: 16px !important;
+        }
+
+        .footer-top {
+          padding: 18px 24px 0 !important;
+        }
+
+        .footer-main {
+          padding: 20px 24px 28px !important;
+        }
+
+        .footer-stack {
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          padding-right: 0 !important;
+          padding-bottom: 18px !important;
         }
       }
     </style>
   </head>
-
-  <body style="word-spacing: normal">
-    <div style="">
-      <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:1000px;" width="1000" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-      <div style="margin: 0px auto; max-width: 1000px">
-        <table
-          align="center"
-          border="0"
-          cellpadding="0"
-          cellspacing="0"
-          role="presentation"
-          style="width: 100%"
-        >
-          <tbody>
+  <body style="margin: 0; padding: 0">
+    <table
+      class="page-shell"
+      role="presentation"
+      width="100%"
+      border="0"
+      cellpadding="0"
+      cellspacing="0"
+      style="width: 100%; background: #e8e3f5; background-image: linear-gradient(180deg, #e8e3f5 0%, #f2eef8 45%, #e7e1f2 100%)"
+    >
+      <tr>
+        <td align="center" class="mobile-pad" style="padding: 32px 12px">
+          <table
+            class="frame"
+            role="presentation"
+            width="100%"
+            border="0"
+            cellpadding="0"
+            cellspacing="0"
+            style="width: 100%; max-width: 1000px; background: #f8f6fc; border: 1px solid #d8d0e8; table-layout: fixed"
+          >
             <tr>
-              <td
-                style="
-                  direction: ltr;
-                  font-size: 0px;
-                  padding: 20px 0;
-                  text-align: center;
-                "
-              >
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:1000px;" ><![endif]-->
-                <div
-                  class="mj-column-per-100 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
-                >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="center"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <table
-                            border="0"
-                            cellpadding="0"
-                            cellspacing="0"
-                            role="presentation"
-                            style="
-                              border-collapse: collapse;
-                              border-spacing: 0px;
-                            "
-                          >
-                            <tbody>
-                              <tr>
-                                <td style="width: 950px">
-                                  <img
-                                    height="auto"
-                                    src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/email-banner.png"
-                                    style="
-                                      border: 0;
-                                      display: block;
-                                      outline: none;
-                                      text-decoration: none;
-                                      height: auto;
-                                      width: 100%;
-                                      font-size: 13px;
-                                    "
-                                    width="950"
-                                  />
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td></tr></table><![endif]-->
+              <td class="banner-cell" style="padding: 18px 18px 0; background: #f8f6fc">
+                <img
+                  src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/email-banner.png"
+                  alt="Hack the Valley 11"
+                  width="964"
+                  style="display: block; width: 100%; max-width: 964px; height: auto"
+                />
               </td>
             </tr>
-          </tbody>
-        </table>
-      </div>
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:1000px;" width="1000" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-      <div style="margin: 0px auto; max-width: 1000px">
-        <table
-          align="center"
-          border="0"
-          cellpadding="0"
-          cellspacing="0"
-          role="presentation"
-          style="width: 100%"
-        >
-          <tbody>
             <tr>
-              <td
-                style="
-                  direction: ltr;
-                  font-size: 0px;
-                  padding: 20px 40px 60px;
-                  text-align: center;
-                "
-              >
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:920px;" ><![endif]-->
-                <div
-                  class="mj-column-per-100 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
+              <td class="content-band" style="padding: 0 18px; background: #f8f6fc">
+                <table
+                  class="content-panel"
+                  role="presentation"
+                  width="100%"
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="width: 100%; background: #ffffff; background-image: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%); border-top: 5px solid #7550df; border-bottom: 1px solid #ddd4ef"
                 >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 13px;
-                              font-weight: bold;
-                              line-height: 1;
-                              text-align: left;
-                              color: #000000;
-                            "
-                          >
-                            Hello Hacker!
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 13px;
-                              line-height: 1.25;
-                              text-align: left;
-                              color: #000000;
-                            "
-                          >
-                            You have successfully submitted your application to
-                            Hack The Valley!
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td></tr></table><![endif]-->
+                  <tr>
+                    <td class="content-inner" style="padding: 42px 70px 44px; font-family: Arial, Helvetica, sans-serif">
+                      <p class="eyebrow" style="margin: 0 0 10px; font-size: 12px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #6e56c7">
+                        Application Submitted
+                      </p>
+                      <p class="heading" style="margin: 0 0 18px; font-size: 34px; line-height: 1.15; font-weight: bold; color: #221b36">
+                        Your Hack the Valley application is in
+                      </p>
+                      <p class="body-copy" style="margin: 0 0 18px; font-size: 18px; line-height: 1.7; color: #3f3757">
+                        <strong style="display: block; margin-bottom: 10px; color: #221b36">Hi Hacker,</strong>
+                        <span style="display: block; margin-bottom: 10px">
+                          You have successfully submitted your application to
+                          Hack the Valley 11.
+                        </span>
+                        <span style="display: block">
+                          Our team will review your application and send you
+                          updates as the process moves forward. Thanks for
+                          taking the time to apply.
+                        </span>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
-          </tbody>
-        </table>
-      </div>
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:1000px;" width="1000" bgcolor="#272532" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-      <div
-        style="
-          background: #272532;
-          background-color: #272532;
-          margin: 0px auto;
-          max-width: 1000px;
-        "
-      >
-        <table
-          align="center"
-          border="0"
-          cellpadding="0"
-          cellspacing="0"
-          role="presentation"
-          style="background: #272532; background-color: #272532; width: 100%"
-        >
-          <tbody>
             <tr>
-              <td
-                style="
-                  direction: ltr;
-                  font-size: 0px;
-                  padding: 20px 40px;
-                  text-align: center;
-                "
-              >
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:920px;" ><![endif]-->
-                <div
-                  class="mj-column-per-100 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
+              <td class="footer-shell" style="padding: 0 18px 18px; background: #f8f6fc">
+                <table
+                  class="footer"
+                  role="presentation"
+                  width="100%"
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="width: 100%; background: #2a2736; border-top: 4px solid #775fe0"
                 >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="center"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            padding-bottom: 50px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 9px;
-                              line-height: 1;
-                              text-align: center;
-                              color: white;
-                            "
+                  <tr>
+                    <td class="footer-top" style="padding: 22px 44px 0; font-family: Arial, Helvetica, sans-serif">
+                      <p class="footer-message" style="margin: 0; font-size: 12px; line-height: 1.6; text-align: center; color: #e6e0f1">
+                        You are receiving this email because you applied to
+                        Hack the Valley.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="footer-main">
+                      <table
+                        role="presentation"
+                        width="100%"
+                        border="0"
+                        cellpadding="0"
+                        cellspacing="0"
+                      >
+                        <tr>
+                          <td
+                            class="footer-stack"
+                            width="50%"
+                            valign="top"
+                            style="padding-right: 24px"
                           >
-                            You are receiving this email because you applied to
-                            Hack the Valley.
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td
-                          align="start"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <table
-                            border="0"
-                            cellpadding="0"
-                            cellspacing="0"
-                            role="presentation"
-                            style="
-                              border-collapse: collapse;
-                              border-spacing: 0px;
-                            "
-                          >
-                            <tbody>
-                              <tr>
-                                <td style="width: 28px">
-                                  <img
-                                    height="auto"
-                                    src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/email-logo.png"
-                                    style="
-                                      border: 0;
-                                      display: block;
-                                      outline: none;
-                                      text-decoration: none;
-                                      height: auto;
-                                      width: 100%;
-                                      font-size: 13px;
-                                    "
-                                    width="28"
-                                  />
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:1000px;" width="1000" bgcolor="#272532" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-      <div
-        style="
-          background: #272532;
-          background-color: #272532;
-          margin: 0px auto;
-          max-width: 1000px;
-        "
-      >
-        <table
-          align="center"
-          border="0"
-          cellpadding="0"
-          cellspacing="0"
-          role="presentation"
-          style="background: #272532; background-color: #272532; width: 100%"
-        >
-          <tbody>
-            <tr>
-              <td
-                style="
-                  direction: ltr;
-                  font-size: 0px;
-                  padding: 0px 40px;
-                  text-align: center;
-                "
-              >
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:306.6666666666667px;" ><![endif]-->
-                <div
-                  class="mj-column-per-33-333333333333336 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
-                >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 11px;
-                              font-weight: bold;
-                              letter-spacing: 1.5px;
-                              line-height: 1;
-                              text-align: left;
-                              color: white;
-                            "
-                          >
-                            What is Hack the Valley?
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:306.6666666666667px;" ><![endif]-->
-                <div
-                  class="mj-column-per-33-333333333333336 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
-                >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 11px;
-                              font-weight: bold;
-                              letter-spacing: 1.5px;
-                              line-height: 1;
-                              text-align: left;
-                              color: white;
-                            "
-                          >
-                            Contact Us
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:306.6666666666667px;" ><![endif]-->
-                <div
-                  class="mj-column-per-33-333333333333336 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
-                >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody></tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td></tr></table><![endif]-->
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <!--[if mso | IE]></td></tr></table><table align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:1000px;" width="1000" bgcolor="#272532" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
-      <div
-        style="
-          background: #272532;
-          background-color: #272532;
-          margin: 0px auto;
-          max-width: 1000px;
-        "
-      >
-        <table
-          align="center"
-          border="0"
-          cellpadding="0"
-          cellspacing="0"
-          role="presentation"
-          style="background: #272532; background-color: #272532; width: 100%"
-        >
-          <tbody>
-            <tr>
-              <td
-                style="
-                  direction: ltr;
-                  font-size: 0px;
-                  padding: 0px 40px 50px;
-                  text-align: center;
-                "
-              >
-                <!--[if mso | IE]><table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td class="" style="vertical-align:top;width:306.6666666666667px;" ><![endif]-->
-                <div
-                  class="mj-column-per-33-333333333333336 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
-                >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 9px;
-                              font-weight: 300;
-                              line-height: 1.5;
-                              text-align: left;
-                              color: white;
-                            "
-                          >
-                            Join 600+ innovative and creative developers,
-                            designers, and creators for 36 hours of hacking.
-                            You'll get access to some of the best hardware and
-                            APIs on the market. Plus get to meet some
-                            experienced and awesome mentors! All this in just
-                            one weekend? I know, it's hard to believe.
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:306.6666666666667px;" ><![endif]-->
-                <div
-                  class="mj-column-per-33-333333333333336 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
-                >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 9px;
-                              letter-spacing: 1px;
-                              line-height: 1;
-                              text-align: left;
-                              color: white;
-                            "
-                          >
-                            <strong style="display: block">
-                              University of Toronto, Scarborough
-                            </strong>
-                            <span style="display: block; margin: 6px 0">
-                              1265 Military Trail,
-                            </span>
-                            <span style="display: block">
+                            <p class="footer-heading" style="margin: 0 0 12px; font-size: 13px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #ffffff">
+                              What is Hack the Valley?
+                            </p>
+                            <p class="footer-copy" style="margin: 0; font-size: 14px; line-height: 1.7; color: #ddd6eb">
+                              Join 600+ innovative and creative developers,
+                              designers, and creators for 36 hours of hacking.
+                              You'll get access to some of the best hardware
+                              and APIs on the market. Plus get to meet some
+                              experienced and awesome mentors! All this in just
+                              one weekend? I know, it's hard to believe.
+                            </p>
+                          </td>
+                          <td class="footer-stack" width="50%" valign="top">
+                            <p class="footer-heading" style="margin: 0 0 12px; font-size: 13px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #ffffff">
+                              Contact Us
+                            </p>
+                            <p class="footer-copy" style="margin: 0; font-size: 14px; line-height: 1.7; color: #ddd6eb">
+                              <strong>University of Toronto, Scarborough</strong><br />
+                              1265 Military Trail,<br />
                               Scarborough, ON M1C 1A4
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td><td class="" style="vertical-align:top;width:306.6666666666667px;" ><![endif]-->
-                <div
-                  class="mj-column-per-33-333333333333336 mj-outlook-group-fix"
-                  style="
-                    font-size: 0px;
-                    text-align: left;
-                    direction: ltr;
-                    display: inline-block;
-                    vertical-align: top;
-                    width: 100%;
-                  "
-                >
-                  <table
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="vertical-align: top"
-                    width="100%"
-                  >
-                    <tbody>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 9px;
-                              letter-spacing: 1px;
-                              line-height: 1;
-                              text-align: left;
-                              color: white;
-                            "
-                          >
-                            <a
-                              style="color: white"
-                              href="mailto:hello@hackthevalley.io"
-                            >
-                              hello@hackthevalley.io
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td
-                          align="left"
-                          style="
-                            font-size: 0px;
-                            padding: 10px 25px;
-                            word-break: break-word;
-                          "
-                        >
-                          <div
-                            style="
-                              font-family: Ubuntu, Helvetica, Arial, sans-serif;
-                              font-size: 9px;
-                              letter-spacing: 1px;
-                              line-height: 1;
-                              text-align: left;
-                              color: white;
-                            "
-                          >
-                            <a
-                              style="color: white"
-                              href="https://hackthevalley.io"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              hackthevalley.io
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!--[if mso | IE]></td></tr></table><![endif]-->
+                            </p>
+                            <p class="footer-link" style="margin: 0; font-size: 14px; line-height: 1.7; color: #ddd6eb">
+                              <a href="mailto:hello@hackthevalley.io" style="color: #f2dcff; text-decoration: none">hello@hackthevalley.io</a><br />
+                              <a
+                                href="https://hackthevalley.io"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style="color: #f2dcff; text-decoration: none"
+                              >
+                                hackthevalley.io
+                              </a>
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
-          </tbody>
-        </table>
-      </div>
-      <!--[if mso | IE]></td></tr></table><![endif]-->
-    </div>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>
 <!-- {% endblock html_body %} -->
