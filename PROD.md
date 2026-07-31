@@ -49,8 +49,27 @@ ports, and unrestricted CORS.
 
 ## Subsequent deployments
 
+Wait for the `Backend tests` workflow to finish successfully for the commit on
+`main`, then run:
+
 ```bash
 ./deploy.sh
+```
+
+The workflow builds the production image after tests pass and publishes both
+`main` and immutable `sha-<full-commit>` tags to
+`ghcr.io/hackthevalley/hack-the-back`. The deploy script pulls the immutable tag
+matching the checked-out revision, runs migrations, and replaces the API only
+after its health check passes.
+
+The container package must be public for anonymous pulls from the droplet. After
+the workflow publishes it for the first time, open the package settings on
+GitHub and change its visibility to public. If the package remains private,
+authenticate Docker on the droplet with a read-only classic personal access
+token before deploying:
+
+```bash
+echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 ```
 
 ## One-time Alembic adoption
@@ -61,9 +80,9 @@ deployment containing the migration service, take a database backup, copy the
 new files to the server, and mark the existing schema as the reviewed baseline:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml build migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull htb
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate \
-  uv run alembic stamp bf8b33c13520
+  uv run --no-sync alembic stamp bf8b33c13520
 ```
 
 This command does not alter application tables; it records that the existing
@@ -71,7 +90,7 @@ schema corresponds to the initial revision. Confirm it before deploying:
 
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate \
-  uv run alembic current
+  uv run --no-sync alembic current
 ```
 
 Future deployments run `alembic upgrade head` once before FastAPI starts. Fresh

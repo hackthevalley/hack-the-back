@@ -16,14 +16,20 @@ fi
 echo "### Pulling the latest fast-forward changes ..."
 git pull --ff-only
 
+revision="$(git rev-parse HEAD)"
+export APP_IMAGE="ghcr.io/hackthevalley/hack-the-back:sha-$revision"
+
 echo "### Checking production secrets and certificates ..."
 ./prod-preflight.sh
 
 echo "### Validating the production Compose configuration ..."
 "${compose[@]}" config --quiet
 
-echo "### Building the shared application image and reverse proxy ..."
-"${compose[@]}" build htb nginx
+echo "### Pulling the tested application image for $revision ..."
+"${compose[@]}" pull htb
+
+echo "### Building the reverse proxy ..."
+"${compose[@]}" build --provenance=false nginx
 
 echo "### Gracefully replacing changed services and waiting for health checks ..."
 "${compose[@]}" up -d --remove-orphans --wait --wait-timeout 180
