@@ -34,6 +34,7 @@ from app.services.auth import (
 )
 from app.services.email import send_activation_email, send_email
 from app.services.wallet import generate_apple_wallet_pass
+from app.validators import normalize_email
 
 router = APIRouter()
 
@@ -57,7 +58,9 @@ def _invalid_login() -> HTTPException:
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
 ) -> Token:
-    statement = select(Account_User).where(Account_User.email == form_data.username)
+    statement = select(Account_User).where(
+        Account_User.email == normalize_email(form_data.username)
+    )
     selected_user = session.exec(statement).first()
     password_hash = selected_user.password if selected_user else _DUMMY_PASSWORD_HASH
     password_matches = bcrypt.checkpw(
@@ -239,6 +242,11 @@ def reset_password(user: UserUpdate, session: SessionDep):
     if token_data.token_version != selected_user.token_version:
         raise _invalid_login()
 
+    if not user.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required"
+        )
+
     selected_user.password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
@@ -295,11 +303,22 @@ def refresh(
 
 
 @router.get("/apple-wallet/{application_id}")
-def apple_wallet(application_id: str, session: SessionDep):
+def apple_wallet(
+    application_id: str,
+    current_user: Annotated[Account_User, Depends(get_current_user)],
+    session: SessionDep,
+):
+    """
+    Security: Users can only download their own ticket.
+    The user is identified from the authentication token.
+    """
     statement = (
         select(Account_User.first_name, Account_User.last_name)
         .join(Forms_Application, Forms_Application.uid == Account_User.uid)
-        .where(Forms_Application.application_id == application_id)
+        .where(
+            Forms_Application.application_id == application_id,
+            Forms_Application.uid == current_user.uid,
+        )
     )
     result = session.exec(statement).first()
     if not result:
@@ -324,12 +343,21 @@ def apple_wallet(application_id: str, session: SessionDep):
     )
 
 
+_SELF_SERVICE_RSVP_STATUSES = {StatusEnum.ACCEPTED_INVITE, StatusEnum.REJECTED_INVITE}
+
+
 @router.patch("/rsvp-status")
 def rsvp_status_update(
-    status: StatusEnum,
+    new_status: StatusEnum,
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
+    if new_status not in _SELF_SERVICE_RSVP_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid RSVP status",
+        )
+
     application_statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)
@@ -355,7 +383,7 @@ def rsvp_status_update(
         )
 
     try:
-        hacker_applicant.status = status.value
+        hacker_applicant.status = new_status.value
         application.updated_at = datetime.now(timezone.utc)
 
         session.add(hacker_applicant)
@@ -370,4 +398,4 @@ def rsvp_status_update(
             detail=f"Failed to update RSVP status: {str(e)}",
         )
 
-    return {"new_status": status.value}
+    return {"new_status": new_status.value}
