@@ -107,7 +107,7 @@ def test_complete_application_submission_and_admin_review(
 
     rsvp = client.patch(
         "/api/account/rsvp-status",
-        params={"status": "ACCEPTED_INVITE"},
+        params={"new_status": "ACCEPTED_INVITE"},
         headers=active_hacker["headers"],
     )
     assert rsvp.status_code == 200, rsvp.text
