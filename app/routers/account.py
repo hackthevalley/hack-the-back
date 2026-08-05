@@ -242,11 +242,6 @@ def reset_password(user: UserUpdate, session: SessionDep):
     if token_data.token_version != selected_user.token_version:
         raise _invalid_login()
 
-    if not user.password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required"
-        )
-
     selected_user.password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
