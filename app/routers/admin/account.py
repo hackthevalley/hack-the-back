@@ -229,7 +229,7 @@ def get_resume_experience(application_id: UUID, session: SessionDep):
     except Exception:
         logger.exception("Unable to parse resume for application %s", application_id)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Unable to parse resume",
         ) from None
 
