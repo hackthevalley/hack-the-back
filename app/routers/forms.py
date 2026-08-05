@@ -338,9 +338,19 @@ def submit(
     questions_statement = select(Forms_Question)
     all_questions = session.exec(questions_statement).all()
     question_map = {str(q.question_id): q for q in all_questions}
+    question_labels = {question.label for question in all_questions}
+    superseded_question_labels = {
+        "Race/Ethnicity": "Race/Ethnicity (Select all that apply)",
+    }
 
     for answer in application.form_answers:
         selected_question = question_map.get(str(answer.question_id))
+        if (
+            selected_question
+            and selected_question.label in superseded_question_labels
+            and superseded_question_labels[selected_question.label] in question_labels
+        ):
+            continue
         if selected_question and selected_question.required:
             if (
                 answer.answer is None
