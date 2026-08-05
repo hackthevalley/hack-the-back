@@ -1,7 +1,7 @@
 """add application judging
 
 Revision ID: 7f3c1a2d9e40
-Revises: 2c1d5e7a9b30
+Revises: 94b0f2d61c7a
 Create Date: 2026-08-05
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "7f3c1a2d9e40"
-down_revision: Union[str, Sequence[str], None] = "2c1d5e7a9b30"
+down_revision: Union[str, Sequence[str], None] = "94b0f2d61c7a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
