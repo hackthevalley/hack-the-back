@@ -12,7 +12,12 @@ from sqlmodel import col, select
 
 from app.core.db import SessionDep
 from app.core.orm import eager_load
-from app.models.constants import DEFAULT_FILE_EXTENSION, QuestionLabel, SortOrder
+from app.models.constants import (
+    DEFAULT_FILE_EXTENSION,
+    QuestionLabel,
+    RankingSort,
+    SortOrder,
+)
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -23,6 +28,7 @@ from app.models.forms import (
 )
 from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
+from app.models.judging import JudgingApplicationScore
 from app.services.email import send_email, send_rsvp
 
 router = APIRouter()
@@ -228,6 +234,7 @@ def get_all_apps(
     gender: Annotated[str, Query(max_length=50)] = "",
     school: Annotated[str, Query(max_length=200)] = "",
     date_sort: SortOrder | None = None,
+    ranking_sort: RankingSort | None = None,
     role: StatusEnum | None = None,
 ):
     from datetime import timedelta
@@ -271,6 +278,11 @@ def get_all_apps(
             col(level_of_study_data.answer).label("level_of_study_answer"),
             col(gender_data.answer).label("gender_answer"),
             col(school_data.answer).label("school_answer"),
+            col(JudgingApplicationScore.mu).label("ranking_mu"),
+            col(JudgingApplicationScore.sigma_sq).label("ranking_sigma_sq"),
+            col(JudgingApplicationScore.comparison_count).label(
+                "ranking_comparison_count"
+            ),
         )
         .where(
             Account_User.is_active,
@@ -280,6 +292,11 @@ def get_all_apps(
         .join(
             Forms_HackathonApplicant,
             Forms_Application.application_id == Forms_HackathonApplicant.application_id,
+        )
+        .outerjoin(
+            JudgingApplicationScore,
+            JudgingApplicationScore.application_id
+            == Forms_Application.application_id,
         )
     )
 
@@ -343,7 +360,16 @@ def get_all_apps(
             )
         )
 
-    if date_sort:
+    if ranking_sort:
+        if ranking_sort == RankingSort.HIGHEST:
+            statement = statement.order_by(
+                col(JudgingApplicationScore.mu).desc().nulls_last()
+            )
+        else:
+            statement = statement.order_by(
+                col(JudgingApplicationScore.mu).asc().nulls_last()
+            )
+    elif date_sort:
         if date_sort == SortOrder.OLDEST:
             statement = statement.order_by(col(Forms_Application.updated_at).asc())
         elif date_sort == SortOrder.LATEST:
@@ -365,6 +391,9 @@ def get_all_apps(
             "level_of_study": level_study,
             "gender": gender_val,
             "school": school_val,
+            "ranking_mu": ranking_mu,
+            "ranking_sigma_sq": ranking_sigma_sq,
+            "ranking_comparison_count": ranking_comparison_count or 0,
         }
         for (
             user,
@@ -373,6 +402,9 @@ def get_all_apps(
             level_study,
             gender_val,
             school_val,
+            ranking_mu,
+            ranking_sigma_sq,
+            ranking_comparison_count,
         ) in results
     ]
 
