@@ -67,13 +67,16 @@ def test_walk_in_and_qr_check_in(client, active_hacker, volunteer_headers):
         headers=volunteer_headers,
     )
     assert scanned.status_code == 200, scanned.text
-    assert scanned.json()["body"]["applicant"]["status"] == "WALK_IN_SUBMITTED"
+    assert scanned.json()["body"]["applicant"]["status"] == "WALK_IN"
 
 
 def test_admin_listing_and_input_validation(client, admin_headers, volunteer_headers):
     users = client.get("/api/admin/account/users", headers=admin_headers)
     assert users.status_code == 200
     assert isinstance(users.json(), list)
+    applicants = client.get("/api/admin/account/applicants", headers=admin_headers)
+    assert applicants.status_code == 200
+    assert all("password" not in applicant for applicant in applicants.json())
     assert client.get("/api/admin/account/users?limit=101", headers=admin_headers).status_code == 422
     assert client.post(
         "/api/volunteer/check-ins", json={"id": "not-a-uuid"}, headers=volunteer_headers

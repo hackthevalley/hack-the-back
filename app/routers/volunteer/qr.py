@@ -76,11 +76,12 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
     ):
         hacker_applicant.status = StatusEnum.SCANNED_IN
         message = f"Welcome {user.first_name}!"
-    elif (
-        hacker_applicant.status == StatusEnum.WALK_IN
-        or hacker_applicant.status == StatusEnum.WALK_IN_SUBMITTED
+    elif hacker_applicant.status in (
+        StatusEnum.WALK_IN,
+        StatusEnum.WALK_IN_SUBMITTED,
     ):
-        hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
+        if not application.is_draft:
+            hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"Welcome walk-in {user.first_name}!"
     else:
         message = f"Already scanned in: {user.first_name}!"

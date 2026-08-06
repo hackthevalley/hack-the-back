@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 
 from app.models.constants import UserRole
 from app.models.food_tracking import Food_Tracking
@@ -22,7 +22,6 @@ class UserBase(SQLModel):
     last_name: str = Field(index=True, min_length=1, max_length=100)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
 
-
 class Account_User(UserBase, table=True):
     uid: uuid.UUID = Field(
         default_factory=uuid.uuid4,
@@ -33,9 +32,15 @@ class Account_User(UserBase, table=True):
     is_active: bool
     token_version: int = Field(default=0, nullable=False)
     failed_login_attempts: int = Field(default=0, nullable=False)
-    locked_until: Optional[datetime] = None
-    last_password_reset_request: Optional[datetime] = None
-    last_activation_email_sent: Optional[datetime] = None
+    locked_until: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    last_password_reset_request: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    last_activation_email_sent: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     application: Optional["Forms_Application"] = Relationship(back_populates="user")
     meals: list["Food_Tracking"] = Relationship(back_populates="user")
 

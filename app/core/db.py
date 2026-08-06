@@ -9,12 +9,13 @@ from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, create_engine, select
+from sqlmodel import Session, col, create_engine, delete, select
 
 from app.config import AppConfig, DatabaseConfig
 from app.models.constants import QuestionLabel
 from app.models.forms import (
     Forms_Answer,
+    Forms_AnswerFile,
     Forms_Application,
     Forms_Form,
     Forms_Question,
@@ -111,6 +112,29 @@ def seed_questions(questions: List, session: Session):
             question.label: question
             for question in session.exec(select(Forms_Question)).all()
         }
+        configured_labels = {question["label"] for question in questions}
+        stale_question_ids = [
+            question.question_id
+            for label, question in existing_questions.items()
+            if label not in configured_labels
+        ]
+
+        if stale_question_ids:
+            session.exec(
+                delete(Forms_Answer).where(
+                    col(Forms_Answer.question_id).in_(stale_question_ids)
+                )
+            )
+            session.exec(
+                delete(Forms_AnswerFile).where(
+                    col(Forms_AnswerFile.question_id).in_(stale_question_ids)
+                )
+            )
+            session.exec(
+                delete(Forms_Question).where(
+                    col(Forms_Question.question_id).in_(stale_question_ids)
+                )
+            )
 
         for index, question in enumerate(questions):
             existing_question = existing_questions.get(question["label"])

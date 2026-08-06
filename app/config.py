@@ -95,22 +95,22 @@ class AppConfig:
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://hackthevalley.io")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
-    EVENT_NAME: str = os.getenv("EVENT_NAME", "Hack the Valley X")
+    EVENT_NAME: str = os.getenv("EVENT_NAME", "Hack the Valley 11")
     EVENT_START_DATE: datetime = datetime.fromisoformat(
-        os.getenv("EVENT_START_DATE", "2025-10-03T00:00:00-04:00")
+        os.getenv("EVENT_START_DATE", "2026-10-16T00:00:00-04:00")
     )
     EVENT_END_DATE: datetime = datetime.fromisoformat(
-        os.getenv("EVENT_END_DATE", "2025-10-05T23:59:59-04:00")
+        os.getenv("EVENT_END_DATE", "2026-10-18T23:59:59-04:00")
     )
     EVENT_LOCATION: str = os.getenv("EVENT_LOCATION", "IA building, UofT Scarborough")
 
     APPLICATION_START_DATE: datetime = datetime.fromisoformat(
-        os.getenv("APPLICATION_START_DATE", "2025-06-01T00:00:00-04:00")
+        os.getenv("APPLICATION_START_DATE", "2026-06-01T00:00:00-04:00")
     )
     APPLICATION_END_DATE: datetime = datetime.fromisoformat(
-        os.getenv("APPLICATION_END_DATE", "2025-09-01T00:00:00-04:00")
+        os.getenv("APPLICATION_END_DATE", "2026-09-01T00:00:00-04:00")
     )
-    RSVP_DUE_DATE: str = os.getenv("RSVP_DUE_DATE", "September 26th 2025")
+    RSVP_DUE_DATE: str = os.getenv("RSVP_DUE_DATE", "October 9th 2026")
 
     APPLE_TEAM_IDENTIFIER: Optional[str] = os.getenv("APPLE_TEAM_IDENTIFIER")
     APPLE_PASS_TYPE_IDENTIFIER: Optional[str] = os.getenv("APPLE_PASS_TYPE_IDENTIFIER")
