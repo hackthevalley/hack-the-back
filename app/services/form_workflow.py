@@ -127,7 +127,10 @@ def submit_application(session: Session, user: Account_User) -> str:
         if question and question.required and (
             answer.answer is None
             or answer.answer.strip() == ""
-            or answer.answer == "false"
+            or (
+                QuestionLabel.requires_affirmative_answer(question.label)
+                and answer.answer.strip().lower() == "false"
+            )
         ):
             raise HTTPException(
                 status_code=400,
@@ -152,14 +155,14 @@ def submit_application(session: Session, user: Account_User) -> str:
         raise HTTPException(status_code=409, detail="Application already submitted")
     if not applicant.can_submit_application():
         raise HTTPException(status_code=403, detail="User not in valid state to submit")
+    if not application.is_draft:
+        raise HTTPException(status_code=409, detail="Application has already been submitted")
 
     walk_in = applicant.status == StatusEnum.WALK_IN
     if applicant.status == StatusEnum.APPLYING:
         applicant.status = StatusEnum.APPLIED
     elif walk_in:
         applicant.status = StatusEnum.WALK_IN_SUBMITTED
-    if not application.is_draft:
-        raise HTTPException(status_code=409, detail="Application has already been submitted")
     application.is_draft = False
     application.updated_at = datetime.now(timezone.utc)
 

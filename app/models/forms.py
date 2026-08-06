@@ -47,8 +47,12 @@ class Forms_Application(SQLModel, table=True):
         foreign_key="account_user.uid",
     )
     is_draft: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
     application_id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         index=True,

@@ -43,6 +43,11 @@ class QuestionLabel(str, Enum):
     RESUME = "Attach Your Resume"
     DIETARY_RESTRICTIONS = "Dietary Restrictions"
     T_SHIRT_SIZE = "T-Shirt Size"
+    MLH_CODE_OF_CONDUCT = "MLH Code of Conduct"
+    MLH_PRIVACY_AND_CONTEST_TERMS = (
+        "MLH Privacy Policy, MLH Contest Terms and Conditions"
+    )
+    HTV_CONSENT = "Hack the Valley Consent Form Agreement"
 
     @classmethod
     def is_prefilled_field(cls, label: str) -> bool:
@@ -56,6 +61,14 @@ class QuestionLabel(str, Enum):
     @classmethod
     def contains_resume(cls, label: str) -> bool:
         return "resume" in label.lower()
+
+    @classmethod
+    def requires_affirmative_answer(cls, label: str) -> bool:
+        return label in {
+            cls.MLH_CODE_OF_CONDUCT.value,
+            cls.MLH_PRIVACY_AND_CONTEST_TERMS.value,
+            cls.HTV_CONSENT.value,
+        }
 
 
 class EmailTemplate:

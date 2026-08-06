@@ -15,7 +15,7 @@ EXPECTED_MEALS = {
 
 
 def test_seed_contract_matches_source_data(client, admin_headers):
-    assert db_query("SELECT version_num FROM alembic_version") == ["c61a1db821ae"]
+    assert db_query("SELECT version_num FROM alembic_version") == ["d72b2ec932bf"]
     expected_questions = json.loads(
         (ROOT / "app/data/form_questions.json").read_text(encoding="utf-8")
     )
@@ -58,8 +58,17 @@ def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
     assert db_query("SELECT count(*) FROM meal") == ["6"]
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
 
+    db_query(
+        "INSERT INTO forms_question "
+        "(question_id, question_order, label, required) VALUES "
+        "('00000000-0000-0000-0000-000000000099', 999, "
+        "'Removed stale question', true)"
+    )
     restart_api()
     assert db_query("SELECT count(*) FROM forms_question") == [str(question_count)]
+    assert db_query(
+        "SELECT count(*) FROM forms_question WHERE label = 'Removed stale question'"
+    ) == ["0"]
     assert db_query("SELECT count(*) FROM meal") == ["6"]
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
 

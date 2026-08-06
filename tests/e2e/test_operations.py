@@ -74,6 +74,9 @@ def test_admin_listing_and_input_validation(client, admin_headers, volunteer_hea
     users = client.get("/api/admin/account/users", headers=admin_headers)
     assert users.status_code == 200
     assert isinstance(users.json(), list)
+    applicants = client.get("/api/admin/account/applicants", headers=admin_headers)
+    assert applicants.status_code == 200
+    assert all("password" not in applicant for applicant in applicants.json())
     assert client.get("/api/admin/account/users?limit=101", headers=admin_headers).status_code == 422
     assert client.post(
         "/api/volunteer/check-ins", json={"id": "not-a-uuid"}, headers=volunteer_headers

@@ -39,18 +39,19 @@ def get_users(
     return [UserPublic.model_validate(user) for user in users]
 
 
-@router.get("/applicants")
+@router.get("/applicants", response_model=list[UserPublic])
 def get_applicants(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ):
-    return session.exec(
+    users = session.exec(
         select(Account_User)
         .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .offset(offset)
         .limit(limit)
     ).all()
+    return [UserPublic.model_validate(user) for user in users]
 
 
 @router.get("/applications/{application_id}/resume")
