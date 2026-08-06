@@ -1,10 +1,5 @@
 from urllib.parse import urlsplit
 
-
-def normalize_email(value: str) -> str:
-    return value.strip().lower()
-
-
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 PASSWORD_REQUIRE_UPPERCASE = True

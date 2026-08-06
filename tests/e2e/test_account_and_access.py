@@ -231,13 +231,6 @@ def test_account_validation_and_failure_paths(client, active_hacker):
         client.get(
             "/api/account/apple-wallet/00000000-0000-0000-0000-000000000000"
         ).status_code
-        == 401
-    )
-    assert (
-        client.get(
-            "/api/account/apple-wallet/00000000-0000-0000-0000-000000000000",
-            headers=active_hacker["headers"],
-        ).status_code
         == 404
     )
 

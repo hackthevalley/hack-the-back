@@ -10,7 +10,6 @@ from app.models.food_tracking import Food_Tracking
 from app.validators import (
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
-    normalize_email,
     validate_password_requirements,
 )
 
@@ -22,12 +21,6 @@ class UserBase(SQLModel):
     first_name: str = Field(index=True, min_length=1, max_length=100)
     last_name: str = Field(index=True, min_length=1, max_length=100)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
-
-    @field_validator("email")
-    @classmethod
-    def _normalize_email(cls, v: str) -> str:
-        return normalize_email(v)
-
 
 class Account_User(UserBase, table=True):
     uid: uuid.UUID = Field(
@@ -84,8 +77,3 @@ class UserUpdate(BaseModel):
 
 class PasswordReset(BaseModel):
     email: EmailStr = Field(max_length=255)
-
-    @field_validator("email")
-    @classmethod
-    def _normalize_email(cls, v: str) -> str:
-        return normalize_email(v)

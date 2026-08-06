@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import bcrypt
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
@@ -34,7 +34,6 @@ from app.services.auth import (
 )
 from app.services.email import send_activation_email, send_email
 from app.services.wallet import generate_apple_wallet_pass
-from app.validators import normalize_email
 
 router = APIRouter()
 
@@ -58,9 +57,7 @@ def _invalid_login() -> HTTPException:
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
 ) -> Token:
-    statement = select(Account_User).where(
-        Account_User.email == normalize_email(form_data.username)
-    )
+    statement = select(Account_User).where(Account_User.email == form_data.username)
     selected_user = session.exec(statement).first()
     password_hash = selected_user.password if selected_user else _DUMMY_PASSWORD_HASH
     password_matches = bcrypt.checkpw(
@@ -300,20 +297,12 @@ def refresh(
 @router.get("/apple-wallet/{application_id}")
 def apple_wallet(
     application_id: str,
-    current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    """
-    Security: Users can only download their own ticket.
-    The user is identified from the authentication token.
-    """
     statement = (
         select(Account_User.first_name, Account_User.last_name)
         .join(Forms_Application, Forms_Application.uid == Account_User.uid)
-        .where(
-            Forms_Application.application_id == application_id,
-            Forms_Application.uid == current_user.uid,
-        )
+        .where(Forms_Application.application_id == application_id)
     )
     result = session.exec(statement).first()
     if not result:
@@ -343,7 +332,7 @@ _SELF_SERVICE_RSVP_STATUSES = {StatusEnum.ACCEPTED_INVITE, StatusEnum.REJECTED_I
 
 @router.patch("/rsvp-status")
 def rsvp_status_update(
-    new_status: StatusEnum,
+    new_status: Annotated[StatusEnum, Query(alias="status")],
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):

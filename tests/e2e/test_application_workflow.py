@@ -107,14 +107,14 @@ def test_complete_application_submission_and_admin_review(
 
     disallowed_rsvp = client.patch(
         "/api/account/rsvp-status",
-        params={"new_status": "SCANNED_IN"},
+        params={"status": "SCANNED_IN"},
         headers=active_hacker["headers"],
     )
     assert disallowed_rsvp.status_code == 400, disallowed_rsvp.text
 
     rsvp = client.patch(
         "/api/account/rsvp-status",
-        params={"new_status": "ACCEPTED_INVITE"},
+        params={"status": "ACCEPTED_INVITE"},
         headers=active_hacker["headers"],
     )
     assert rsvp.status_code == 200, rsvp.text
