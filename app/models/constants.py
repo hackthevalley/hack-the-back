@@ -22,6 +22,11 @@ class SortOrder(str, Enum):
     LATEST = "latest"
 
 
+class RankingSort(str, Enum):
+    HIGHEST = "highest"
+    LOWEST = "lowest"
+
+
 class QuestionLabel(str, Enum):
     FIRST_NAME = "First Name"
     LAST_NAME = "Last Name"

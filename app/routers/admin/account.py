@@ -12,7 +12,12 @@ from sqlmodel import col, select
 
 from app.core.db import SessionDep
 from app.core.orm import eager_load
-from app.models.constants import DEFAULT_FILE_EXTENSION, QuestionLabel, SortOrder
+from app.models.constants import (
+    DEFAULT_FILE_EXTENSION,
+    QuestionLabel,
+    RankingSort,
+    SortOrder,
+)
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerFile,
@@ -23,7 +28,9 @@ from app.models.forms import (
 )
 from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
+from app.models.judging import JudgingApplicationScore
 from app.services.email import send_email, send_rsvp
+from app.services.resume_experience import extract_experience_companies
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -199,6 +206,46 @@ def get_resume(
     )
 
 
+@router.get("/applications/{application_id}/resume-experience")
+def get_resume_experience(application_id: UUID, session: SessionDep):
+    resume = session.exec(
+        select(Forms_AnswerFile).where(
+            Forms_AnswerFile.application_id == application_id
+        )
+    ).first()
+    if not resume or not resume.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found"
+        )
+
+    file_path = Path(resume.file_path)
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk"
+        )
+
+    try:
+        companies = extract_experience_companies(file_path)
+    except Exception:
+        logger.exception("Unable to parse resume for application %s", application_id)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Unable to parse resume",
+        ) from None
+
+    return {
+        "companies": [
+            {
+                "name": company.name,
+                "confidence": company.confidence,
+                "source_text": company.source_text,
+                "page": company.page,
+            }
+            for company in companies
+        ]
+    }
+
+
 @router.get("/applications/{application_id}")
 def get_application(application_id: UUID, session: SessionDep):
     statement = select(Forms_Application).where(
@@ -228,6 +275,7 @@ def get_all_apps(
     gender: Annotated[str, Query(max_length=50)] = "",
     school: Annotated[str, Query(max_length=200)] = "",
     date_sort: SortOrder | None = None,
+    ranking_sort: RankingSort | None = None,
     role: StatusEnum | None = None,
 ):
     from datetime import timedelta
@@ -271,6 +319,11 @@ def get_all_apps(
             col(level_of_study_data.answer).label("level_of_study_answer"),
             col(gender_data.answer).label("gender_answer"),
             col(school_data.answer).label("school_answer"),
+            col(JudgingApplicationScore.mu).label("ranking_mu"),
+            col(JudgingApplicationScore.sigma_sq).label("ranking_sigma_sq"),
+            col(JudgingApplicationScore.comparison_count).label(
+                "ranking_comparison_count"
+            ),
         )
         .where(
             Account_User.is_active,
@@ -280,6 +333,11 @@ def get_all_apps(
         .join(
             Forms_HackathonApplicant,
             Forms_Application.application_id == Forms_HackathonApplicant.application_id,
+        )
+        .outerjoin(
+            JudgingApplicationScore,
+            JudgingApplicationScore.application_id
+            == Forms_Application.application_id,
         )
     )
 
@@ -343,7 +401,16 @@ def get_all_apps(
             )
         )
 
-    if date_sort:
+    if ranking_sort:
+        if ranking_sort == RankingSort.HIGHEST:
+            statement = statement.order_by(
+                col(JudgingApplicationScore.mu).desc().nulls_last()
+            )
+        else:
+            statement = statement.order_by(
+                col(JudgingApplicationScore.mu).asc().nulls_last()
+            )
+    elif date_sort:
         if date_sort == SortOrder.OLDEST:
             statement = statement.order_by(col(Forms_Application.updated_at).asc())
         elif date_sort == SortOrder.LATEST:
@@ -365,6 +432,9 @@ def get_all_apps(
             "level_of_study": level_study,
             "gender": gender_val,
             "school": school_val,
+            "ranking_mu": ranking_mu,
+            "ranking_sigma_sq": ranking_sigma_sq,
+            "ranking_comparison_count": ranking_comparison_count or 0,
         }
         for (
             user,
@@ -373,6 +443,9 @@ def get_all_apps(
             level_study,
             gender_val,
             school_val,
+            ranking_mu,
+            ranking_sigma_sq,
+            ranking_comparison_count,
         ) in results
     ]
 
