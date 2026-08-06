@@ -12,12 +12,20 @@ We'll email you again with updates as the review process continues. {% endblock 
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <style type="text/css">
+      :root {
+        color-scheme: light dark;
+        supported-color-schemes: light dark;
+      }
+
       body {
         margin: 0;
         padding: 0;
         -webkit-text-size-adjust: 100%;
         -ms-text-size-adjust: 100%;
+        color: #3f3757;
         background: #e8e3f5;
         background-image: linear-gradient(180deg, #e8e3f5 0%, #f2eef8 45%, #e7e1f2 100%);
       }
@@ -41,7 +49,7 @@ We'll email you again with updates as the review process continues. {% endblock 
       }
 
       a {
-        color: #5840b7;
+        color: #7839DC;
       }
 
       .page-shell {
@@ -71,7 +79,7 @@ We'll email you again with updates as the review process continues. {% endblock 
       .content-panel {
         background: #ffffff;
         background-image: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%);
-        border-top: 5px solid #7550df;
+        border-top: 5px solid #7839DC;
         border-bottom: 1px solid #ddd4ef;
       }
 
@@ -86,7 +94,7 @@ We'll email you again with updates as the review process continues. {% endblock 
         font-weight: bold;
         letter-spacing: 1.4px;
         text-transform: uppercase;
-        color: #6e56c7;
+        color: #7839DC;
       }
 
       .heading {
@@ -111,12 +119,12 @@ We'll email you again with updates as the review process continues. {% endblock 
 
       .footer {
         width: 100%;
-        background: #2a2736;
-        border-top: 4px solid #775fe0;
+        background: #0A0324;
+        border-top: 5px solid #7839DC;
       }
 
       .footer-top {
-        padding: 22px 44px 0;
+        padding: 24px 44px 0;
         font-family: Arial, Helvetica, sans-serif;
       }
 
@@ -129,12 +137,16 @@ We'll email you again with updates as the review process continues. {% endblock 
       }
 
       .footer-main {
-        padding: 24px 44px 36px;
+        padding: 24px 44px 28px;
         font-family: Arial, Helvetica, sans-serif;
       }
 
+      .footer-subgrid {
+        table-layout: fixed;
+      }
+
       .footer-heading {
-        margin: 0 0 12px;
+        margin: 0 0 10px;
         font-size: 13px;
         font-weight: bold;
         letter-spacing: 1.4px;
@@ -146,13 +158,72 @@ We'll email you again with updates as the review process continues. {% endblock 
       .footer-link {
         margin: 0;
         font-size: 14px;
-        line-height: 1.7;
-        color: #ddd6eb;
+        line-height: 1.45;
+        color: #d5dced;
       }
 
       .footer-link a {
-        color: #f2dcff;
+        color: #d5dced;
         text-decoration: none;
+      }
+
+      .footer-logo {
+        display: block;
+        width: 42px;
+        height: auto;
+        margin-left: auto;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body,
+        .page-shell {
+          background: #0f1320 !important;
+          background-image: linear-gradient(180deg, #0f1320 0%, #131a2c 100%) !important;
+        }
+
+        .frame,
+        .banner-cell,
+        .content-band,
+        .footer-shell {
+          background: #151b2c !important;
+          border-color: #2b3349 !important;
+        }
+
+        .content-panel {
+          background: #101828 !important;
+          background-image: linear-gradient(180deg, #101828 0%, #141c2f 100%) !important;
+          border-top-color: #A842E5 !important;
+          border-bottom-color: #2b3349 !important;
+        }
+
+        .eyebrow {
+          color: #A842E5 !important;
+        }
+
+        .heading,
+        .footer-heading {
+          color: #f7f8fc !important;
+        }
+
+        .body-copy,
+        .footer-copy,
+        .footer-link,
+        .footer-message {
+          color: #d5dced !important;
+        }
+
+        .body-copy strong {
+          color: #ffffff !important;
+        }
+
+        .footer {
+          background: #0A0324 !important;
+          border-top-color: #A842E5 !important;
+        }
+
+        .footer-link a {
+          color: #d5dced !important;
+        }
       }
 
       @media only screen and (max-width: 720px) {
@@ -186,11 +257,11 @@ We'll email you again with updates as the review process continues. {% endblock 
         }
 
         .footer-top {
-          padding: 18px 24px 0 !important;
+          padding: 24px 24px 0 !important;
         }
 
         .footer-main {
-          padding: 20px 24px 28px !important;
+          padding: 24px 24px 28px !important;
         }
 
         .footer-stack {
@@ -203,7 +274,7 @@ We'll email you again with updates as the review process continues. {% endblock 
       }
     </style>
   </head>
-  <body style="margin: 0; padding: 0">
+  <body style="margin: 0; padding: 0; color: #3f3757; background-color: #e8e3f5">
     <table
       class="page-shell"
       role="presentation"
@@ -243,11 +314,11 @@ We'll email you again with updates as the review process continues. {% endblock 
                   border="0"
                   cellpadding="0"
                   cellspacing="0"
-                  style="width: 100%; background: #ffffff; background-image: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%); border-top: 5px solid #7550df; border-bottom: 1px solid #ddd4ef"
+                  style="width: 100%; background: #ffffff; background-image: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%); border-top: 5px solid #7839DC; border-bottom: 1px solid #ddd4ef"
                 >
                   <tr>
                     <td class="content-inner" style="padding: 42px 70px 44px; font-family: Arial, Helvetica, sans-serif">
-                      <p class="eyebrow" style="margin: 0 0 10px; font-size: 12px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #6e56c7">
+                      <p class="eyebrow" style="margin: 0 0 10px; font-size: 12px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #7839DC">
                         Application Submitted
                       </p>
                       <p class="heading" style="margin: 0 0 18px; font-size: 34px; line-height: 1.15; font-weight: bold; color: #221b36">
@@ -279,10 +350,10 @@ We'll email you again with updates as the review process continues. {% endblock 
                   border="0"
                   cellpadding="0"
                   cellspacing="0"
-                  style="width: 100%; background: #2a2736; border-top: 4px solid #775fe0"
+                  style="width: 100%; background: #0A0324; border-top: 5px solid #7839DC"
                 >
                   <tr>
-                    <td class="footer-top" style="padding: 22px 44px 0; font-family: Arial, Helvetica, sans-serif">
+                    <td class="footer-top" style="padding: 24px 44px 0; font-family: Arial, Helvetica, sans-serif">
                       <p class="footer-message" style="margin: 0; font-size: 12px; line-height: 1.6; text-align: center; color: #e6e0f1">
                         You are receiving this email because you applied to
                         Hack the Valley.
@@ -290,53 +361,49 @@ We'll email you again with updates as the review process continues. {% endblock 
                     </td>
                   </tr>
                   <tr>
-                    <td class="footer-main">
-                      <table
-                        role="presentation"
-                        width="100%"
-                        border="0"
-                        cellpadding="0"
-                        cellspacing="0"
-                      >
+                    <td class="footer-main" style="padding: 24px 44px 28px; font-family: Arial, Helvetica, sans-serif">
+                      <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" class="footer-subgrid" style="width: 100%; table-layout: fixed">
                         <tr>
-                          <td
-                            class="footer-stack"
-                            width="50%"
-                            valign="top"
-                            style="padding-right: 24px"
-                          >
-                            <p class="footer-heading" style="margin: 0 0 12px; font-size: 13px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #ffffff">
+                          <td class="footer-stack" width="45%" valign="top" style="padding-right: 28px">
+                            <p class="footer-heading" style="margin: 0 0 10px; font-size: 16px; font-weight: bold; text-transform: capitalize; color: #ffffff">
                               What is Hack the Valley?
                             </p>
-                            <p class="footer-copy" style="margin: 0; font-size: 14px; line-height: 1.7; color: #ddd6eb">
-                              Join 600+ innovative and creative developers,
-                              designers, and creators for 36 hours of hacking.
-                              You'll get access to some of the best hardware
-                              and APIs on the market. Plus get to meet some
-                              experienced and awesome mentors! All this in just
-                              one weekend? I know, it's hard to believe.
+                            <p class="footer-copy" style="margin: 0; font-size: 14px; line-height: 1.45; color: #d5dced">
+                              Join 600+ innovative developers, designers, and
+                              creators for <strong>36 hours of hacking</strong>. Access top
+                              hardware and APIs, plus mentorship from
+                              experienced pros.
+                            </p>
+                            <p class="footer-copy" style="margin: 14px 0 0; font-size: 14px; line-height: 1.45; color: #d5dced; font-weight: normal">
+                              All in one weekend!
                             </p>
                           </td>
-                          <td class="footer-stack" width="50%" valign="top">
-                            <p class="footer-heading" style="margin: 0 0 12px; font-size: 13px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #ffffff">
+                          <td class="footer-stack" width="35%" valign="top" style="padding-right: 28px">
+                            <p class="footer-heading" style="margin: 0 0 10px; font-size: 16px; font-weight: bold; text-transform: capitalize; color: #ffffff">
                               Contact Us
                             </p>
-                            <p class="footer-copy" style="margin: 0; font-size: 14px; line-height: 1.7; color: #ddd6eb">
-                              <strong>University of Toronto, Scarborough</strong><br />
-                              1265 Military Trail,<br />
-                              Scarborough, ON M1C 1A4
+                            <p class="footer-copy" style="margin: 0; font-size: 14px; line-height: 1.45; color: #d5dced">
+                              University of Toronto, Scarborough<br />
+                              1265 Military Trail, Scarborough, ON M1C 1A4
                             </p>
-                            <p class="footer-link" style="margin: 0; font-size: 14px; line-height: 1.7; color: #ddd6eb">
-                              <a href="mailto:hello@hackthevalley.io" style="color: #f2dcff; text-decoration: none">hello@hackthevalley.io</a><br />
-                              <a
-                                href="https://hackthevalley.io"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style="color: #f2dcff; text-decoration: none"
-                              >
-                                hackthevalley.io
+                            <p class="footer-link" style="margin: 14px 0 0; font-size: 14px; line-height: 1.45; color: #d5dced">
+                              <a href="mailto:hello@hackthevalley.io" style="color: #d5dced; text-decoration: none">hello@hackthevalley.io</a><br />
+                              <a href="https://hackthevalley.io" target="_blank" rel="noopener noreferrer" style="color: #d5dced; text-decoration: none">hackthevalley.io</a>
+                            </p>
+                          </td>
+                          <td class="footer-stack" width="20%" valign="top" style="position: relative;">
+                            <p class="footer-heading" style="margin: 0 0 10px; font-size: 16px; font-weight: bold; text-transform: capitalize; color: #ffffff">
+                              Socials
+                            </p>
+                            <p class="footer-link" style="margin: 0; font-size: 14px; line-height: 1.45; color: #d5dced">
+                              <a href="https://www.linkedin.com/company/hack-the-valley" target="_blank" rel="noopener noreferrer" style="display: inline-block; font-size: 14px; line-height: 1.45; color: #d5dced; text-decoration: none">LinkedIn ↗</a><br />
+                              <a href="https://instagram.com/hackthevalley" target="_blank" rel="noopener noreferrer" style="display: inline-block; font-size: 14px; line-height: 1.45; color: #d5dced; text-decoration: none">Instagram ↗</a>
+                            </p>
+                            <div style="position: absolute; bottom: 0; right: 0;">
+                              <a href="https://hackthevalley.io" target="_blank" rel="noopener noreferrer" style="display: inline-block">
+                                <img src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/htvlogo.png" alt="Hack the Valley" width="42" class="footer-logo" style="display: block; width: 42px; height: auto; border: 0; margin-left: auto" />
                               </a>
-                            </p>
+                            </div>
                           </td>
                         </tr>
                       </table>
