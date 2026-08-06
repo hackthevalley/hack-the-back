@@ -30,7 +30,6 @@ from app.models.requests import BulkEmailRequest
 from app.models.user import Account_User, UserPublic
 from app.models.judging import JudgingApplicationScore
 from app.services.email import send_email, send_rsvp
-from app.services.resume_experience import extract_experience_companies
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -204,46 +203,6 @@ def get_resume(
         media_type="application/pdf",
         filename=safe_filename,
     )
-
-
-@router.get("/applications/{application_id}/resume-experience")
-def get_resume_experience(application_id: UUID, session: SessionDep):
-    resume = session.exec(
-        select(Forms_AnswerFile).where(
-            Forms_AnswerFile.application_id == application_id
-        )
-    ).first()
-    if not resume or not resume.file_path:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found"
-        )
-
-    file_path = Path(resume.file_path)
-    if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk"
-        )
-
-    try:
-        companies = extract_experience_companies(file_path)
-    except Exception:
-        logger.exception("Unable to parse resume for application %s", application_id)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Unable to parse resume",
-        ) from None
-
-    return {
-        "companies": [
-            {
-                "name": company.name,
-                "confidence": company.confidence,
-                "source_text": company.source_text,
-                "page": company.page,
-            }
-            for company in companies
-        ]
-    }
 
 
 @router.get("/applications/{application_id}")
