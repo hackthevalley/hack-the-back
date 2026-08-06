@@ -1,109 +1,45 @@
-import os
-import shutil
-import tempfile
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import timedelta
 from typing import Annotated
-from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from pypdf import PdfReader
+from fastapi import APIRouter, Depends, UploadFile, status
 from sqlmodel import col, select
 
-from app.config import FileUploadConfig
+from app.cache import cache
 from app.core.db import SessionDep
-from app.core.orm import eager_load
-from app.models.constants import (
-    ALLOWED_FILE_EXTENSIONS,
-    ALLOWED_FILE_TYPES_MESSAGE,
-    DEFAULT_FILE_EXTENSION,
-    MAX_ERROR_MESSAGE_LENGTH,
-    MIN_PDF_PAGES,
-    PDF_EMBEDDED_FILES_ERROR,
-    PDF_ENCRYPTED_ERROR,
-    PDF_JAVASCRIPT_ERROR,
-    PDF_NO_PAGES_ERROR,
-    EmailMessage,
-    EmailSubject,
-    EmailTemplate,
-    QuestionLabel,
-)
 from app.models.forms import (
     ApplicationResponse,
-    Forms_Answer,
     Forms_AnswerUpdate,
-    Forms_Application,
     Forms_Form,
-    Forms_HackathonApplicant,
     Forms_Question,
-    StatusEnum,
 )
 from app.models.user import Account_User
-from app.services.applications import create_application, is_valid_submission_time
+from app.services.applications import is_valid_submission_time
 from app.services.auth import get_current_user
-from app.services.email import send_email, send_rsvp
-from app.validators import validate_profile_url
+from app.services.form_workflow import (
+    get_or_create_application,
+    save_answers as save_application_answers,
+    submit_application,
+)
+from app.services.resume_uploads import upload_resume as store_resume
+from app.services.resume_uploads import validate_pdf
 
 router = APIRouter()
 
-
-def _validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
-
-    file_ext = Path(filename).suffix.lower()
-    if file_ext not in ALLOWED_FILE_EXTENSIONS:
-        return False, ALLOWED_FILE_TYPES_MESSAGE
-
-    try:
-        reader = PdfReader(filepath)
-        if reader.is_encrypted:
-            return False, PDF_ENCRYPTED_ERROR
-
-        if len(reader.pages) < MIN_PDF_PAGES:
-            return False, PDF_NO_PAGES_ERROR
-
-        def object_contains(forbidden_keys, obj):
-            if isinstance(obj, dict):
-                for key, value in obj.items():
-                    if key in forbidden_keys:
-                        return True
-                    if isinstance(value, (dict, list)):
-                        if object_contains(forbidden_keys, value):
-                            return True
-            elif isinstance(obj, list):
-                for item in obj:
-                    if isinstance(item, (dict, list)):
-                        if object_contains(forbidden_keys, item):
-                            return True
-            return False
-
-        root = reader.trailer.get("/Root")
-
-        javascript_keys = {"/JavaScript", "/JS", "/AA", "/OpenAction"}
-        if object_contains(javascript_keys, root):
-            return False, PDF_JAVASCRIPT_ERROR
-
-        embedded_file_keys = {"/EmbeddedFile", "/EmbeddedFiles", "/AF"}
-        if object_contains(embedded_file_keys, root):
-            return False, PDF_EMBEDDED_FILES_ERROR
-
-    except Exception as e:
-        return False, f"Invalid PDF: {str(e)[:MAX_ERROR_MESSAGE_LENGTH]}"
-
-    return True, ""
+# Kept as a private alias for compatibility with existing imports.
+_validate_pdf = validate_pdf
 
 
 @router.get("/questions")
 def get_questions(session: SessionDep) -> list[Forms_Question]:
-    from datetime import timedelta
-
-    from app.cache import cache
-
-    def fetch_questions():
-        statement = select(Forms_Question).order_by(col(Forms_Question.question_order))
-        return list(session.exec(statement).all())
+    def fetch_questions() -> list[Forms_Question]:
+        return list(
+            session.exec(
+                select(Forms_Question).order_by(col(Forms_Question.question_order))
+            ).all()
+        )
 
     return cache.get_or_set(
-        key="form_questions", factory_func=fetch_questions, ttl=timedelta(minutes=10)
+        "form_questions", fetch_questions, timedelta(minutes=10)
     )
 
 
@@ -112,37 +48,7 @@ def get_application(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if current_user.application is None:
-        if not is_valid_submission_time(session, current_user):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Submitting outside submission time",
-            )
-        application = create_application(current_user, session)
-    else:
-        statement = (
-            select(Forms_Application)
-            .where(Forms_Application.uid == current_user.uid)
-            .options(
-                eager_load(Forms_Application.form_answers),
-                eager_load(Forms_Application.form_answersfile),
-                eager_load(Forms_Application.hackathonapplicant),
-            )
-        )
-        application = session.exec(statement).first()
-
-    if application is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
-        )
-
-    return {
-        "application": application,
-        "form_answers": application.form_answers,
-        "form_answersfile": application.form_answersfile.original_filename
-        if application.form_answersfile
-        else None,
-    }
+    return get_or_create_application(session, current_user)
 
 
 @router.put("/answers")
@@ -151,77 +57,7 @@ def save_answers(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not is_valid_submission_time(session, current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Submission is currently closed",
-        )
-
-    if current_user.application is None:
-        current_user.application = create_application(current_user, session)
-
-    statement = (
-        select(Forms_Application)
-        .where(Forms_Application.uid == current_user.uid)
-        .options(eager_load(Forms_Application.form_answers))
-    )
-    application = session.exec(statement).first()
-    if application is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
-        )
-
-    answer_map = {str(ans.question_id): ans for ans in application.form_answers}
-
-    questions_statement = select(Forms_Question)
-    questions = session.exec(questions_statement).all()
-    question_map = {str(q.question_id): q for q in questions}
-
-    bulk_updates = []
-    for update in forms_batchupdate:
-        form_answer = answer_map.get(update.question_id)
-        if form_answer:
-            question = question_map.get(update.question_id)
-            if question:
-                is_prefilled_field = QuestionLabel.is_prefilled_field(question.label)
-                has_existing_value = form_answer.answer and form_answer.answer.strip()
-                is_empty_update = not update.answer or not update.answer.strip()
-
-                if is_prefilled_field and has_existing_value and is_empty_update:
-                    continue
-
-                try:
-                    validate_profile_url(question.label, update.answer)
-                except ValueError as error:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=str(error),
-                    ) from error
-
-            bulk_updates.append({"id": form_answer.id, "answer": update.answer})
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid question_id: {update.question_id}",
-            )
-
-    try:
-        if bulk_updates:
-            session.bulk_update_mappings(Forms_Answer, bulk_updates)
-
-        application.updated_at = datetime.now(timezone.utc)
-        session.add(application)
-
-        session.commit()
-        session.refresh(application)
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save answers: {str(e)}",
-        )
-
-    return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
+    return save_application_answers(session, current_user, forms_batchupdate)
 
 
 @router.post("/resume")
@@ -230,92 +66,7 @@ def upload_resume(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not is_valid_submission_time(session, current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Submission is closed"
-        )
-
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Filename is required"
-        )
-
-    file_ext = Path(file.filename).suffix.lower()
-    if file_ext not in ALLOWED_FILE_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=ALLOWED_FILE_TYPES_MESSAGE
-        )
-
-    upload_dir = Path(FileUploadConfig.UPLOAD_DIR)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    with tempfile.NamedTemporaryFile(
-        delete=False, dir=upload_dir, suffix=DEFAULT_FILE_EXTENSION
-    ) as tmp:
-        temp_path = tmp.name
-    with open(temp_path, "wb") as out:
-        bytes_written = 0
-
-        while chunk := file.file.read(FileUploadConfig.CHUNK_SIZE_BYTES):
-            bytes_written += len(chunk)
-            if bytes_written > FileUploadConfig.MAX_FILE_SIZE_BYTES:
-                os.unlink(temp_path)
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail="File too large",
-                )
-            out.write(chunk)
-
-    is_valid, error_msg = _validate_pdf(temp_path, file.filename)
-    if not is_valid:
-        os.unlink(temp_path)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
-
-    if current_user.application is None:
-        current_user.application = create_application(current_user, session)
-
-    old = current_user.application.form_answersfile
-    if old and old.file_path:
-        try:
-            Path(old.file_path).unlink(missing_ok=True)
-        except Exception:
-            pass
-
-    final_name = f"{uuid4()}{DEFAULT_FILE_EXTENSION}"
-    final_path = upload_dir / final_name
-    shutil.move(temp_path, final_path)
-
-    answer_file = current_user.application.form_answersfile
-    if not answer_file:
-        try:
-            final_path.unlink(missing_ok=True)
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Missing resume model"
-        )
-
-    try:
-        answer_file.original_filename = file.filename
-        answer_file.file_path = str(final_path)
-        current_user.application.updated_at = datetime.now(timezone.utc)
-
-        session.add(answer_file)
-        session.add(current_user.application)
-        session.commit()
-        session.refresh(answer_file)
-    except Exception as e:
-        session.rollback()
-        try:
-            final_path.unlink(missing_ok=True)
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save resume: {str(e)}",
-        )
-
-    return answer_file.original_filename
+    return store_resume(session, current_user, file)
 
 
 @router.post("/submission", status_code=status.HTTP_201_CREATED)
@@ -323,121 +74,7 @@ def submit(
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
-    if not is_valid_submission_time(session, current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Submission is currently closed",
-        )
-
-    application = current_user.application
-    if application is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
-        )
-
-    questions_statement = select(Forms_Question)
-    all_questions = session.exec(questions_statement).all()
-    question_map = {str(q.question_id): q for q in all_questions}
-    question_labels = {question.label for question in all_questions}
-    superseded_question_labels = {
-        "Race/Ethnicity": "Race/Ethnicity (Select all that apply)",
-    }
-
-    for answer in application.form_answers:
-        selected_question = question_map.get(str(answer.question_id))
-        if (
-            selected_question
-            and selected_question.label in superseded_question_labels
-            and superseded_question_labels[selected_question.label] in question_labels
-        ):
-            continue
-        if selected_question and selected_question.required:
-            if (
-                answer.answer is None
-                or answer.answer.strip() == ""
-                or answer.answer == "false"
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Required field not answered: {selected_question.label}",
-                )
-    answer_file = application.form_answersfile
-    if answer_file is None or answer_file.original_filename is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Resume is required"
-        )
-
-    lock_statement = (
-        select(Forms_HackathonApplicant)
-        .where(
-            Forms_HackathonApplicant.application_id
-            == application.application_id
-        )
-        .with_for_update()
-    )
-    hacker_applicant = session.exec(lock_statement).first()
-
-    if not hacker_applicant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application not found",
-        )
-
-    if hacker_applicant.is_already_submitted():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Application already submitted"
-        )
-
-    if not hacker_applicant.can_submit_application():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not in valid state to submit",
-        )
-
-    is_walk_in_submission = False
-    current_status = hacker_applicant.status
-
-    if current_status == StatusEnum.APPLYING:
-        hacker_applicant.status = StatusEnum.APPLIED
-    elif current_status == StatusEnum.WALK_IN:
-        hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
-        is_walk_in_submission = True
-    if not application.is_draft:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Application has already been submitted",
-        )
-    else:
-        application.is_draft = False
-        application.updated_at = datetime.now(timezone.utc)
-
-    try:
-        session.add(hacker_applicant)
-        session.add(application)
-        session.commit()
-        session.refresh(hacker_applicant)
-        session.refresh(application)
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to submit application: {str(e)}",
-        )
-
-    if is_walk_in_submission:
-        application_id = str(application.application_id)
-        user_full_name = current_user.full_name
-        send_rsvp(current_user.email, user_full_name, application_id)
-    else:
-        send_email(
-            EmailTemplate.CONFIRMATION,
-            current_user.email,
-            EmailSubject.CONFIRMATION,
-            EmailMessage.CONFIRMATION,
-            {},
-        )
-
-    return "Success"
+    return submit_application(session, current_user)
 
 
 @router.get("/submission-time")
@@ -447,15 +84,9 @@ def submission_time(session: SessionDep):
 
 @router.get("/registration-timerange", response_model=Forms_Form)
 def get_reg_time_range(session: SessionDep) -> Forms_Form:
-    from datetime import timedelta
-
-    from app.cache import cache
-
     def fetch_time_range():
         return session.exec(select(Forms_Form)).first()
 
     return cache.get_or_set(
-        key="registration_timerange",
-        factory_func=fetch_time_range,
-        ttl=timedelta(minutes=5),
+        "registration_timerange", fetch_time_range, timedelta(minutes=5)
     )
