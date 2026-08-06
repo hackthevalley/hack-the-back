@@ -22,8 +22,11 @@ class Food_Tracking(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="account_user.uid", index=True)
     meal_id: uuid.UUID = Field(foreign_key="meal.id", index=True)
     checkin_time: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=lambda: datetime.now(timezone.utc),
+        ),
     )
 
     user: "Account_User" = Relationship(back_populates="meals")
