@@ -74,3 +74,53 @@ def test_activation_email_passes_complete_url(monkeypatch):
     activation_url = "http://localhost:3000/activate?token=example-token"
     assert sent["context"] == {"url": activation_url}
     assert activation_url in sent["textbody"]
+
+
+def test_activation_email_failure_does_not_start_cooldown(monkeypatch):
+    user = SimpleNamespace(
+        email="hacker@example.com",
+        first_name="Hack",
+        last_name="Er",
+        full_name="Hack Er",
+        is_active=False,
+        last_activation_email_sent=None,
+        token_version=0,
+    )
+
+    class Result:
+        def first(self):
+            return user
+
+    class Session:
+        commits = 0
+
+        def exec(self, _statement):
+            return Result()
+
+        def add(self, _user):
+            pass
+
+        def commit(self):
+            self.commits += 1
+
+    session = Session()
+    monkeypatch.setattr(
+        email_service,
+        "create_access_token",
+        lambda **_kwargs: "example-token",
+    )
+
+    def fail_to_send(*_args, **_kwargs):
+        raise RuntimeError("Postmark unavailable")
+
+    monkeypatch.setattr(email_service, "send_email", fail_to_send)
+
+    try:
+        email_service.send_activation_email(user.email, session)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("Expected the email failure to propagate")
+
+    assert user.last_activation_email_sent is None
+    assert session.commits == 0

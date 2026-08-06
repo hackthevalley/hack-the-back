@@ -67,7 +67,7 @@ def test_walk_in_and_qr_check_in(client, active_hacker, volunteer_headers):
         headers=volunteer_headers,
     )
     assert scanned.status_code == 200, scanned.text
-    assert scanned.json()["body"]["applicant"]["status"] == "WALK_IN_SUBMITTED"
+    assert scanned.json()["body"]["applicant"]["status"] == "WALK_IN"
 
 
 def test_admin_listing_and_input_validation(client, admin_headers, volunteer_headers):

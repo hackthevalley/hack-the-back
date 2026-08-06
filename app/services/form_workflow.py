@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -17,6 +18,8 @@ from app.models.user import Account_User
 from app.services.applications import create_application, is_valid_submission_time
 from app.services.email import send_email, send_rsvp
 from app.validators import validate_profile_url
+
+logger = logging.getLogger(__name__)
 
 
 def get_or_create_application(session: Session, user: Account_User) -> dict:
@@ -77,12 +80,7 @@ def save_answers(
             )
         question = questions.get(update.question_id)
         if question:
-            if (
-                QuestionLabel.is_prefilled_field(question.label)
-                and answer.answer
-                and answer.answer.strip()
-                and (not update.answer or not update.answer.strip())
-            ):
+            if QuestionLabel.is_prefilled_field(question.label):
                 continue
             try:
                 validate_profile_url(question.label, update.answer)
@@ -178,14 +176,20 @@ def submit_application(session: Session, user: Account_User) -> str:
             detail=f"Failed to submit application: {error}",
         ) from error
 
-    if walk_in:
-        send_rsvp(user.email, user.full_name, str(application.application_id))
-    else:
-        send_email(
-            EmailTemplate.CONFIRMATION,
-            user.email,
-            EmailSubject.CONFIRMATION,
-            EmailMessage.CONFIRMATION,
-            {},
+    try:
+        if walk_in:
+            send_rsvp(user.email, user.full_name, str(application.application_id))
+        else:
+            send_email(
+                EmailTemplate.CONFIRMATION,
+                user.email,
+                EmailSubject.CONFIRMATION,
+                EmailMessage.CONFIRMATION,
+                {},
+            )
+    except Exception:
+        logger.exception(
+            "Application %s was submitted, but its notification could not be sent",
+            application.application_id,
         )
     return "Success"

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from app.models.meal import Meal
 
@@ -11,6 +11,10 @@ if TYPE_CHECKING:
 
 
 class Food_Tracking(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("user_id", "meal_id", name="uq_food_tracking_user_meal"),
+    )
+
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         primary_key=True,

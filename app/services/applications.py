@@ -115,7 +115,7 @@ def create_application(
 def is_valid_submission_time(session: SessionDep, user: Account_User | None = None):
     if user and user.application and user.application.hackathonapplicant:
         application_status = user.application.hackathonapplicant.status
-        if application_status in [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]:
+        if application_status == StatusEnum.WALK_IN:
             return True
 
     form = session.exec(select(Forms_Form).limit(1)).first()

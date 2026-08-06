@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
 
@@ -8,6 +10,7 @@ from app.services.applications import create_application
 from app.services.email import send_rsvp
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/walk-ins")
@@ -59,7 +62,13 @@ def mark_walkin(request: WalkInRequest, session: SessionDep):
     session.refresh(user.application.hackathonapplicant)
 
     if send_email:
-        send_rsvp(user.email, user.full_name, application_id)
+        try:
+            send_rsvp(user.email, user.full_name, application_id)
+        except Exception:
+            logger.exception(
+                "Walk-in %s was marked submitted, but its RSVP could not be sent",
+                application_id,
+            )
 
     return {
         "message": message,

@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -6,7 +7,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import aliased
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, literal, select
 
 from app.cache import cache
 from app.core.orm import eager_load
@@ -27,6 +28,8 @@ from app.models.forms import (
 from app.models.judging import JudgingApplicationScore
 from app.models.user import Account_User
 from app.services.email import send_rsvp
+
+logger = logging.getLogger(__name__)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -115,21 +118,24 @@ def list_applications(
     level_answer = aliased(Forms_Answer)
     gender_answer = aliased(Forms_Answer)
     school_answer = aliased(Forms_Answer)
+    level_column = col(level_answer.answer) if level_question else literal(None)
+    gender_column = col(gender_answer.answer) if gender_question else literal(None)
+    school_column = col(school_answer.answer) if school_question else literal(None)
     statement = (
         select(
             Account_User,
             Forms_Application,
             Forms_HackathonApplicant,
-            col(level_answer.answer).label("level_of_study_answer"),
-            col(gender_answer.answer).label("gender_answer"),
-            col(school_answer.answer).label("school_answer"),
+            level_column.label("level_of_study_answer"),
+            gender_column.label("gender_answer"),
+            school_column.label("school_answer"),
             col(JudgingApplicationScore.mu).label("ranking_mu"),
             col(JudgingApplicationScore.sigma_sq).label("ranking_sigma_sq"),
             col(JudgingApplicationScore.comparison_count).label(
                 "ranking_comparison_count"
             ),
         )
-        .where(Account_User.is_active, Account_User.application is not None)
+        .where(col(Account_User.is_active).is_(True))
         .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .join(
             Forms_HackathonApplicant,
@@ -191,12 +197,26 @@ def list_applications(
     if ranking_sort:
         ranking_column = col(JudgingApplicationScore.mu)
         statement = statement.order_by(
-            (ranking_column.desc() if ranking_sort == RankingSort.HIGHEST else ranking_column.asc()).nulls_last()
+            (
+                ranking_column.desc()
+                if ranking_sort == RankingSort.HIGHEST
+                else ranking_column.asc()
+            ).nulls_last(),
+            col(Forms_Application.updated_at).desc(),
+            col(Forms_Application.application_id).asc(),
         )
     elif date_sort:
         date_column = col(Forms_Application.updated_at)
         statement = statement.order_by(
-            date_column.asc() if date_sort == SortOrder.OLDEST else date_column.desc()
+            date_column.asc()
+            if date_sort == SortOrder.OLDEST
+            else date_column.desc(),
+            col(Forms_Application.application_id).asc(),
+        )
+    else:
+        statement = statement.order_by(
+            col(Forms_Application.updated_at).desc(),
+            col(Forms_Application.application_id).asc(),
         )
 
     results = session.exec(statement.offset(offset).limit(limit)).all()
@@ -249,6 +269,7 @@ def update_application_status(
     if applicant is None:
         raise HTTPException(status_code=404, detail="Applicant status not found")
 
+    previous_status = applicant.status
     try:
         applicant.status = new_status.value
         application.updated_at = datetime.now(timezone.utc)
@@ -257,14 +278,21 @@ def update_application_status(
         session.commit()
         session.refresh(applicant)
         session.refresh(application)
-        if new_status == StatusEnum.ACCEPTED:
-            send_rsvp(user.email, user.full_name, application_id)
     except Exception as error:
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update application status: {error}",
         ) from error
+
+    if new_status == StatusEnum.ACCEPTED and previous_status != StatusEnum.ACCEPTED:
+        try:
+            send_rsvp(user.email, user.full_name, application_id)
+        except Exception:
+            logger.exception(
+                "Application %s was accepted, but its RSVP could not be sent",
+                application_id,
+            )
 
     return {
         "application_id": application_id,

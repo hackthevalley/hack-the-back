@@ -56,6 +56,7 @@ def send_email(
     }
     with httpx.Client() as client:
         response = client.post(EmailConfig.POSTMARK_URL, json=data, headers=headers)
+    response.raise_for_status()
     return (response.status_code, response.json())
 
 
@@ -84,9 +85,6 @@ def send_activation_email(email: str, session: SessionDep):
                 detail="Activation email already sent recently. Please wait a few minutes.",
             )
 
-    selected_user.last_activation_email_sent = now
-    session.add(selected_user)
-    session.commit()
     access_token = create_access_token(
         data={
             "sub": str(selected_user.email),
@@ -101,13 +99,17 @@ def send_activation_email(email: str, session: SessionDep):
         expires_delta=timedelta(minutes=SecurityConfig.ACTIVATION_TOKEN_EXPIRE_MINUTES),
     )
     activation_url = AppConfig.get_activation_url(access_token)
-    return send_email(
+    result = send_email(
         EmailTemplate.ACTIVATION,
         email,
         EmailSubject.ACTIVATION,
         EmailMessage.activation_text(activation_url),
         {"url": activation_url},
     )
+    selected_user.last_activation_email_sent = now
+    session.add(selected_user)
+    session.commit()
+    return result
 
 
 def create_qr_code(application_id: str):

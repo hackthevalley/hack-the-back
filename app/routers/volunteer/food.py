@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy.dialects.postgresql import insert
 from sqlmodel import col, select
 
 from app.core.db import SessionDep
@@ -37,10 +38,13 @@ class FoodTrackingRequest(BaseModel):
 
 def get_day_number(day_str: str) -> int:
     day_map = {"friday": 1, "saturday": 2, "sunday": 3}
-    try:
-        return day_map[day_str.lower()]
-    except KeyError:
-        raise ValueError(f"Invalid day: {day_str}")
+    day_number = day_map.get(day_str.lower())
+    if day_number is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Meal has invalid day: {day_str}",
+        )
+    return day_number
 
 
 @router.get("", response_model=FoodResponse)
@@ -78,7 +82,6 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
         return {"message": "No food items to track"}
 
     application_ids = [item.application for item in food_items]
-    meal_ids = [item.serving for item in food_items]
 
     app_statement = select(Forms_Application).where(
         col(Forms_Application.application_id).in_(application_ids)
@@ -100,31 +103,20 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
         meal_id = item.serving
         tracking_pairs.append((application.uid, meal_id))
 
-    user_ids = [pair[0] for pair in tracking_pairs]
-    existing_statement = select(Food_Tracking).where(
-        col(Food_Tracking.user_id).in_(user_ids),
-        col(Food_Tracking.meal_id).in_(meal_ids),
-    )
-    existing_trackings = session.exec(existing_statement).all()
-
-    existing_pairs = {
-        (str(tracking.user_id), str(tracking.meal_id))
-        for tracking in existing_trackings
-    }
-
-    new_trackings = []
-    for user_id, meal_id in tracking_pairs:
-        if (str(user_id), str(meal_id)) not in existing_pairs:
-            new_trackings.append(
-                Food_Tracking(
-                    user_id=user_id,
-                    meal_id=meal_id,
-                )
-            )
+    unique_pairs = set(tracking_pairs)
 
     try:
-        if new_trackings:
-            session.add_all(new_trackings)
+        inserted_ids = session.exec(
+            insert(Food_Tracking)
+            .values(
+                [
+                    {"user_id": user_id, "meal_id": meal_id}
+                    for user_id, meal_id in unique_pairs
+                ]
+            )
+            .on_conflict_do_nothing(constraint="uq_food_tracking_user_meal")
+            .returning(Food_Tracking.id)
+        ).all()
         session.commit()
     except Exception as e:
         session.rollback()
@@ -135,5 +127,5 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
 
     return {
         "message": "Food tracking updated successfully",
-        "new_records_created": len(new_trackings),
+        "new_records_created": len(inserted_ids),
     }
