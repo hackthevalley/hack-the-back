@@ -5,7 +5,12 @@ from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.orm import eager_load
-from app.models.constants import EmailMessage, EmailSubject, EmailTemplate, QuestionLabel
+from app.models.constants import (
+    EmailMessage,
+    EmailSubject,
+    EmailTemplate,
+    QuestionLabel,
+)
 from app.models.forms import (
     Forms_Answer,
     Forms_AnswerUpdate,
@@ -25,7 +30,9 @@ logger = logging.getLogger(__name__)
 def get_or_create_application(session: Session, user: Account_User) -> dict:
     if user.application is None:
         if not is_valid_submission_time(session, user):
-            raise HTTPException(status_code=404, detail="Submitting outside submission time")
+            raise HTTPException(
+                status_code=404, detail="Submitting outside submission time"
+            )
         application = create_application(user, session)
     else:
         application = session.exec(
@@ -97,9 +104,10 @@ def save_answers(
         session.refresh(application)
     except Exception as error:
         session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Failed to save answers: {error}"
-        ) from error
+        logger.exception(
+            "Failed to save answers for application %s", application.application_id
+        )
+        raise HTTPException(status_code=500, detail="Failed to save answers") from error
     return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
 
 
@@ -113,9 +121,7 @@ def submit_application(session: Session, user: Account_User) -> str:
     all_questions = session.exec(select(Forms_Question)).all()
     questions = {str(question.question_id): question for question in all_questions}
     labels = {question.label for question in all_questions}
-    superseded_labels = {
-        "Race/Ethnicity": "Race/Ethnicity (Select all that apply)"
-    }
+    superseded_labels = {"Race/Ethnicity": "Race/Ethnicity (Select all that apply)"}
     for answer in application.form_answers:
         question = questions.get(str(answer.question_id))
         if (
@@ -124,12 +130,16 @@ def submit_application(session: Session, user: Account_User) -> str:
             and superseded_labels[question.label] in labels
         ):
             continue
-        if question and question.required and (
-            answer.answer is None
-            or answer.answer.strip() == ""
-            or (
-                QuestionLabel.requires_affirmative_answer(question.label)
-                and answer.answer.strip().lower() == "false"
+        if (
+            question
+            and question.required
+            and (
+                answer.answer is None
+                or answer.answer.strip() == ""
+                or (
+                    QuestionLabel.requires_affirmative_answer(question.label)
+                    and answer.answer.strip().lower() == "false"
+                )
             )
         ):
             raise HTTPException(
@@ -144,9 +154,7 @@ def submit_application(session: Session, user: Account_User) -> str:
 
     applicant = session.exec(
         select(Forms_HackathonApplicant)
-        .where(
-            Forms_HackathonApplicant.application_id == application.application_id
-        )
+        .where(Forms_HackathonApplicant.application_id == application.application_id)
         .with_for_update()
     ).first()
     if applicant is None:
@@ -156,7 +164,9 @@ def submit_application(session: Session, user: Account_User) -> str:
     if not applicant.can_submit_application():
         raise HTTPException(status_code=403, detail="User not in valid state to submit")
     if not application.is_draft:
-        raise HTTPException(status_code=409, detail="Application has already been submitted")
+        raise HTTPException(
+            status_code=409, detail="Application has already been submitted"
+        )
 
     walk_in = applicant.status == StatusEnum.WALK_IN
     if applicant.status == StatusEnum.APPLYING:
@@ -174,9 +184,10 @@ def submit_application(session: Session, user: Account_User) -> str:
         session.refresh(application)
     except Exception as error:
         session.rollback()
+        logger.exception("Failed to submit application %s", application.application_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to submit application: {error}",
+            detail="Failed to submit application",
         ) from error
 
     try:

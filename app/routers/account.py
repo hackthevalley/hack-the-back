@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -36,6 +37,7 @@ from app.services.email import send_activation_email, send_email
 from app.services.wallet import generate_apple_wallet_pass
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _DUMMY_PASSWORD_HASH = "$2b$12$5GljN3FRaeC4ZllCHoeZwuIaAX6fLi1eSK3hW/MNvIe3W3BPW2c42"
 _GENERIC_LOGIN_ERROR = "Invalid email or password"
@@ -375,11 +377,15 @@ def rsvp_status_update(
         session.commit()
         session.refresh(hacker_applicant)
         session.refresh(application)
-    except Exception as e:
+    except Exception as error:
         session.rollback()
+        logger.exception(
+            "Failed to update RSVP status for application %s",
+            application.application_id,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update RSVP status: {str(e)}",
-        )
+            detail="Failed to update RSVP status",
+        ) from error
 
     return {"new_status": new_status.value}

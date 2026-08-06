@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
@@ -9,6 +10,7 @@ from app.core.db import SessionDep
 from app.models.meal import Meal
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class FoodItem(BaseModel):
@@ -24,13 +26,11 @@ class FoodResponse(BaseModel):
 
 
 class FoodTrackingItem(BaseModel):
-
     application: UUID
     serving: UUID
 
 
 class FoodTrackingRequest(BaseModel):
-
     food: list[FoodTrackingItem] = Field(
         max_length=100, description="List of food items to track (max 100 per request)"
     )
@@ -118,12 +118,15 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
             .returning(Food_Tracking.id)
         ).all()
         session.commit()
-    except Exception as e:
+    except Exception as error:
         session.rollback()
+        logger.exception(
+            "Failed to track food for %s unique check-ins", len(unique_pairs)
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to track food: {str(e)}",
-        )
+            detail="Failed to track food",
+        ) from error
 
     return {
         "message": "Food tracking updated successfully",

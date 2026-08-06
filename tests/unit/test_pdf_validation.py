@@ -34,7 +34,11 @@ def test_pdf_validation_branches(monkeypatch, tmp_path):
         )
         assert resume_uploads.validate_pdf(str(path), "resume.pdf")[0] is False
 
-    monkeypatch.setattr(resume_uploads, "PdfReader", lambda _path: (_ for _ in ()).throw(ValueError("bad")))
+    monkeypatch.setattr(
+        resume_uploads,
+        "PdfReader",
+        lambda _path: (_ for _ in ()).throw(ValueError("bad")),
+    )
     valid, error = resume_uploads.validate_pdf(str(path), "resume.pdf")
     assert valid is False
-    assert error.startswith("Invalid PDF")
+    assert error == "Invalid PDF file"

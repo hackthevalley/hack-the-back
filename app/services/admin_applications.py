@@ -43,12 +43,14 @@ def sanitize_filename(filename: str) -> str:
             if len(parts) == 2
             else filename[:255]
         )
-    return filename if filename and not filename.isspace() else f"file{DEFAULT_FILE_EXTENSION}"
+    return (
+        filename
+        if filename and not filename.isspace()
+        else f"file{DEFAULT_FILE_EXTENSION}"
+    )
 
 
-def get_resume_metadata(
-    session: Session, application_id: UUID
-) -> tuple[Path, str]:
+def get_resume_metadata(session: Session, application_id: UUID) -> tuple[Path, str]:
     resume = session.exec(
         select(Forms_AnswerFile).where(
             Forms_AnswerFile.application_id == application_id
@@ -139,13 +141,11 @@ def list_applications(
         .join(Forms_Application, Account_User.uid == Forms_Application.uid)
         .join(
             Forms_HackathonApplicant,
-            Forms_Application.application_id
-            == Forms_HackathonApplicant.application_id,
+            Forms_Application.application_id == Forms_HackathonApplicant.application_id,
         )
         .outerjoin(
             JudgingApplicationScore,
-            JudgingApplicationScore.application_id
-            == Forms_Application.application_id,
+            JudgingApplicationScore.application_id == Forms_Application.application_id,
         )
     )
 
@@ -170,9 +170,9 @@ def list_applications(
                 col(Account_User.first_name).ilike(pattern),
                 col(Account_User.last_name).ilike(pattern),
                 col(Account_User.email).ilike(pattern),
-                (col(Account_User.first_name) + " " + col(Account_User.last_name)).ilike(
-                    pattern
-                ),
+                (
+                    col(Account_User.first_name) + " " + col(Account_User.last_name)
+                ).ilike(pattern),
             )
         )
     if application_status:
@@ -184,9 +184,7 @@ def list_applications(
             func.lower(level_answer.answer) == level_of_study.lower()
         )
     if gender and gender_question:
-        statement = statement.where(
-            func.lower(gender_answer.answer) == gender.lower()
-        )
+        statement = statement.where(func.lower(gender_answer.answer) == gender.lower())
     if school and school_question:
         statement = statement.where(
             col(school_answer.answer).isnot(None),
@@ -208,9 +206,7 @@ def list_applications(
     elif date_sort:
         date_column = col(Forms_Application.updated_at)
         statement = statement.order_by(
-            date_column.asc()
-            if date_sort == SortOrder.OLDEST
-            else date_column.desc(),
+            date_column.asc() if date_sort == SortOrder.OLDEST else date_column.desc(),
             col(Forms_Application.application_id).asc(),
         )
     else:
@@ -280,9 +276,10 @@ def update_application_status(
         session.refresh(application)
     except Exception as error:
         session.rollback()
+        logger.exception("Failed to update status for application %s", application_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update application status: {error}",
+            detail="Failed to update application status",
         ) from error
 
     if new_status == StatusEnum.ACCEPTED and previous_status != StatusEnum.ACCEPTED:

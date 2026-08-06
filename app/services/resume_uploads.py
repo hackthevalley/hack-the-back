@@ -1,3 +1,4 @@
+import logging
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -13,7 +14,6 @@ from app.models.constants import (
     ALLOWED_FILE_EXTENSIONS,
     ALLOWED_FILE_TYPES_MESSAGE,
     DEFAULT_FILE_EXTENSION,
-    MAX_ERROR_MESSAGE_LENGTH,
     MIN_PDF_PAGES,
     PDF_EMBEDDED_FILES_ERROR,
     PDF_ENCRYPTED_ERROR,
@@ -22,6 +22,8 @@ from app.models.constants import (
 )
 from app.models.user import Account_User
 from app.services.applications import create_application, is_valid_submission_time
+
+logger = logging.getLogger(__name__)
 
 
 def validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
@@ -38,7 +40,10 @@ def validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
             if isinstance(value, dict):
                 return any(
                     key in forbidden_keys
-                    or (isinstance(child, (dict, list)) and contains(forbidden_keys, child))
+                    or (
+                        isinstance(child, (dict, list))
+                        and contains(forbidden_keys, child)
+                    )
                     for key, child in value.items()
                 )
             if isinstance(value, list):
@@ -53,8 +58,9 @@ def validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
             return False, PDF_JAVASCRIPT_ERROR
         if contains({"/EmbeddedFile", "/EmbeddedFiles", "/AF"}, root):
             return False, PDF_EMBEDDED_FILES_ERROR
-    except Exception as error:
-        return False, f"Invalid PDF: {str(error)[:MAX_ERROR_MESSAGE_LENGTH]}"
+    except Exception:
+        logger.exception("PDF validation failed for uploaded file")
+        return False, "Invalid PDF file"
     return True, ""
 
 
@@ -127,6 +133,5 @@ def upload_resume(
         Path(temporary_path).unlink(missing_ok=True)
         if final_path:
             final_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to save resume: {error}"
-        ) from error
+        logger.exception("Failed to save resume for user %s", current_user.uid)
+        raise HTTPException(status_code=500, detail="Failed to save resume") from error
