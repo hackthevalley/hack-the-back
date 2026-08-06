@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import bcrypt
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
@@ -295,7 +295,10 @@ def refresh(
 
 
 @router.get("/apple-wallet/{application_id}")
-def apple_wallet(application_id: str, session: SessionDep):
+def apple_wallet(
+    application_id: str,
+    session: SessionDep,
+):
     statement = (
         select(Account_User.first_name, Account_User.last_name)
         .join(Forms_Application, Forms_Application.uid == Account_User.uid)
@@ -324,12 +327,21 @@ def apple_wallet(application_id: str, session: SessionDep):
     )
 
 
+_SELF_SERVICE_RSVP_STATUSES = {StatusEnum.ACCEPTED_INVITE, StatusEnum.REJECTED_INVITE}
+
+
 @router.patch("/rsvp-status")
 def rsvp_status_update(
-    status: StatusEnum,
+    new_status: Annotated[StatusEnum, Query(alias="status")],
     current_user: Annotated[Account_User, Depends(get_current_user)],
     session: SessionDep,
 ):
+    if new_status not in _SELF_SERVICE_RSVP_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid RSVP status",
+        )
+
     application_statement = (
         select(Forms_Application)
         .where(Forms_Application.uid == current_user.uid)
@@ -355,7 +367,7 @@ def rsvp_status_update(
         )
 
     try:
-        hacker_applicant.status = status.value
+        hacker_applicant.status = new_status.value
         application.updated_at = datetime.now(timezone.utc)
 
         session.add(hacker_applicant)
@@ -370,4 +382,4 @@ def rsvp_status_update(
             detail=f"Failed to update RSVP status: {str(e)}",
         )
 
-    return {"new_status": status.value}
+    return {"new_status": new_status.value}

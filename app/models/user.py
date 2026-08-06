@@ -22,7 +22,6 @@ class UserBase(SQLModel):
     last_name: str = Field(index=True, min_length=1, max_length=100)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
 
-
 class Account_User(UserBase, table=True):
     uid: uuid.UUID = Field(
         default_factory=uuid.uuid4,
