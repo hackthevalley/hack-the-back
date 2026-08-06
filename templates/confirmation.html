@@ -26,8 +26,7 @@ We'll email you again with updates as the review process continues. {% endblock 
         -webkit-text-size-adjust: 100%;
         -ms-text-size-adjust: 100%;
         color: #3f3757;
-        background: #e8e3f5;
-        background-image: linear-gradient(180deg, #e8e3f5 0%, #f2eef8 45%, #e7e1f2 100%);
+        background-color: #e8e3f5;
       }
 
       table,
@@ -54,31 +53,29 @@ We'll email you again with updates as the review process continues. {% endblock 
 
       .page-shell {
         width: 100%;
-        background: #e8e3f5;
-        background-image: linear-gradient(180deg, #e8e3f5 0%, #f2eef8 45%, #e7e1f2 100%);
+        background-color: #e8e3f5;
       }
 
       .frame {
         width: 100%;
         max-width: 1000px;
-        background: #f8f6fc;
+        background-color: #f8f6fc;
         border: 1px solid #d8d0e8;
         table-layout: fixed;
       }
 
       .banner-cell {
         padding: 18px 18px 0;
-        background: #f8f6fc;
+        background-color: #f8f6fc;
       }
 
       .content-band {
         padding: 0 18px;
-        background: #f8f6fc;
+        background-color: #f8f6fc;
       }
 
       .content-panel {
-        background: #ffffff;
-        background-image: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%);
+        background-color: #ffffff;
         border-top: 5px solid #7839DC;
         border-bottom: 1px solid #ddd4ef;
       }
@@ -114,12 +111,12 @@ We'll email you again with updates as the review process continues. {% endblock 
 
       .footer-shell {
         padding: 0 18px 18px;
-        background: #f8f6fc;
+        background-color: #f8f6fc;
       }
 
       .footer {
         width: 100%;
-        background: #0A0324;
+        background-color: #0A0324;
         border-top: 5px solid #7839DC;
       }
 
@@ -177,21 +174,19 @@ We'll email you again with updates as the review process continues. {% endblock 
       @media (prefers-color-scheme: dark) {
         body,
         .page-shell {
-          background: #0f1320 !important;
-          background-image: linear-gradient(180deg, #0f1320 0%, #131a2c 100%) !important;
+          background-color: #0f1320 !important;
         }
 
         .frame,
         .banner-cell,
         .content-band,
         .footer-shell {
-          background: #151b2c !important;
+          background-color: #151b2c !important;
           border-color: #2b3349 !important;
         }
 
         .content-panel {
-          background: #101828 !important;
-          background-image: linear-gradient(180deg, #101828 0%, #141c2f 100%) !important;
+          background-color: #101828 !important;
           border-top-color: #A842E5 !important;
           border-bottom-color: #2b3349 !important;
         }
@@ -217,7 +212,7 @@ We'll email you again with updates as the review process continues. {% endblock 
         }
 
         .footer {
-          background: #0A0324 !important;
+          background-color: #0A0324 !important;
           border-top-color: #A842E5 !important;
         }
 
@@ -282,7 +277,8 @@ We'll email you again with updates as the review process continues. {% endblock 
       border="0"
       cellpadding="0"
       cellspacing="0"
-      style="width: 100%; background: #e8e3f5; background-image: linear-gradient(180deg, #e8e3f5 0%, #f2eef8 45%, #e7e1f2 100%)"
+      bgcolor="#e8e3f5"
+      style="width: 100%"
     >
       <tr>
         <td align="center" class="mobile-pad" style="padding: 32px 12px">
@@ -293,10 +289,11 @@ We'll email you again with updates as the review process continues. {% endblock 
             border="0"
             cellpadding="0"
             cellspacing="0"
-            style="width: 100%; max-width: 1000px; background: #f8f6fc; border: 1px solid #d8d0e8; table-layout: fixed"
+            bgcolor="#f8f6fc"
+            style="width: 100%; max-width: 1000px; border: 1px solid #d8d0e8; table-layout: fixed"
           >
             <tr>
-              <td class="banner-cell" style="padding: 18px 18px 0; background: #f8f6fc">
+              <td class="banner-cell" bgcolor="#f8f6fc" style="padding: 18px 18px 0">
                 <img
                   src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/email-banner.png"
                   alt="Hack the Valley 11"
@@ -306,7 +303,7 @@ We'll email you again with updates as the review process continues. {% endblock 
               </td>
             </tr>
             <tr>
-              <td class="content-band" style="padding: 0 18px; background: #f8f6fc">
+              <td class="content-band" bgcolor="#f8f6fc" style="padding: 0 18px">
                 <table
                   class="content-panel"
                   role="presentation"
@@ -314,10 +311,10 @@ We'll email you again with updates as the review process continues. {% endblock 
                   border="0"
                   cellpadding="0"
                   cellspacing="0"
-                  style="width: 100%; background: #ffffff; background-image: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%); border-top: 5px solid #7839DC; border-bottom: 1px solid #ddd4ef"
+                  style="width: 100%; border-top: 5px solid #7839DC; border-bottom: 1px solid #ddd4ef"
                 >
                   <tr>
-                    <td class="content-inner" style="padding: 42px 70px 44px; font-family: Arial, Helvetica, sans-serif">
+                    <td class="content-inner" style="padding: 42px 70px 44px; font-family: Arial, Helvetica, sans-serif; color: #3f3757">
                       <p class="eyebrow" style="margin: 0 0 10px; font-size: 12px; font-weight: bold; letter-spacing: 1.4px; text-transform: uppercase; color: #7839DC">
                         Application Submitted
                       </p>
@@ -342,7 +339,7 @@ We'll email you again with updates as the review process continues. {% endblock 
               </td>
             </tr>
             <tr>
-              <td class="footer-shell" style="padding: 0 18px 18px; background: #f8f6fc">
+              <td class="footer-shell" bgcolor="#f8f6fc" style="padding: 0 18px 18px">
                 <table
                   class="footer"
                   role="presentation"
@@ -350,7 +347,8 @@ We'll email you again with updates as the review process continues. {% endblock 
                   border="0"
                   cellpadding="0"
                   cellspacing="0"
-                  style="width: 100%; background: #0A0324; border-top: 5px solid #7839DC"
+                  bgcolor="#0A0324"
+                  style="width: 100%; border-top: 5px solid #7839DC"
                 >
                   <tr>
                     <td class="footer-top" style="padding: 24px 44px 0; font-family: Arial, Helvetica, sans-serif">
