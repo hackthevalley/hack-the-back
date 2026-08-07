@@ -65,7 +65,7 @@ services:
       e2e-mail:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8000/"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
       interval: 1s
       timeout: 3s
       retries: 60
