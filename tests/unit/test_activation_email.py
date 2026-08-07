@@ -33,7 +33,7 @@ def test_email_footers_use_table_aligned_current_logo():
         template = (Path("templates") / template_name).read_text(encoding="utf-8")
 
         assert (
-            'src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/email-logo.png"'
+            'src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/htvlogo.png"'
             in template
         )
         assert 'colspan="3" align="right" valign="bottom"' in template
