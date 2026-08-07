@@ -1,9 +1,13 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 from jinja2 import Template
 
 from app.config import AppConfig
 from app.services import email as email_service
+
+
+EMAIL_TEMPLATES = ("activation.html", "confirmation.html", "password_reset.html")
 
 
 def test_activation_url_uses_configured_frontend(monkeypatch):
@@ -22,6 +26,18 @@ def test_activation_template_uses_complete_url():
 
     assert f'href="{activation_url}"' in rendered
     assert f">{activation_url}</a" in rendered
+
+
+def test_email_footers_use_table_aligned_current_logo():
+    for template_name in EMAIL_TEMPLATES:
+        template = (Path("templates") / template_name).read_text(encoding="utf-8")
+
+        assert (
+            'src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/email-logo.png"'
+            in template
+        )
+        assert 'colspan="3" align="right" valign="bottom"' in template
+        assert "position: absolute; bottom: 0; right: 0" not in template
 
 
 def test_activation_email_passes_complete_url(monkeypatch):
