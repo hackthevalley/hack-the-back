@@ -21,7 +21,7 @@ from app.models.constants import (
 from app.models.forms import Forms_Application, StatusEnum
 from app.models.token import Token
 from app.models.user import (
-    Account_User,
+    AccountUser,
     PasswordReset,
     UserCreate,
     UserPublic,
@@ -59,7 +59,7 @@ def _invalid_login() -> HTTPException:
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
 ) -> Token:
-    statement = select(Account_User).where(Account_User.email == form_data.username)
+    statement = select(AccountUser).where(AccountUser.email == form_data.username)
     selected_user = session.exec(statement).first()
     password_hash = selected_user.password if selected_user else _DUMMY_PASSWORD_HASH
     password_matches = bcrypt.checkpw(
@@ -128,7 +128,7 @@ def signup(user: UserCreate, session: SessionDep):
     hashed_password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
-    statement = select(Account_User).where(Account_User.email == user.email)
+    statement = select(AccountUser).where(AccountUser.email == user.email)
     selected_user = session.exec(statement).first()
     if selected_user:
         if not selected_user.is_active:
@@ -142,7 +142,7 @@ def signup(user: UserCreate, session: SessionDep):
         "role": UserRole.HACKER,
         "is_active": False,
     }
-    db_user = Account_User.model_validate(user, update=extra_data)
+    db_user = AccountUser.model_validate(user, update=extra_data)
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
@@ -152,7 +152,7 @@ def signup(user: UserCreate, session: SessionDep):
 
 @router.get("/me", response_model=UserPublic)
 def read_users_me(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
 ):
     application_status = None
     if current_user.application:
@@ -173,7 +173,7 @@ def read_users_me(
 def send_reset_password(
     user: PasswordReset, session: SessionDep, background_tasks: BackgroundTasks
 ):
-    statement = select(Account_User).where(Account_User.email == user.email)
+    statement = select(AccountUser).where(AccountUser.email == user.email)
     selected_user = session.exec(statement).first()
     if not selected_user:
         return _GENERIC_ACCOUNT_EMAIL_RESPONSE
@@ -231,7 +231,7 @@ def reset_password(user: UserUpdate, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
         )
-    statement = select(Account_User).where(Account_User.email == token_data.email)
+    statement = select(AccountUser).where(AccountUser.email == token_data.email)
     selected_user = session.exec(statement).first()
 
     if not selected_user:
@@ -260,7 +260,7 @@ def activate(user: UserUpdate, session: SessionDep):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
         )
-    statement = select(Account_User).where(Account_User.email == token_data.email)
+    statement = select(AccountUser).where(AccountUser.email == token_data.email)
     selected_user = session.exec(statement).first()
 
     if not selected_user:
@@ -280,7 +280,7 @@ def activate(user: UserUpdate, session: SessionDep):
 
 @router.post("/tokens")
 def refresh(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
 ) -> Token:
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -302,8 +302,8 @@ def apple_wallet(
     session: SessionDep,
 ):
     statement = (
-        select(Account_User.first_name, Account_User.last_name)
-        .join(Forms_Application, Forms_Application.uid == Account_User.uid)
+        select(AccountUser.first_name, AccountUser.last_name)
+        .join(Forms_Application, Forms_Application.uid == AccountUser.uid)
         .where(Forms_Application.application_id == application_id)
     )
     result = session.exec(statement).first()
@@ -335,7 +335,7 @@ _SELF_SERVICE_RSVP_STATUSES = {StatusEnum.ACCEPTED_INVITE, StatusEnum.REJECTED_I
 @router.patch("/rsvp-status")
 def rsvp_status_update(
     new_status: Annotated[StatusEnum, Query(alias="status")],
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
 ):
     if new_status not in _SELF_SERVICE_RSVP_STATUSES:

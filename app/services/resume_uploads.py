@@ -20,7 +20,7 @@ from app.models.constants import (
     PDF_JAVASCRIPT_ERROR,
     PDF_NO_PAGES_ERROR,
 )
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.applications import create_application, is_valid_submission_time
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def validate_pdf(filepath: str, filename: str) -> tuple[bool, str]:
 
 
 def upload_resume(
-    session: Session, current_user: Account_User, file: UploadFile
+    session: Session, current_user: AccountUser, file: UploadFile
 ) -> str:
     if not is_valid_submission_time(session, current_user):
         raise HTTPException(status_code=403, detail="Submission is closed")

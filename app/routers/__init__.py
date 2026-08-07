@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.constants import UserRole
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.routers.account import router as account
 from app.routers.admin import router as admin
 from app.routers.forms import router as forms
@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 def is_admin(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
 ) -> bool:
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
@@ -26,7 +26,7 @@ def is_admin(
 
 
 def is_volunteer(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
 ) -> bool:
     if current_user.role not in (UserRole.ADMIN, UserRole.VOLUNTEER):
         raise HTTPException(

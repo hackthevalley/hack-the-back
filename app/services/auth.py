@@ -12,7 +12,7 @@ from app.core.db import SessionDep
 from app.core.orm import eager_load
 from app.models.constants import TokenScope, UserRole
 from app.models.token import TokenData
-from app.models.user import Account_User
+from app.models.user import AccountUser
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="login",
@@ -53,7 +53,7 @@ def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]):
 
 def get_current_user(
     token_data: Annotated[TokenData, Depends(decode_jwt)], session: SessionDep
-) -> Account_User:
+) -> AccountUser:
     if (
         TokenScope.RESET_PASSWORD.value in token_data.scopes
         or TokenScope.ACCOUNT_ACTIVATE.value in token_data.scopes
@@ -61,9 +61,9 @@ def get_current_user(
         raise credentials_exception
 
     statement = (
-        select(Account_User)
-        .where(Account_User.email == token_data.email)
-        .options(eager_load(Account_User.application))
+        select(AccountUser)
+        .where(AccountUser.email == token_data.email)
+        .options(eager_load(AccountUser.application))
     )
     user = session.exec(statement).first()
     if user is None:
@@ -73,7 +73,7 @@ def get_current_user(
     return user
 
 
-def scopes_for_user(user: Account_User) -> list[str]:
+def scopes_for_user(user: AccountUser) -> list[str]:
     if user.role == UserRole.ADMIN:
         return [TokenScope.ADMIN.value]
     if user.role == UserRole.VOLUNTEER:

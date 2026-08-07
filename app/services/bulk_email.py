@@ -6,7 +6,7 @@ from sqlmodel import Session, func, select
 from app.config import EmailConfig
 from app.models.forms import Forms_Application, Forms_HackathonApplicant
 from app.models.requests import BulkEmailRequest
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.email import send_email
 
 logger = logging.getLogger(__name__)
@@ -78,15 +78,15 @@ def get_bulk_email_recipients(
     session: Session, request: BulkEmailRequest
 ) -> tuple[int, list[dict]]:
     base_query = (
-        select(Account_User)
-        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
+        select(AccountUser)
+        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
         .join(
             Forms_HackathonApplicant,
             Forms_Application.application_id
             == Forms_HackathonApplicant.application_id,
         )
         .where(
-            Account_User.is_active,
+            AccountUser.is_active,
             Forms_HackathonApplicant.status == request.status,
         )
     )
@@ -98,18 +98,18 @@ def get_bulk_email_recipients(
 
     rows = session.exec(
         select(
-            Account_User.first_name,
-            Account_User.last_name,
-            Account_User.email,
+            AccountUser.first_name,
+            AccountUser.last_name,
+            AccountUser.email,
         )
-        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
+        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
         .join(
             Forms_HackathonApplicant,
             Forms_Application.application_id
             == Forms_HackathonApplicant.application_id,
         )
         .where(
-            Account_User.is_active,
+            AccountUser.is_active,
             Forms_HackathonApplicant.status == request.status,
         )
     ).all()

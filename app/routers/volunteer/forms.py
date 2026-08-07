@@ -5,7 +5,7 @@ from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.forms import StatusEnum, WalkInRequest
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.applications import create_application
 from app.services.email import send_rsvp
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/walk-ins")
 def mark_walkin(request: WalkInRequest, session: SessionDep):
-    statement = select(Account_User).where(Account_User.email == request.email)
+    statement = select(AccountUser).where(AccountUser.email == request.email)
     user = session.exec(statement).first()
 
     if not user:

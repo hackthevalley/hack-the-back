@@ -12,7 +12,7 @@ from app.models.judging import (
     JudgingScorePublic,
     JudgingVoteRequest,
 )
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.auth import get_current_user
 from app.services.judging import assign_pair, record_vote, sync_application_scores
 
@@ -22,7 +22,7 @@ router = APIRouter()
 @router.get("/pair", response_model=JudgingPairResponse)
 def get_pair(
     session: SessionDep,
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
 ) -> JudgingPairResponse:
     pair = assign_pair(session, current_user.uid)
     if pair is None:
@@ -37,7 +37,7 @@ def get_pair(
 def submit_decision(
     vote: JudgingVoteRequest,
     session: SessionDep,
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
 ) -> JudgingDecisionResponse:
     try:
         decision, winner, loser, reliability = record_vote(

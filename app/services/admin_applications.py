@@ -26,7 +26,7 @@ from app.models.forms import (
     StatusEnum,
 )
 from app.models.judging import JudgingApplicationScore
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.email import send_rsvp
 
 logger = logging.getLogger(__name__)
@@ -125,7 +125,7 @@ def list_applications(
     school_column = col(school_answer.answer) if school_question else literal(None)
     statement = (
         select(
-            Account_User,
+            AccountUser,
             Forms_Application,
             Forms_HackathonApplicant,
             level_column.label("level_of_study_answer"),
@@ -137,8 +137,8 @@ def list_applications(
                 "ranking_comparison_count"
             ),
         )
-        .where(col(Account_User.is_active).is_(True))
-        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
+        .where(col(AccountUser.is_active).is_(True))
+        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
         .join(
             Forms_HackathonApplicant,
             Forms_Application.application_id == Forms_HackathonApplicant.application_id,
@@ -167,11 +167,11 @@ def list_applications(
         pattern = f"%{search}%"
         statement = statement.where(
             or_(
-                col(Account_User.first_name).ilike(pattern),
-                col(Account_User.last_name).ilike(pattern),
-                col(Account_User.email).ilike(pattern),
+                col(AccountUser.first_name).ilike(pattern),
+                col(AccountUser.last_name).ilike(pattern),
+                col(AccountUser.email).ilike(pattern),
                 (
-                    col(Account_User.first_name) + " " + col(Account_User.last_name)
+                    col(AccountUser.first_name) + " " + col(AccountUser.last_name)
                 ).ilike(pattern),
             )
         )
@@ -253,8 +253,8 @@ def update_application_status(
     new_status: StatusEnum,
 ) -> dict:
     result = session.exec(
-        select(Forms_Application, Account_User)
-        .join(Account_User, Forms_Application.uid == Account_User.uid)
+        select(Forms_Application, AccountUser)
+        .join(AccountUser, Forms_Application.uid == AccountUser.uid)
         .where(Forms_Application.application_id == application_id)
         .options(eager_load(Forms_Application.hackathonapplicant))
     ).first()

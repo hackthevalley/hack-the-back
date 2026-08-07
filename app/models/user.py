@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
@@ -22,7 +22,10 @@ class UserBase(SQLModel):
     last_name: str = Field(index=True, min_length=1, max_length=100)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
 
-class Account_User(UserBase, table=True):
+
+class AccountUser(UserBase, table=True):
+    __tablename__: ClassVar[str] = "account_user"
+
     uid: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         primary_key=True,

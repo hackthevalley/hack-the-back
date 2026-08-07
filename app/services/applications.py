@@ -15,11 +15,11 @@ from app.models.forms import (
     Forms_Question,
     StatusEnum,
 )
-from app.models.user import Account_User
+from app.models.user import AccountUser
 
 
 def create_application(
-    current_user: Account_User,
+    current_user: AccountUser,
     session: SessionDep,
 ) -> Forms_Application:
     if not all([current_user.first_name, current_user.last_name, current_user.email]):
@@ -112,7 +112,7 @@ def create_application(
     return created_application
 
 
-def is_valid_submission_time(session: SessionDep, user: Account_User | None = None):
+def is_valid_submission_time(session: SessionDep, user: AccountUser | None = None):
     if user and user.application and user.application.hackathonapplicant:
         application_status = user.application.hackathonapplicant.status
         if application_status == StatusEnum.WALK_IN:

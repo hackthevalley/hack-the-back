@@ -12,7 +12,7 @@ from app.core.db import SessionDep
 from app.models.constants import RankingSort, SortOrder
 from app.models.forms import Forms_Application, StatusEnum
 from app.models.requests import BulkEmailRequest
-from app.models.user import Account_User, UserPublic
+from app.models.user import AccountUser, UserPublic
 from app.services.admin_applications import (
     get_application_detail,
     get_resume_metadata,
@@ -35,7 +35,7 @@ def get_users(
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> list[UserPublic]:
-    users = session.exec(select(Account_User).offset(offset).limit(limit)).all()
+    users = session.exec(select(AccountUser).offset(offset).limit(limit)).all()
     return [UserPublic.model_validate(user) for user in users]
 
 
@@ -46,8 +46,8 @@ def get_applicants(
     limit: Annotated[int, Query(le=100)] = 100,
 ):
     users = session.exec(
-        select(Account_User)
-        .join(Forms_Application, Account_User.uid == Forms_Application.uid)
+        select(AccountUser)
+        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
         .offset(offset)
         .limit(limit)
     ).all()

@@ -12,7 +12,7 @@ from app.models.forms import (
     Forms_Form,
     Forms_Question,
 )
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.applications import is_valid_submission_time
 from app.services.auth import get_current_user
 from app.services.form_workflow import (
@@ -45,7 +45,7 @@ def get_questions(session: SessionDep) -> list[Forms_Question]:
 
 @router.get("/application", response_model=ApplicationResponse)
 def get_application(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
 ):
     return get_or_create_application(session, current_user)
@@ -54,7 +54,7 @@ def get_application(
 @router.put("/answers")
 def save_answers(
     forms_batchupdate: list[Forms_AnswerUpdate],
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
 ):
     return save_application_answers(session, current_user, forms_batchupdate)
@@ -63,7 +63,7 @@ def save_answers(
 @router.post("/resume")
 def upload_resume(
     file: UploadFile,
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
 ):
     return store_resume(session, current_user, file)
@@ -71,7 +71,7 @@ def upload_resume(
 
 @router.post("/submission", status_code=status.HTTP_201_CREATED)
 def submit(
-    current_user: Annotated[Account_User, Depends(get_current_user)],
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
 ):
     return submit_application(session, current_user)

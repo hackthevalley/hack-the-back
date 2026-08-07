@@ -7,7 +7,7 @@ from sqlmodel import Column, DateTime, Field, Relationship, SQLModel, UniqueCons
 from app.models.meal import Meal
 
 if TYPE_CHECKING:
-    from app.models.user import Account_User
+    from app.models.user import AccountUser
 
 
 class Food_Tracking(SQLModel, table=True):
@@ -29,7 +29,7 @@ class Food_Tracking(SQLModel, table=True):
         ),
     )
 
-    user: "Account_User" = Relationship(back_populates="meals")
+    user: "AccountUser" = Relationship(back_populates="meals")
     meal: "Meal" = Relationship(back_populates="tracking_records")
 
 

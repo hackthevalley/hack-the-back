@@ -11,7 +11,7 @@ from sqlmodel import select
 from app.config import AppConfig, EmailConfig, SecurityConfig
 from app.core.db import SessionDep
 from app.models.constants import EmailMessage, EmailSubject, EmailTemplate, TokenScope
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.auth import create_access_token
 from app.services.wallet import generate_google_wallet_pass
 
@@ -62,7 +62,7 @@ def send_email(
 
 def send_activation_email(email: str, session: SessionDep):
     selected_user = session.exec(
-        select(Account_User).where(Account_User.email == email)
+        select(AccountUser).where(AccountUser.email == email)
     ).first()
     if not selected_user:
         raise HTTPException(

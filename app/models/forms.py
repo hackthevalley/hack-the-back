@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import Column, DateTime, Field, LargeBinary, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from app.models.user import Account_User
+    from app.models.user import AccountUser
 
 
 class StatusEnum(str, Enum):
@@ -58,7 +58,7 @@ class Forms_Application(SQLModel, table=True):
         index=True,
         unique=True,
     )
-    user: Optional["Account_User"] = Relationship(back_populates="application")
+    user: Optional["AccountUser"] = Relationship(back_populates="application")
     form_answers: list["Forms_Answer"] = Relationship(
         back_populates="applicant"
     )

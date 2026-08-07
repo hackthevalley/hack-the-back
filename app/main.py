@@ -80,8 +80,3 @@ def get_application():
 
 
 app = get_application()
-
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}

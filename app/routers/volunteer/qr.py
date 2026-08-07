@@ -15,7 +15,7 @@ from app.models.forms import (
     StatusEnum,
 )
 from app.models.meal import Meal
-from app.models.user import Account_User
+from app.models.user import AccountUser
 
 router = APIRouter()
 
@@ -38,8 +38,8 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
         )
 
     statement = (
-        select(Forms_Application, Account_User, Forms_HackathonApplicant)
-        .join(Account_User, Forms_Application.uid == Account_User.uid)
+        select(Forms_Application, AccountUser, Forms_HackathonApplicant)
+        .join(AccountUser, Forms_Application.uid == AccountUser.uid)
         .join(
             Forms_HackathonApplicant,
             Forms_Application.application_id == Forms_HackathonApplicant.application_id,

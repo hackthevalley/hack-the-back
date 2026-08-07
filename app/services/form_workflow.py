@@ -19,7 +19,7 @@ from app.models.forms import (
     Forms_Question,
     StatusEnum,
 )
-from app.models.user import Account_User
+from app.models.user import AccountUser
 from app.services.applications import create_application, is_valid_submission_time
 from app.services.email import send_email, send_rsvp
 from app.validators import validate_profile_url
@@ -27,7 +27,7 @@ from app.validators import validate_profile_url
 logger = logging.getLogger(__name__)
 
 
-def get_or_create_application(session: Session, user: Account_User) -> dict:
+def get_or_create_application(session: Session, user: AccountUser) -> dict:
     if user.application is None:
         if not is_valid_submission_time(session, user):
             raise HTTPException(
@@ -57,7 +57,7 @@ def get_or_create_application(session: Session, user: Account_User) -> dict:
 
 def save_answers(
     session: Session,
-    user: Account_User,
+    user: AccountUser,
     updates: list[Forms_AnswerUpdate],
 ) -> dict:
     if not is_valid_submission_time(session, user):
@@ -111,7 +111,7 @@ def save_answers(
     return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
 
 
-def submit_application(session: Session, user: Account_User) -> str:
+def submit_application(session: Session, user: AccountUser) -> str:
     if not is_valid_submission_time(session, user):
         raise HTTPException(status_code=403, detail="Submission is currently closed")
     application = user.application
