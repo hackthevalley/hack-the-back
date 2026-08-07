@@ -25,3 +25,4 @@ certbot-data/
 *.pem
 *.key
 *.p12
+.DS_Store
