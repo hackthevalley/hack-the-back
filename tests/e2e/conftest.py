@@ -63,7 +63,7 @@ def _wait_for_api():
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
         try:
-            if httpx.get(f"{API_URL}/", timeout=2).status_code == 200:
+            if httpx.get(f"{API_URL}/health", timeout=2).status_code == 200:
                 return
         except httpx.HTTPError:
             pass
