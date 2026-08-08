@@ -15,7 +15,7 @@ from app.schemas.judging import (
     JudgingScorePublic,
     JudgingVoteRequest,
 )
-from app.services.auth import get_current_user
+from app.dependencies.auth import get_current_user
 from app.services.judging import assign_pair, record_vote, sync_application_scores
 
 router = APIRouter()

@@ -1,7 +1,7 @@
 [project]
 name = "hack-the-back"
 version = "0.1.0"
-description = "Add your description here"
+description = "Hack the Valley application, operations, and judging API"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -12,6 +12,7 @@ dependencies = [
     "httpx>=0.28.1",
     "jinja2>=3.1.6",
     "pillow>=12.3.0",
+    "pydantic-settings>=2.13.1",
     "psycopg2-binary>=2.9.12",
     "py-pkpass>=1.0.2",
     "pyjwt>=2.13.0",

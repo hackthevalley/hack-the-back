@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=MealRead, status_code=status.HTTP_201_CREATED)
-def create_meal(*, session: SessionDep, meal: MealCreate):
+def create_meal(*, session: SessionDep, meal: MealCreate) -> MealRead:
     query = select(Meal).where(Meal.day == meal.day, Meal.meal_type == meal.meal_type)
     existing_meal = session.exec(query).first()
     if existing_meal:
@@ -39,7 +39,7 @@ def get_meals(
     day: Optional[WeekDay] = None,
     meal_type: Optional[MealType] = None,
     is_active: Optional[bool] = Query(default=None),
-):
+) -> list[MealRead]:
     query = select(Meal)
 
     if day is not None:
@@ -61,7 +61,7 @@ def get_meals(
 
 
 @router.get("/{meal_id}", response_model=MealRead)
-def get_meal(*, session: SessionDep, meal_id: UUID):
+def get_meal(*, session: SessionDep, meal_id: UUID) -> MealRead:
     meal = session.get(Meal, meal_id)
     if not meal:
         raise HTTPException(
@@ -74,7 +74,9 @@ def get_meal(*, session: SessionDep, meal_id: UUID):
 
 
 @router.patch("/{meal_id}", response_model=MealRead)
-def update_meal(*, session: SessionDep, meal_id: UUID, meal_update: MealUpdate):
+def update_meal(
+    *, session: SessionDep, meal_id: UUID, meal_update: MealUpdate
+) -> MealRead:
     db_meal = session.get(Meal, meal_id)
     if not db_meal:
         raise HTTPException(
@@ -94,7 +96,7 @@ def update_meal(*, session: SessionDep, meal_id: UUID, meal_update: MealUpdate):
 
 
 @router.delete("/{meal_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_meal(meal_id: UUID, session: SessionDep):
+def delete_meal(meal_id: UUID, session: SessionDep) -> None:
     meal = session.get(Meal, meal_id)
     if not meal:
         raise HTTPException(

@@ -1,18 +1,19 @@
 import base64
 import io
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 import qrcode
-from fastapi import HTTPException, status
 from jinja2 import Template
 from sqlmodel import select
 
 from app.config import AppConfig, EmailConfig, SecurityConfig
-from app.core.db import SessionDep
+from app.core.errors import ServiceError
+from sqlmodel import Session
 from app.models.constants import EmailMessage, EmailSubject, EmailTemplate, TokenScope
 from app.models.user import AccountUser
-from app.services.auth import create_user_access_token
+from app.services.tokens import create_user_access_token
 from app.services.wallet import generate_google_wallet_pass
 
 
@@ -60,17 +61,17 @@ def send_email(
     return (response.status_code, response.json())
 
 
-def send_activation_email(email: str, session: SessionDep):
+def send_activation_email(email: str, session: Session) -> tuple[int, Any]:
     selected_user = session.exec(
         select(AccountUser).where(AccountUser.email == email)
     ).first()
     if not selected_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
+        raise ServiceError(
+            status_code=404, detail="User does not exist"
         )
     if selected_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User already activated"
+        raise ServiceError(
+            status_code=404, detail="User already activated"
         )
 
     now = datetime.now(timezone.utc)
@@ -80,8 +81,8 @@ def send_activation_email(email: str, session: SessionDep):
         if last_sent.tzinfo is None:
             last_sent = last_sent.replace(tzinfo=timezone.utc)
         if now - last_sent < cooldown:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            raise ServiceError(
+                status_code=429,
                 detail="Activation email already sent recently. Please wait a few minutes.",
             )
 

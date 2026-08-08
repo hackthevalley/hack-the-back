@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
@@ -15,32 +16,26 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/walk-ins")
-def mark_walkin(request: WalkInRequest, session: SessionDep):
+def mark_walkin(request: WalkInRequest, session: SessionDep) -> dict[str, Any]:
     statement = select(AccountUser).where(AccountUser.email == request.email)
     user = session.exec(statement).first()
 
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "fallbackMessage": "User not found",
-                "detail": "No user with this email exists",
-            },
+            detail="No user with this email exists",
         )
 
     if not user.application:
         user.application = create_application(user, session)
 
-    if not user.application.hackathonapplicant:
+    if not user.application.hacker_applicant:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "fallbackMessage": "Application setup incomplete",
-                "detail": "Application record exists but is incomplete",
-            },
+            detail="Application record exists but is incomplete",
         )
 
-    current_status = user.application.hackathonapplicant.status
+    current_status = user.application.hacker_applicant.status
     application_id = str(user.application.application_id)
 
     early_statuses = [
@@ -50,17 +45,17 @@ def mark_walkin(request: WalkInRequest, session: SessionDep):
     ]
 
     if current_status in early_statuses or current_status is None:
-        user.application.hackathonapplicant.status = StatusEnum.WALK_IN
+        user.application.hacker_applicant.status = StatusEnum.WALK_IN
         message = f"User {user.email} marked as WALK_IN - they can now complete their application"
         send_email = False
     else:
-        user.application.hackathonapplicant.status = StatusEnum.WALK_IN_SUBMITTED
+        user.application.hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"User {user.email} marked as WALK_IN_SUBMITTED - RSVP email sent"
         send_email = True
 
-    session.add(user.application.hackathonapplicant)
+    session.add(user.application.hacker_applicant)
     session.commit()
-    session.refresh(user.application.hackathonapplicant)
+    session.refresh(user.application.hacker_applicant)
 
     if send_email:
         try:
@@ -75,6 +70,6 @@ def mark_walkin(request: WalkInRequest, session: SessionDep):
         "message": message,
         "email": user.email,
         "old_status": current_status.value if current_status else None,
-        "new_status": user.application.hackathonapplicant.status.value,
+        "new_status": user.application.hacker_applicant.status.value,
         "rsvp_sent": send_email,
     }

@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
@@ -10,6 +10,7 @@ from sqlmodel import select
 from app.config import EmailConfig
 from app.core.db import SessionDep
 from app.models.constants import RankingSort, SortOrder
+from app.models.bulk_email import BulkEmailJob
 from app.models.forms import FormApplication, StatusEnum
 from app.models.user import AccountUser
 from app.schemas.bulk_email import BulkEmailRequest
@@ -17,18 +18,13 @@ from app.schemas.user import UserPublic
 from app.services.admin_applications import (
     get_application_detail,
     get_resume_metadata,
-    list_applications,
-    sanitize_filename,
+    list_applications as list_application_records,
     update_application_status as update_status,
 )
 from app.services.bulk_email import get_bulk_email_recipients, send_batch_email
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# Kept as a private alias for compatibility with existing imports.
-_sanitize_filename = sanitize_filename
-
 
 @router.get("/users", response_model=list[UserPublic])
 def get_users(
@@ -45,7 +41,7 @@ def get_applicants(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
-):
+) -> list[UserPublic]:
     users = session.exec(
         select(AccountUser)
         .join(FormApplication, AccountUser.uid == FormApplication.uid)
@@ -56,20 +52,20 @@ def get_applicants(
 
 
 @router.get("/applications/{application_id}/resume")
-def get_resume(application_id: UUID, session: SessionDep):
+def get_resume(application_id: UUID, session: SessionDep) -> FileResponse:
     path, filename = get_resume_metadata(session, application_id)
     return FileResponse(path=str(path), media_type="application/pdf", filename=filename)
 
 
 @router.get("/applications/{application_id}")
-def get_application(application_id: UUID, session: SessionDep):
+def get_application(application_id: UUID, session: SessionDep) -> dict[str, Any]:
     return get_application_detail(session, application_id)
 
 
 @router.get("/applications")
-def get_all_apps(
+def list_applications(
     session: SessionDep,
-    ofs: int = 0,
+    offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 25,
     search: Annotated[str, Query(max_length=100)] = "",
     level_of_study: Annotated[str, Query(max_length=100)] = "",
@@ -78,10 +74,10 @@ def get_all_apps(
     date_sort: SortOrder | None = None,
     ranking_sort: RankingSort | None = None,
     role: StatusEnum | None = None,
-):
-    return list_applications(
+) -> dict[str, Any]:
+    return list_application_records(
         session,
-        offset=ofs,
+        offset=offset,
         limit=limit,
         search=search,
         level_of_study=level_of_study,
@@ -96,7 +92,7 @@ def get_all_apps(
 @router.patch("/applications/{application_id}/status")
 def update_application_status(
     application_id: str, request: StatusEnum, session: SessionDep
-):
+) -> dict[str, Any]:
     return update_status(session, application_id, request)
 
 
@@ -105,7 +101,7 @@ def send_bulk_email_endpoint(
     request: BulkEmailRequest,
     session: SessionDep,
     background_tasks: BackgroundTasks,
-):
+) -> dict[str, Any]:
     template = Path(request.template_path)
     if not template.exists() or not template.is_file():
         raise HTTPException(status_code=404, detail="Template file not found")
@@ -120,6 +116,11 @@ def send_bulk_email_endpoint(
     if total > EmailConfig.BULK_WARN_THRESHOLD:
         logger.warning("Large bulk email operation: %s recipients", total)
 
+    job = BulkEmailJob(total_recipients=total)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+
     background_tasks.add_task(
         send_batch_email,
         recipients,
@@ -127,10 +128,20 @@ def send_bulk_email_endpoint(
         request.subject,
         request.text_body,
         request.context,
+        job.job_id,
     )
     return {
         "message": f"Bulk email job queued for status: {request.status.value}",
         "total_recipients": total,
         "status": "queued",
+        "job_id": str(job.job_id),
         "note": "Emails are being sent concurrently in the background (chunks of 100, max 10 concurrent)",
     }
+
+
+@router.get("/bulk-emails/{job_id}")
+def get_bulk_email_job(job_id: UUID, session: SessionDep) -> BulkEmailJob:
+    job = session.get(BulkEmailJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Bulk email job not found")
+    return job

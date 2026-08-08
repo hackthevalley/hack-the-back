@@ -1,9 +1,11 @@
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import col, select
 
 from app.core.db import SessionDep
@@ -48,7 +50,7 @@ def get_day_number(day_str: str) -> int:
 
 
 @router.get("", response_model=FoodResponse)
-def get_food_data(session: SessionDep):
+def get_food_data(session: SessionDep) -> FoodResponse:
     statement = select(Meal)
     meals = session.exec(statement).all()
 
@@ -72,7 +74,7 @@ def get_food_data(session: SessionDep):
 
 
 @router.post("/tracking")
-def track_food(request: FoodTrackingRequest, session: SessionDep):
+def track_food(request: FoodTrackingRequest, session: SessionDep) -> dict[str, Any]:
     from app.models.food_tracking import FoodTracking
     from app.models.forms import FormApplication
 
@@ -118,7 +120,7 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
             .returning(FoodTracking.id)
         ).all()
         session.commit()
-    except Exception as error:
+    except SQLAlchemyError as error:
         session.rollback()
         logger.exception(
             "Failed to track food for %s unique check-ins", len(unique_pairs)

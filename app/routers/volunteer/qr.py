@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -25,16 +26,13 @@ class QRScanRequest(BaseModel):
 
 
 @router.post("")
-def scan_qr(request: QRScanRequest, session: SessionDep):
+def scan_qr(request: QRScanRequest, session: SessionDep) -> dict[str, Any]:
     try:
         application_id = UUID(request.id)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "fallbackMessage": "Invalid QR code format",
-                "detail": "Invalid application ID format",
-            },
+            detail="Invalid application ID format",
         )
 
     statement = (
@@ -51,10 +49,7 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "fallbackMessage": "Application not found",
-                "detail": "No application found with this QR code",
-            },
+            detail="No application found with this QR code",
         )
 
     application, user, hacker_applicant = result
@@ -62,10 +57,10 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
     if not hacker_applicant.can_scan_in():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "fallbackMessage": f"User cannot be scanned in (Status: {hacker_applicant.status.value})",
-                "detail": f"User with status {hacker_applicant.status.value} is not eligible for check-in",
-            },
+            detail=(
+                f"User with status {hacker_applicant.status.value} "
+                "is not eligible for check-in"
+            ),
         )
 
     message = ""

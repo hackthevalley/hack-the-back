@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlmodel import SQLModel
 
 from alembic import context
-from app.models import food_tracking, forms, meal, user  # noqa: F401
+from app.models import bulk_email, food_tracking, forms, judging, meal, user  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

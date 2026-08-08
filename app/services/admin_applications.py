@@ -4,12 +4,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlalchemy import and_, func, or_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, col, literal, select
 
 from app.cache import cache
+from app.core.errors import ServiceError
 from app.core.orm import eager_load
 from app.models.constants import (
     DEFAULT_FILE_EXTENSION,
@@ -57,10 +58,10 @@ def get_resume_metadata(session: Session, application_id: UUID) -> tuple[Path, s
         )
     ).first()
     if not resume or not resume.file_path:
-        raise HTTPException(status_code=404, detail="Resume not found")
+        raise ServiceError(status_code=404, detail="Resume not found")
     path = Path(resume.file_path)
     if not path.exists() or not path.is_file():
-        raise HTTPException(status_code=404, detail="File not found on disk")
+        raise ServiceError(status_code=404, detail="File not found on disk")
     return path, sanitize_filename(
         resume.original_filename or f"resume{DEFAULT_FILE_EXTENSION}"
     )
@@ -73,12 +74,12 @@ def get_application_detail(session: Session, application_id: UUID) -> dict:
         )
     ).first()
     if application is None:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise ServiceError(status_code=404, detail="Application not found")
     return {
         "application": application,
         "form_answers": application.form_answers,
-        "form_answersfile": application.form_answersfile.original_filename
-        if application.form_answersfile
+        "form_answer_files": application.form_answer_files.original_filename
+        if application.form_answer_files
         else None,
     }
 
@@ -244,7 +245,7 @@ def list_applications(
             comparison_count,
         ) in results
     ]
-    return {"application": applications, "offset": offset, "limit": limit}
+    return {"applications": applications, "offset": offset, "limit": limit}
 
 
 def update_application_status(
@@ -256,14 +257,14 @@ def update_application_status(
         select(FormApplication, AccountUser)
         .join(AccountUser, FormApplication.uid == AccountUser.uid)
         .where(FormApplication.application_id == application_id)
-        .options(eager_load(FormApplication.hackathonapplicant))
+        .options(eager_load(FormApplication.hacker_applicant))
     ).first()
     if not result:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise ServiceError(status_code=404, detail="Application not found")
     application, user = result
-    applicant = application.hackathonapplicant
+    applicant = application.hacker_applicant
     if applicant is None:
-        raise HTTPException(status_code=404, detail="Applicant status not found")
+        raise ServiceError(status_code=404, detail="Applicant status not found")
 
     previous_status = applicant.status
     try:
@@ -274,11 +275,11 @@ def update_application_status(
         session.commit()
         session.refresh(applicant)
         session.refresh(application)
-    except Exception as error:
+    except SQLAlchemyError as error:
         session.rollback()
         logger.exception("Failed to update status for application %s", application_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ServiceError(
+            status_code=500,
             detail="Failed to update application status",
         ) from error
 

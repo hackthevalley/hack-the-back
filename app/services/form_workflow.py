@@ -1,9 +1,10 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, status
 from sqlmodel import Session, select
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.errors import ServiceError
 from app.core.orm import eager_load
 from app.models.constants import (
     EmailMessage,
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 def get_or_create_application(session: Session, user: AccountUser) -> dict:
     if user.application is None:
         if not is_valid_submission_time(session, user):
-            raise HTTPException(
+            raise ServiceError(
                 status_code=404, detail="Submitting outside submission time"
             )
         application = create_application(user, session)
@@ -40,17 +41,17 @@ def get_or_create_application(session: Session, user: AccountUser) -> dict:
             .where(FormApplication.uid == user.uid)
             .options(
                 eager_load(FormApplication.form_answers),
-                eager_load(FormApplication.form_answersfile),
-                eager_load(FormApplication.hackathonapplicant),
+                eager_load(FormApplication.form_answer_files),
+                eager_load(FormApplication.hacker_applicant),
             )
         ).first()
     if application is None:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise ServiceError(status_code=404, detail="Application not found")
     return {
         "application": application,
         "form_answers": application.form_answers,
-        "form_answersfile": application.form_answersfile.original_filename
-        if application.form_answersfile
+        "form_answer_files": application.form_answer_files.original_filename
+        if application.form_answer_files
         else None,
     }
 
@@ -61,7 +62,7 @@ def save_answers(
     updates: list[FormAnswerUpdate],
 ) -> dict:
     if not is_valid_submission_time(session, user):
-        raise HTTPException(status_code=403, detail="Submission is currently closed")
+        raise ServiceError(status_code=403, detail="Submission is currently closed")
     if user.application is None:
         user.application = create_application(user, session)
 
@@ -71,7 +72,7 @@ def save_answers(
         .options(eager_load(FormApplication.form_answers))
     ).first()
     if application is None:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise ServiceError(status_code=404, detail="Application not found")
 
     answers = {str(answer.question_id): answer for answer in application.form_answers}
     questions = {
@@ -82,7 +83,7 @@ def save_answers(
     for update in updates:
         answer = answers.get(update.question_id)
         if answer is None:
-            raise HTTPException(
+            raise ServiceError(
                 status_code=400, detail=f"Invalid question_id: {update.question_id}"
             )
         question = questions.get(update.question_id)
@@ -92,7 +93,7 @@ def save_answers(
             try:
                 validate_profile_url(question.label, update.answer)
             except ValueError as error:
-                raise HTTPException(status_code=400, detail=str(error)) from error
+                raise ServiceError(status_code=400, detail=str(error)) from error
         bulk_updates.append({"id": answer.id, "answer": update.answer})
 
     try:
@@ -102,21 +103,21 @@ def save_answers(
         session.add(application)
         session.commit()
         session.refresh(application)
-    except Exception as error:
+    except SQLAlchemyError as error:
         session.rollback()
         logger.exception(
             "Failed to save answers for application %s", application.application_id
         )
-        raise HTTPException(status_code=500, detail="Failed to save answers") from error
+        raise ServiceError(status_code=500, detail="Failed to save answers") from error
     return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
 
 
 def submit_application(session: Session, user: AccountUser) -> str:
     if not is_valid_submission_time(session, user):
-        raise HTTPException(status_code=403, detail="Submission is currently closed")
+        raise ServiceError(status_code=403, detail="Submission is currently closed")
     application = user.application
     if application is None:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise ServiceError(status_code=404, detail="Application not found")
 
     all_questions = session.exec(select(FormQuestion)).all()
     questions = {str(question.question_id): question for question in all_questions}
@@ -142,15 +143,15 @@ def submit_application(session: Session, user: AccountUser) -> str:
                 )
             )
         ):
-            raise HTTPException(
+            raise ServiceError(
                 status_code=400,
                 detail=f"Required field not answered: {question.label}",
             )
     if (
-        application.form_answersfile is None
-        or application.form_answersfile.original_filename is None
+        application.form_answer_files is None
+        or application.form_answer_files.original_filename is None
     ):
-        raise HTTPException(status_code=400, detail="Resume is required")
+        raise ServiceError(status_code=400, detail="Resume is required")
 
     applicant = session.exec(
         select(HackathonApplicant)
@@ -158,13 +159,13 @@ def submit_application(session: Session, user: AccountUser) -> str:
         .with_for_update()
     ).first()
     if applicant is None:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise ServiceError(status_code=404, detail="Application not found")
     if applicant.is_already_submitted():
-        raise HTTPException(status_code=409, detail="Application already submitted")
+        raise ServiceError(status_code=409, detail="Application already submitted")
     if not applicant.can_submit_application():
-        raise HTTPException(status_code=403, detail="User not in valid state to submit")
+        raise ServiceError(status_code=403, detail="User not in valid state to submit")
     if not application.is_draft:
-        raise HTTPException(
+        raise ServiceError(
             status_code=409, detail="Application has already been submitted"
         )
 
@@ -182,11 +183,11 @@ def submit_application(session: Session, user: AccountUser) -> str:
         session.commit()
         session.refresh(applicant)
         session.refresh(application)
-    except Exception as error:
+    except SQLAlchemyError as error:
         session.rollback()
         logger.exception("Failed to submit application %s", application.application_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ServiceError(
+            status_code=500,
             detail="Failed to submit application",
         ) from error
 

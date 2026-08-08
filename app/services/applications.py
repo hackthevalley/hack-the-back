@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, status
 from sqlmodel import col, select
 
-from app.core.db import SessionDep
+from app.core.errors import ServiceError
+from sqlmodel import Session
 from app.core.orm import eager_load
 from app.models.constants import QuestionLabel
 from app.models.forms import (
@@ -20,11 +20,11 @@ from app.models.user import AccountUser
 
 def create_application(
     current_user: AccountUser,
-    session: SessionDep,
+    session: Session,
 ) -> FormApplication:
     if not all([current_user.first_name, current_user.last_name, current_user.email]):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+        raise ServiceError(
+            status_code=400,
             detail="User profile incomplete - missing first name, last name, or email",
         )
     if not all(
@@ -34,8 +34,8 @@ def create_application(
             current_user.email.strip(),
         ]
     ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+        raise ServiceError(
+            status_code=400,
             detail="User profile incomplete - first name, last name, or email cannot be empty",
         )
 
@@ -102,8 +102,8 @@ def create_application(
         .where(FormApplication.uid == current_user.uid)
         .options(
             eager_load(FormApplication.form_answers),
-            eager_load(FormApplication.form_answersfile),
-            eager_load(FormApplication.hackathonapplicant),
+            eager_load(FormApplication.form_answer_files),
+            eager_load(FormApplication.hacker_applicant),
         )
     )
     created_application = session.exec(statement).first()
@@ -112,9 +112,11 @@ def create_application(
     return created_application
 
 
-def is_valid_submission_time(session: SessionDep, user: AccountUser | None = None):
-    if user and user.application and user.application.hackathonapplicant:
-        application_status = user.application.hackathonapplicant.status
+def is_valid_submission_time(
+    session: Session, user: AccountUser | None = None
+) -> bool:
+    if user and user.application and user.application.hacker_applicant:
+        application_status = user.application.hacker_applicant.status
         if application_status == StatusEnum.WALK_IN:
             return True
 

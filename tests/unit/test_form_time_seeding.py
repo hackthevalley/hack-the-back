@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+from contextlib import nullcontext
+from unittest.mock import patch
 
 from app.config import AppConfig
 from app.core.db import seed_form_time
@@ -34,7 +36,8 @@ class FakeSession:
 
 
 def run_seed(session: FakeSession):
-    seed_form_time.__wrapped__(session=session)  # type: ignore[attr-defined, arg-type]
+    with patch("app.core.db.advisory_lock", return_value=nullcontext()):
+        seed_form_time(session=session)
 
 
 def test_form_time_seed_creates_missing_row():

@@ -1,8 +1,10 @@
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
+from collections.abc import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
@@ -17,6 +19,7 @@ from app.core.db import (
     seed_questions,
 )
 from app.models.meal import MealType, WeekDay
+from app.core.errors import ServiceError
 from app.routers import router
 
 
@@ -37,7 +40,7 @@ meals = [
 ]
 
 
-def initialize_database():
+def initialize_database() -> None:
     validate_config()
     questions = load_form_questions()
     with Session(engine) as session:
@@ -50,12 +53,12 @@ def initialize_database():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await run_in_threadpool(initialize_database)
     yield
 
 
-def get_application():
+def get_application() -> FastAPI:
     docs_url = "/docs" if AppConfig.ENABLE_API_DOCS else None
     redoc_url = "/redoc" if AppConfig.ENABLE_API_DOCS else None
     openapi_url = "/openapi.json" if AppConfig.ENABLE_API_DOCS else None
@@ -65,6 +68,15 @@ def get_application():
         redoc_url=redoc_url,
         openapi_url=openapi_url,
     )
+
+    @app.exception_handler(ServiceError)
+    async def handle_service_error(
+        _request: Request, error: ServiceError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=error.status_code,
+            content={"detail": error.detail},
+        )
 
     app.add_middleware(
         CORSMiddleware,
@@ -83,5 +95,5 @@ app = get_application()
 
 
 @app.get("/health", include_in_schema=False)
-def health_check():
+def health_check() -> dict[str, str]:
     return {"status": "ok"}

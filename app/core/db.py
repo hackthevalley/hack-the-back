@@ -8,7 +8,6 @@ from typing import Annotated, Callable, List
 from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, create_engine, delete, select
 
 from app.config import AppConfig, DatabaseConfig
@@ -169,9 +168,6 @@ def seed_questions(questions: List, session: Session):
             )
 
         session.commit()
-    except IntegrityError as e:
-        session.rollback()
-        logger.warning("Integrity error while seeding questions, skipping: %s", e)
     except Exception:
         session.rollback()
         raise
@@ -202,9 +198,6 @@ def seed_form_time(session: Session):
             session.add(row)
             session.commit()
             session.refresh(row)
-    except IntegrityError as e:
-        session.rollback()
-        logger.warning("Integrity error while seeding form time, skipping: %s", e)
     except Exception:
         session.rollback()
         raise
@@ -226,9 +219,6 @@ def seed_meals(meals: List, session: Session):
                     )
                 )
         session.commit()
-    except IntegrityError as e:
-        session.rollback()
-        logger.warning("Integrity error while seeding meals, skipping: %s", e)
     except Exception:
         session.rollback()
         raise

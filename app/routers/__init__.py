@@ -9,7 +9,7 @@ from app.routers.admin import router as admin
 from app.routers.forms import router as forms
 from app.routers.meal import router as meal
 from app.routers.volunteer import router as volunteer
-from app.services.auth import get_current_user
+from app.dependencies.auth import get_current_user
 
 router = APIRouter()
 

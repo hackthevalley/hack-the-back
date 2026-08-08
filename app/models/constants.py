@@ -85,7 +85,6 @@ class EmailSubject:
     ACTIVATION = "Account Activation"
     CONFIRMATION = "Application Submitted"
     PASSWORD_RESET = "Account Password Reset"
-    RSVP_TEMPLATE = "RSVP for {event_name}"
 
     @staticmethod
     def rsvp(event_name: str) -> str:
@@ -95,10 +94,6 @@ class EmailSubject:
 class EmailMessage:
 
     CONFIRMATION = "You have successfully submitted your application"
-    PASSWORD_RESET_TEXT = "Go to this link to reset your password: {url}"
-    ACTIVATION_TEXT = "Go to this link to activate your account: {url}"
-    RSVP_TEXT = "RSVP at {url}"
-
     @staticmethod
     def password_reset_text(url: str) -> str:
         return f"Go to this link to reset your password: {url}"

@@ -1,9 +1,13 @@
 import logging
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
-from sqlmodel import Session, func, select
+from sqlmodel import Session, select
 
 from app.config import EmailConfig
+from app.core.db import engine
+from app.models.bulk_email import BulkEmailJob
 from app.models.forms import FormApplication, HackathonApplicant
 from app.models.user import AccountUser
 from app.schemas.bulk_email import BulkEmailRequest
@@ -18,6 +22,7 @@ def send_batch_email(
     subject: str,
     text_body: str,
     base_context: dict,
+    job_id: uuid.UUID | None = None,
 ) -> None:
     total = len(users_data)
     successful = 0
@@ -72,30 +77,25 @@ def send_batch_email(
         len(failures),
         total,
     )
+    if job_id is not None:
+        with Session(engine) as session:
+            job = session.get(BulkEmailJob, job_id)
+            if job is not None:
+                job.status = "completed" if not failures else "completed_with_failures"
+                job.successful = successful
+                job.failed = len(failures)
+                job.error_summary = "; ".join(
+                    f"{failure.get('email')}: {failure.get('reason')}"
+                    for failure in failures[:10]
+                ) or None
+                job.completed_at = datetime.now(timezone.utc)
+                session.add(job)
+                session.commit()
 
 
 def get_bulk_email_recipients(
     session: Session, request: BulkEmailRequest
 ) -> tuple[int, list[dict]]:
-    base_query = (
-        select(AccountUser)
-        .join(FormApplication, AccountUser.uid == FormApplication.uid)
-        .join(
-            HackathonApplicant,
-            FormApplication.application_id
-            == HackathonApplicant.application_id,
-        )
-        .where(
-            AccountUser.is_active,
-            HackathonApplicant.status == request.status,
-        )
-    )
-    total = session.exec(
-        select(func.count()).select_from(base_query.subquery())
-    ).one()
-    if total == 0:
-        return 0, []
-
     rows = session.exec(
         select(
             AccountUser.first_name,
@@ -113,6 +113,10 @@ def get_bulk_email_recipients(
             HackathonApplicant.status == request.status,
         )
     ).all()
+    total = len(rows)
+    if total == 0:
+        return 0, []
+
     return total, [
         {"first_name": row[0], "last_name": row[1], "email": row[2]}
         for row in rows

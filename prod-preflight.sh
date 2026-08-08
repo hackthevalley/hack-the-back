@@ -27,7 +27,11 @@ if (( ${#missing_files[@]} > 0 )); then
 fi
 
 for secret_file in certs/apple/key.pem certs/google/credentials.json; do
-  mode="$(stat -c '%a' "$secret_file")"
+  if stat -f '%Lp' "$secret_file" >/dev/null 2>&1; then
+    mode="$(stat -f '%Lp' "$secret_file")"
+  else
+    mode="$(stat -c '%a' "$secret_file")"
+  fi
   if (( (8#$mode & 077) != 0 )); then
     echo "$secret_file is accessible by group or other users (mode $mode)." >&2
     echo "Run: chmod 600 $secret_file" >&2

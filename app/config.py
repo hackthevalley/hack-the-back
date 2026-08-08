@@ -1,123 +1,151 @@
+import logging
 import os
 from datetime import datetime
-from typing import Optional
+from functools import lru_cache
+from typing import Annotated, Any
 
-from dotenv import load_dotenv
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-load_dotenv()
-
-
-class DatabaseConfig:
-    URL: str = os.getenv("DATABASE_URL", "")
-    POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "20"))
-    MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-    POOL_PRE_PING: bool = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
-    POOL_RECYCLE_SECONDS: int = int(os.getenv("DB_POOL_RECYCLE_SECONDS", "3600"))
-    CONNECT_TIMEOUT: int = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))
-    KEEPALIVES: int = int(os.getenv("DB_KEEPALIVES", "1"))
-    KEEPALIVES_IDLE: int = int(os.getenv("DB_KEEPALIVES_IDLE", "30"))
-    KEEPALIVES_INTERVAL: int = int(os.getenv("DB_KEEPALIVES_INTERVAL", "5"))
-    KEEPALIVES_COUNT: int = int(os.getenv("DB_KEEPALIVES_COUNT", "5"))
-
-    @classmethod
-    def validate(cls):
-        if not cls.URL:
-            raise ValueError(
-                "DATABASE_URL environment variable is not set. "
-                "Please configure the database connection string."
-            )
+logger = logging.getLogger(__name__)
 
 
-class SecurityConfig:
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+class Settings(BaseSettings):
+    """Runtime configuration loaded lazily from environment and `.env`."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=True
+    )
+
+    DATABASE_URL: str = ""
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_PRE_PING: bool = True
+    DB_POOL_RECYCLE_SECONDS: int = 3600
+    DB_CONNECT_TIMEOUT: int = 10
+    DB_KEEPALIVES: int = 1
+    DB_KEEPALIVES_IDLE: int = 30
+    DB_KEEPALIVES_INTERVAL: int = 5
+    DB_KEEPALIVES_COUNT: int = 5
+
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
-        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
-    )
-    ACTIVATION_TOKEN_EXPIRE_MINUTES: int = int(
-        os.getenv("ACTIVATION_TOKEN_EXPIRE_MINUTES", "60")
-    )
-    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = int(
-        os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", "15")
-    )
-    PASSWORD_RESET_COOLDOWN_MINUTES: int = int(
-        os.getenv("PASSWORD_RESET_COOLDOWN_MINUTES", "15")
-    )
-    ACTIVATION_EMAIL_COOLDOWN_MINUTES: int = int(
-        os.getenv("ACTIVATION_EMAIL_COOLDOWN_MINUTES", "120")
-    )
-    LOGIN_MAX_FAILED_ATTEMPTS: int = int(os.getenv("LOGIN_MAX_FAILED_ATTEMPTS", "5"))
-    LOGIN_LOCKOUT_MINUTES: int = int(os.getenv("LOGIN_LOCKOUT_MINUTES", "15"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACTIVATION_TOKEN_EXPIRE_MINUTES: int = 60
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 15
+    PASSWORD_RESET_COOLDOWN_MINUTES: int = 15
+    ACTIVATION_EMAIL_COOLDOWN_MINUTES: int = 120
+    LOGIN_MAX_FAILED_ATTEMPTS: int = 5
+    LOGIN_LOCKOUT_MINUTES: int = 15
 
-    @classmethod
-    def validate(cls):
-        if not cls.SECRET_KEY:
-            raise ValueError(
-                "SECRET_KEY environment variable is not set. "
-                "Please set a strong secret key for JWT token signing."
-            )
-
-
-class FileUploadConfig:
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
-    MAX_FILE_SIZE_BYTES: int = int(os.getenv("MAX_FILE_SIZE_MB", "5")) * 1024 * 1024
+    UPLOAD_DIR: str = "uploads"
+    MAX_FILE_SIZE_MB: int = 5
     CHUNK_SIZE_BYTES: int = 1024 * 1024
 
+    POSTMARK_KEY: str = ""
+    POSTMARK_URL: str = "https://api.postmarkapp.com/email"
+    EMAIL_FROM: str = "do-not-reply@hackthevalley.io"
+    BULK_MAX_CONCURRENT: int = 10
+    BULK_CHUNK_SIZE: int = 100
+    BULK_WARN_THRESHOLD: int = 1000
 
-class EmailConfig:
-    POSTMARK_API_KEY: str = os.getenv("POSTMARK_KEY", "")
-    POSTMARK_URL: str = os.getenv("POSTMARK_URL", "https://api.postmarkapp.com/email")
-    FROM_EMAIL: str = os.getenv("EMAIL_FROM", "do-not-reply@hackthevalley.io")
-
-    BULK_MAX_CONCURRENT: int = int(os.getenv("BULK_EMAIL_MAX_CONCURRENT", "10"))
-    BULK_CHUNK_SIZE: int = int(os.getenv("BULK_EMAIL_CHUNK_SIZE", "100"))
-    BULK_WARN_THRESHOLD: int = int(os.getenv("BULK_EMAIL_WARN_THRESHOLD", "1000"))
-
-    @classmethod
-    def validate(cls):
-        if not cls.POSTMARK_API_KEY:
-            raise ValueError(
-                "POSTMARK_KEY environment variable is not set. "
-                "Email functionality will not work."
-            )
-
-
-class AppConfig:
-    # Local development accepts requests from any origin by default. Production
-    # must set CORS_ORIGINS to a comma-separated allowlist.
-    CORS_ORIGINS: list[str] = [
-        origin.strip()
-        for origin in os.getenv("CORS_ORIGINS", "*").split(",")
-        if origin.strip()
-    ]
-    ENABLE_API_DOCS: bool = os.getenv("ENABLE_API_DOCS", "true").lower() == "true"
-
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://hackthevalley.io")
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
-
-    EVENT_NAME: str = os.getenv("EVENT_NAME", "Hack the Valley 11")
-    EVENT_START_DATE: datetime = datetime.fromisoformat(
-        os.getenv("EVENT_START_DATE", "2026-10-16T00:00:00-04:00")
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["*"]
     )
-    EVENT_END_DATE: datetime = datetime.fromisoformat(
-        os.getenv("EVENT_END_DATE", "2026-10-18T23:59:59-04:00")
-    )
-    EVENT_LOCATION: str = os.getenv("EVENT_LOCATION", "IA building, UofT Scarborough")
-
+    ENABLE_API_DOCS: bool = True
+    FRONTEND_URL: str = "https://hackthevalley.io"
+    BACKEND_URL: str = "http://localhost:8000"
+    EVENT_NAME: str = "Hack the Valley 11"
+    EVENT_START_DATE: datetime = datetime.fromisoformat("2026-10-16T00:00:00-04:00")
+    EVENT_END_DATE: datetime = datetime.fromisoformat("2026-10-18T23:59:59-04:00")
+    EVENT_LOCATION: str = "IA building, UofT Scarborough"
     APPLICATION_START_DATE: datetime = datetime.fromisoformat(
-        os.getenv("APPLICATION_START_DATE", "2026-06-01T00:00:00-04:00")
+        "2026-06-01T00:00:00-04:00"
     )
     APPLICATION_END_DATE: datetime = datetime.fromisoformat(
-        os.getenv("APPLICATION_END_DATE", "2026-09-01T00:00:00-04:00")
+        "2026-09-01T00:00:00-04:00"
     )
-    RSVP_DUE_DATE: str = os.getenv("RSVP_DUE_DATE", "October 9th 2026")
+    RSVP_DUE_DATE: str = "October 9th 2026"
+    APPLE_TEAM_IDENTIFIER: str | None = None
+    APPLE_PASS_TYPE_IDENTIFIER: str | None = None
+    APPLE_WALLET_KEY_PASSWORD: str | None = None
+    GOOGLE_WALLET_ISSUER_ID: str | None = None
+    GOOGLE_WALLET_CLASS_ID: str | None = None
+    GOOGLE_WALLET_PASS_URL: str | None = None
 
-    APPLE_TEAM_IDENTIFIER: Optional[str] = os.getenv("APPLE_TEAM_IDENTIFIER")
-    APPLE_PASS_TYPE_IDENTIFIER: Optional[str] = os.getenv("APPLE_PASS_TYPE_IDENTIFIER")
-    APPLE_WALLET_KEY_PASSWORD: Optional[str] = os.getenv("APPLE_WALLET_KEY_PASSWORD")
-    GOOGLE_WALLET_ISSUER_ID: Optional[str] = os.getenv("GOOGLE_WALLET_ISSUER_ID")
-    GOOGLE_WALLET_CLASS_ID: Optional[str] = os.getenv("GOOGLE_WALLET_CLASS_ID")
-    GOOGLE_WALLET_PASS_URL: Optional[str] = os.getenv("GOOGLE_WALLET_PASS_URL")
+    @property
+    def MAX_FILE_SIZE_BYTES(self) -> int:
+        return self.MAX_FILE_SIZE_MB * 1024 * 1024
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_origins(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+
+@lru_cache
+def get_settings() -> Settings:
+    deprecated = sorted(name for name in os.environ if name.startswith("BULK_EMAIL_"))
+    if deprecated:
+        logger.warning(
+            "Unused deprecated environment variables: %s; use BULK_MAX_CONCURRENT, "
+            "BULK_CHUNK_SIZE, and BULK_WARN_THRESHOLD",
+            ", ".join(deprecated),
+        )
+    return Settings()
+
+
+class _SettingsProxyMeta(type):
+    def __getattr__(cls, name: str) -> Any:
+        return getattr(get_settings(), cls._aliases.get(name, name))
+
+
+class DatabaseConfig(metaclass=_SettingsProxyMeta):
+    _aliases = {
+        "URL": "DATABASE_URL",
+        "POOL_SIZE": "DB_POOL_SIZE",
+        "MAX_OVERFLOW": "DB_MAX_OVERFLOW",
+        "POOL_PRE_PING": "DB_POOL_PRE_PING",
+        "POOL_RECYCLE_SECONDS": "DB_POOL_RECYCLE_SECONDS",
+        "CONNECT_TIMEOUT": "DB_CONNECT_TIMEOUT",
+        "KEEPALIVES": "DB_KEEPALIVES",
+        "KEEPALIVES_IDLE": "DB_KEEPALIVES_IDLE",
+        "KEEPALIVES_INTERVAL": "DB_KEEPALIVES_INTERVAL",
+        "KEEPALIVES_COUNT": "DB_KEEPALIVES_COUNT",
+    }
+
+    @classmethod
+    def validate(cls) -> None:
+        if not cls.URL:
+            raise ValueError("DATABASE_URL environment variable is not set")
+
+
+class SecurityConfig(metaclass=_SettingsProxyMeta):
+    _aliases: dict[str, str] = {}
+
+    @classmethod
+    def validate(cls) -> None:
+        if not cls.SECRET_KEY:
+            raise ValueError("SECRET_KEY environment variable is not set")
+
+
+class FileUploadConfig(metaclass=_SettingsProxyMeta):
+    _aliases: dict[str, str] = {}
+
+
+class EmailConfig(metaclass=_SettingsProxyMeta):
+    _aliases = {"POSTMARK_API_KEY": "POSTMARK_KEY", "FROM_EMAIL": "EMAIL_FROM"}
+
+    @classmethod
+    def validate(cls) -> None:
+        if not cls.POSTMARK_API_KEY:
+            raise ValueError("POSTMARK_KEY environment variable is not set")
+
+
+class AppConfig(metaclass=_SettingsProxyMeta):
+    _aliases: dict[str, str] = {}
 
     @staticmethod
     def get_activation_url(token: str) -> str:
@@ -133,12 +161,13 @@ class AppConfig:
 
     @staticmethod
     def get_event_date_range() -> str:
-        start = AppConfig.EVENT_START_DATE.strftime("%b %d")
-        end = AppConfig.EVENT_END_DATE.strftime("%d, %Y")
-        return f"{start} - {end}"
+        return (
+            f"{AppConfig.EVENT_START_DATE.strftime('%b %d')} - "
+            f"{AppConfig.EVENT_END_DATE.strftime('%d, %Y')}"
+        )
 
 
-def validate_config():
+def validate_config() -> None:
     DatabaseConfig.validate()
     SecurityConfig.validate()
     EmailConfig.validate()

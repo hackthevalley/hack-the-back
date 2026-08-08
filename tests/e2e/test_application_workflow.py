@@ -70,7 +70,7 @@ def test_complete_application_submission_and_admin_review(
         headers=admin_headers,
     )
     assert listing.status_code == 200, listing.text
-    assert any(row["app_id"] == app_id for row in listing.json()["application"])
+    assert any(row["app_id"] == app_id for row in listing.json()["applications"])
 
     filtered = client.get(
         "/api/admin/account/applications",
@@ -83,7 +83,7 @@ def test_complete_application_submission_and_admin_review(
         headers=admin_headers,
     )
     assert filtered.status_code == 200, filtered.text
-    assert any(row["app_id"] == app_id for row in filtered.json()["application"])
+    assert any(row["app_id"] == app_id for row in filtered.json()["applications"])
 
     applicants = client.get("/api/admin/account/applicants", headers=admin_headers)
     assert applicants.status_code == 200
@@ -145,7 +145,7 @@ def test_application_and_admin_not_found_paths(client, admin_headers):
         headers=admin_headers,
     )
     # Admin JWT belongs to a real user but the endpoint still requires an application.
-    assert invalid_answer.status_code in (400, 500)
+    assert invalid_answer.status_code == 400
 
 
 def test_rejects_invalid_resume(client, active_hacker):

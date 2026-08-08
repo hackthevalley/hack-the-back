@@ -16,6 +16,7 @@ class JudgingApplicationScore(SQLModel, table=True):
     application_id: uuid.UUID = Field(
         primary_key=True,
         foreign_key="forms_application.application_id",
+        ondelete="CASCADE",
     )
     mu: float = Field(default=0.0, nullable=False, index=True)
     sigma_sq: float = Field(default=1.0, nullable=False)
@@ -29,14 +30,20 @@ class JudgingApplicationScore(SQLModel, table=True):
 class JudgingJudgeState(SQLModel, table=True):
     __tablename__: ClassVar[str] = "judging_judge_state"
 
-    judge_id: uuid.UUID = Field(primary_key=True, foreign_key="account_user.uid")
+    judge_id: uuid.UUID = Field(
+        primary_key=True, foreign_key="account_user.uid", ondelete="CASCADE"
+    )
     alpha: float = Field(default=10.0, nullable=False)
     beta: float = Field(default=1.0, nullable=False)
     left_application_id: uuid.UUID | None = Field(
-        default=None, foreign_key="forms_application.application_id"
+        default=None,
+        foreign_key="forms_application.application_id",
+        ondelete="SET NULL",
     )
     right_application_id: uuid.UUID | None = Field(
-        default=None, foreign_key="forms_application.application_id"
+        default=None,
+        foreign_key="forms_application.application_id",
+        ondelete="SET NULL",
     )
     updated_at: datetime = Field(
         default_factory=utc_now,
@@ -49,12 +56,18 @@ class JudgingDecision(SQLModel, table=True):
 
     decision_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     request_id: uuid.UUID = Field(unique=True)
-    judge_id: uuid.UUID = Field(index=True, foreign_key="account_user.uid")
+    judge_id: uuid.UUID = Field(
+        index=True, foreign_key="account_user.uid", ondelete="CASCADE"
+    )
     winner_application_id: uuid.UUID = Field(
-        index=True, foreign_key="forms_application.application_id"
+        index=True,
+        foreign_key="forms_application.application_id",
+        ondelete="CASCADE",
     )
     loser_application_id: uuid.UUID = Field(
-        index=True, foreign_key="forms_application.application_id"
+        index=True,
+        foreign_key="forms_application.application_id",
+        ondelete="CASCADE",
     )
     created_at: datetime = Field(
         default_factory=utc_now,

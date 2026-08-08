@@ -7,10 +7,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import AppConfig, SecurityConfig
 from app.core.db import SessionDep
 from app.core.orm import eager_load
+from app.core.errors import ServiceError
 from app.models.constants import (
     EmailMessage,
     EmailSubject,
@@ -22,10 +24,10 @@ from app.models.forms import FormApplication, StatusEnum
 from app.models.user import AccountUser
 from app.schemas.token import Token
 from app.schemas.user import PasswordReset, UserCreate, UserPublic, UserUpdate
-from app.services.auth import (
+from app.dependencies.auth import get_current_user
+from app.services.tokens import (
     create_user_access_token,
-    decode_jwt,
-    get_current_user,
+    decode_token,
     scopes_for_user,
 )
 from app.services.email import send_activation_email, send_email
@@ -87,7 +89,7 @@ def login(
     if not selected_user.is_active:
         try:
             send_activation_email(selected_user.email, session)
-        except HTTPException:
+        except ServiceError:
             pass
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -109,7 +111,7 @@ def login(
 
 
 @router.post("/users", status_code=status.HTTP_202_ACCEPTED)
-def signup(user: UserCreate, session: SessionDep):
+def signup(user: UserCreate, session: SessionDep) -> dict[str, str]:
     hashed_password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
@@ -119,7 +121,7 @@ def signup(user: UserCreate, session: SessionDep):
         if not selected_user.is_active:
             try:
                 send_activation_email(selected_user.email, session)
-            except HTTPException:
+            except ServiceError:
                 pass
         return _GENERIC_ACCOUNT_EMAIL_RESPONSE
     extra_data = {
@@ -138,11 +140,11 @@ def signup(user: UserCreate, session: SessionDep):
 @router.get("/me", response_model=UserPublic)
 def read_users_me(
     current_user: Annotated[AccountUser, Depends(get_current_user)],
-):
+) -> UserPublic:
     application_status = None
     if current_user.application:
-        if current_user.application.hackathonapplicant:
-            application_status = current_user.application.hackathonapplicant.status
+        if current_user.application.hacker_applicant:
+            application_status = current_user.application.hacker_applicant.status
     return UserPublic(
         uid=current_user.uid,
         first_name=current_user.first_name,
@@ -157,7 +159,7 @@ def read_users_me(
 @router.post("/password-resets")
 def send_reset_password(
     user: PasswordReset, session: SessionDep, background_tasks: BackgroundTasks
-):
+) -> dict[str, str]:
     statement = select(AccountUser).where(AccountUser.email == user.email)
     selected_user = session.exec(statement).first()
     if not selected_user:
@@ -195,13 +197,13 @@ def send_reset_password(
 
 
 @router.put("/password-resets")
-def reset_password(user: UserUpdate, session: SessionDep):
+def reset_password(user: UserUpdate, session: SessionDep) -> bool:
     if user.password is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Password is required",
         )
-    token_data = decode_jwt(user.token)
+    token_data = decode_token(user.token)
     if TokenScope.RESET_PASSWORD.value not in token_data.scopes:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
@@ -229,8 +231,8 @@ def reset_password(user: UserUpdate, session: SessionDep):
 
 
 @router.post("/activations")
-def activate(user: UserUpdate, session: SessionDep):
-    token_data = decode_jwt(user.token)
+def activate(user: UserUpdate, session: SessionDep) -> bool:
+    token_data = decode_token(user.token)
     if TokenScope.ACCOUNT_ACTIVATE.value not in token_data.scopes:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
@@ -268,7 +270,7 @@ def refresh(
 def apple_wallet(
     application_id: str,
     session: SessionDep,
-):
+) -> Response:
     statement = (
         select(AccountUser.first_name, AccountUser.last_name)
         .join(FormApplication, FormApplication.uid == AccountUser.uid)
@@ -305,7 +307,7 @@ def rsvp_status_update(
     new_status: Annotated[StatusEnum, Query(alias="status")],
     current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
-):
+) -> dict[str, str]:
     if new_status not in _SELF_SERVICE_RSVP_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -315,7 +317,7 @@ def rsvp_status_update(
     application_statement = (
         select(FormApplication)
         .where(FormApplication.uid == current_user.uid)
-        .options(eager_load(FormApplication.hackathonapplicant))
+        .options(eager_load(FormApplication.hacker_applicant))
     )
     application = session.exec(application_statement).first()
 
@@ -324,7 +326,7 @@ def rsvp_status_update(
             status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
         )
 
-    hacker_applicant = application.hackathonapplicant
+    hacker_applicant = application.hacker_applicant
     if hacker_applicant is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Applicant status not found"
@@ -345,7 +347,7 @@ def rsvp_status_update(
         session.commit()
         session.refresh(hacker_applicant)
         session.refresh(application)
-    except Exception as error:
+    except SQLAlchemyError as error:
         session.rollback()
         logger.exception(
             "Failed to update RSVP status for application %s",

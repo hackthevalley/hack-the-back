@@ -12,7 +12,7 @@ class FormAnswerUpdate(SQLModel):
 class ApplicationResponse(BaseModel):
     application: FormApplication
     form_answers: list[FormAnswer]
-    form_answersfile: str | None
+    form_answer_files: str | None
 
 
 class WalkInRequest(BaseModel):

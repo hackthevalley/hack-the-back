@@ -65,15 +65,16 @@ class FormApplication(SQLModel, table=True):
     form_answers: list["FormAnswer"] = Relationship(
         back_populates="applicant"
     )
-    hackathonapplicant: Optional["HackathonApplicant"] = Relationship(
+    hacker_applicant: Optional["HackathonApplicant"] = Relationship(
         back_populates="applicant"
     )
-    form_answersfile: Optional["FormAnswerFile"] = Relationship(
+    form_answer_files: Optional["FormAnswerFile"] = Relationship(
         back_populates="applicant"
     )
 
 
 class HackathonApplicant(SQLModel, table=True):
+    # Keep the deployed table name stable; only the Python relationship was renamed.
     __tablename__: ClassVar[str] = "forms_hackathonapplicant"
 
     application_id: uuid.UUID | None = Field(
@@ -81,7 +82,7 @@ class HackathonApplicant(SQLModel, table=True):
     )
     status: StatusEnum = Field(index=True)
     applicant: Optional["FormApplication"] = Relationship(
-        back_populates="hackathonapplicant"
+        back_populates="hacker_applicant"
     )
 
     def can_scan_in(self) -> bool:
@@ -134,5 +135,5 @@ class FormAnswerFile(SQLModel, table=True):
     file_path: Optional[str] = Field(None, max_length=500)
     question_id: uuid.UUID = Field(index=True, foreign_key="forms_question.question_id")
     applicant: Optional["FormApplication"] = Relationship(
-        back_populates="form_answersfile"
+        back_populates="form_answer_files"
     )
