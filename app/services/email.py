@@ -12,7 +12,7 @@ from app.config import AppConfig, EmailConfig, SecurityConfig
 from app.core.db import SessionDep
 from app.models.constants import EmailMessage, EmailSubject, EmailTemplate, TokenScope
 from app.models.user import AccountUser
-from app.services.auth import create_access_token
+from app.services.auth import create_user_access_token
 from app.services.wallet import generate_google_wallet_pass
 
 
@@ -85,18 +85,10 @@ def send_activation_email(email: str, session: SessionDep):
                 detail="Activation email already sent recently. Please wait a few minutes.",
             )
 
-    access_token = create_access_token(
-        data={
-            "sub": str(selected_user.email),
-            "fullName": selected_user.full_name,
-            "firstName": selected_user.first_name,
-            "lastName": selected_user.last_name,
-            "scopes": [TokenScope.ACCOUNT_ACTIVATE.value],
-            "ver": selected_user.token_version,
-        },
-        secret_key=SecurityConfig.SECRET_KEY,
-        algorithm=SecurityConfig.ALGORITHM,
-        expires_delta=timedelta(minutes=SecurityConfig.ACTIVATION_TOKEN_EXPIRE_MINUTES),
+    access_token = create_user_access_token(
+        selected_user,
+        [TokenScope.ACCOUNT_ACTIVATE.value],
+        timedelta(minutes=SecurityConfig.ACTIVATION_TOKEN_EXPIRE_MINUTES),
     )
     activation_url = AppConfig.get_activation_url(access_token)
     result = send_email(

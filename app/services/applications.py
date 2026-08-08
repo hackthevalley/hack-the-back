@@ -7,12 +7,12 @@ from app.core.db import SessionDep
 from app.core.orm import eager_load
 from app.models.constants import QuestionLabel
 from app.models.forms import (
-    Forms_Answer,
-    Forms_AnswerFile,
-    Forms_Application,
-    Forms_Form,
-    Forms_HackathonApplicant,
-    Forms_Question,
+    FormAnswer,
+    FormAnswerFile,
+    FormApplication,
+    FormWindow,
+    HackathonApplicant,
+    FormQuestion,
     StatusEnum,
 )
 from app.models.user import AccountUser
@@ -21,7 +21,7 @@ from app.models.user import AccountUser
 def create_application(
     current_user: AccountUser,
     session: SessionDep,
-) -> Forms_Application:
+) -> FormApplication:
     if not all([current_user.first_name, current_user.last_name, current_user.email]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -40,10 +40,10 @@ def create_application(
         )
 
     questions = session.exec(
-        select(Forms_Question).order_by(col(Forms_Question.question_order))
+        select(FormQuestion).order_by(col(FormQuestion.question_order))
     ).all()
 
-    application = Forms_Application(
+    application = FormApplication(
         user=current_user,
         is_draft=True,
         created_at=datetime.now(timezone.utc),
@@ -53,7 +53,7 @@ def create_application(
     session.flush()
 
     session.add(
-        Forms_HackathonApplicant(
+        HackathonApplicant(
             applicant=application,
             status=StatusEnum.APPLYING,
         )
@@ -76,7 +76,7 @@ def create_application(
             answer_value = current_user.email
 
         answers.append(
-            Forms_Answer(
+            FormAnswer(
                 application_id=application.application_id,
                 question_id=question.question_id,
                 answer=answer_value,
@@ -86,7 +86,7 @@ def create_application(
     session.add_all(answers)
     if resume_question:
         session.add(
-            Forms_AnswerFile(
+            FormAnswerFile(
                 application_id=application.application_id,
                 original_filename=None,
                 file_path=None,
@@ -98,12 +98,12 @@ def create_application(
     session.refresh(current_user)
 
     statement = (
-        select(Forms_Application)
-        .where(Forms_Application.uid == current_user.uid)
+        select(FormApplication)
+        .where(FormApplication.uid == current_user.uid)
         .options(
-            eager_load(Forms_Application.form_answers),
-            eager_load(Forms_Application.form_answersfile),
-            eager_load(Forms_Application.hackathonapplicant),
+            eager_load(FormApplication.form_answers),
+            eager_load(FormApplication.form_answersfile),
+            eager_load(FormApplication.hackathonapplicant),
         )
     )
     created_application = session.exec(statement).first()
@@ -118,7 +118,7 @@ def is_valid_submission_time(session: SessionDep, user: AccountUser | None = Non
         if application_status == StatusEnum.WALK_IN:
             return True
 
-    form = session.exec(select(Forms_Form).limit(1)).first()
+    form = session.exec(select(FormWindow).limit(1)).first()
     if form is None:
         return False
     return form.start_at < datetime.now(timezone.utc) < form.end_at

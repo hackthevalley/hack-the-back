@@ -18,7 +18,7 @@ from app.models.constants import (
     TokenScope,
     UserRole,
 )
-from app.models.forms import Forms_Application, StatusEnum
+from app.models.forms import FormApplication, StatusEnum
 from app.models.token import Token
 from app.models.user import (
     AccountUser,
@@ -28,7 +28,7 @@ from app.models.user import (
     UserUpdate,
 )
 from app.services.auth import (
-    create_access_token,
+    create_user_access_token,
     decode_jwt,
     get_current_user,
     scopes_for_user,
@@ -107,18 +107,8 @@ def login(
 
     scopes = scopes_for_user(selected_user)
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={
-            "sub": str(selected_user.email),
-            "fullName": selected_user.full_name,
-            "firstName": selected_user.first_name,
-            "lastName": selected_user.last_name,
-            "scopes": scopes,
-            "ver": selected_user.token_version,
-        },
-        secret_key=SecurityConfig.SECRET_KEY,
-        algorithm=SecurityConfig.ALGORITHM,
-        expires_delta=access_token_expires,
+    access_token = create_user_access_token(
+        selected_user, scopes, access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
 
@@ -194,18 +184,8 @@ def send_reset_password(
     access_token_expires = timedelta(
         minutes=SecurityConfig.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
     )
-    access_token = create_access_token(
-        data={
-            "sub": str(selected_user.email),
-            "fullName": selected_user.full_name,
-            "firstName": selected_user.first_name,
-            "lastName": selected_user.last_name,
-            "scopes": scopes,
-            "ver": selected_user.token_version,
-        },
-        secret_key=SecurityConfig.SECRET_KEY,
-        algorithm=SecurityConfig.ALGORITHM,
-        expires_delta=access_token_expires,
+    access_token = create_user_access_token(
+        selected_user, scopes, access_token_expires
     )
     password_reset_url = AppConfig.get_password_reset_url(access_token)
     background_tasks.add_task(
@@ -283,15 +263,8 @@ def refresh(
     current_user: Annotated[AccountUser, Depends(get_current_user)],
 ) -> Token:
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={
-            "sub": str(current_user.email),
-            "scopes": scopes_for_user(current_user),
-            "ver": current_user.token_version,
-        },
-        secret_key=SecurityConfig.SECRET_KEY,
-        algorithm=SecurityConfig.ALGORITHM,
-        expires_delta=access_token_expires,
+    access_token = create_user_access_token(
+        current_user, scopes_for_user(current_user), access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
 
@@ -303,8 +276,8 @@ def apple_wallet(
 ):
     statement = (
         select(AccountUser.first_name, AccountUser.last_name)
-        .join(Forms_Application, Forms_Application.uid == AccountUser.uid)
-        .where(Forms_Application.application_id == application_id)
+        .join(FormApplication, FormApplication.uid == AccountUser.uid)
+        .where(FormApplication.application_id == application_id)
     )
     result = session.exec(statement).first()
     if not result:
@@ -345,9 +318,9 @@ def rsvp_status_update(
         )
 
     application_statement = (
-        select(Forms_Application)
-        .where(Forms_Application.uid == current_user.uid)
-        .options(eager_load(Forms_Application.hackathonapplicant))
+        select(FormApplication)
+        .where(FormApplication.uid == current_user.uid)
+        .options(eager_load(FormApplication.hackathonapplicant))
     )
     application = session.exec(application_statement).first()
 

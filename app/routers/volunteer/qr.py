@@ -6,12 +6,12 @@ from sqlmodel import col, func, select
 
 from app.core.db import SessionDep
 from app.models.constants import QuestionLabel
-from app.models.food_tracking import Food_Tracking
+from app.models.food_tracking import FoodTracking
 from app.models.forms import (
-    Forms_Answer,
-    Forms_Application,
-    Forms_HackathonApplicant,
-    Forms_Question,
+    FormAnswer,
+    FormApplication,
+    HackathonApplicant,
+    FormQuestion,
     StatusEnum,
 )
 from app.models.meal import Meal
@@ -38,13 +38,13 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
         )
 
     statement = (
-        select(Forms_Application, AccountUser, Forms_HackathonApplicant)
-        .join(AccountUser, Forms_Application.uid == AccountUser.uid)
+        select(FormApplication, AccountUser, HackathonApplicant)
+        .join(AccountUser, FormApplication.uid == AccountUser.uid)
         .join(
-            Forms_HackathonApplicant,
-            Forms_Application.application_id == Forms_HackathonApplicant.application_id,
+            HackathonApplicant,
+            FormApplication.application_id == HackathonApplicant.application_id,
         )
-        .where(Forms_Application.application_id == application_id)
+        .where(FormApplication.application_id == application_id)
     )
     result = session.exec(statement).first()
 
@@ -91,9 +91,9 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
     session.refresh(hacker_applicant)
 
     answers_statement = (
-        select(Forms_Answer, Forms_Question)
-        .join(Forms_Question, Forms_Answer.question_id == Forms_Question.question_id)
-        .where(Forms_Answer.application_id == application_id)
+        select(FormAnswer, FormQuestion)
+        .join(FormQuestion, FormAnswer.question_id == FormQuestion.question_id)
+        .where(FormAnswer.application_id == application_id)
     )
     answers_results = session.exec(answers_statement).all()
 
@@ -114,9 +114,9 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
         answers_dict[key] = answer.answer
 
     food_tracking_statement = (
-        select(Food_Tracking, Meal)
-        .join(Meal, Food_Tracking.meal_id == Meal.id)
-        .where(Food_Tracking.user_id == user.uid)
+        select(FoodTracking, Meal)
+        .join(Meal, FoodTracking.meal_id == Meal.id)
+        .where(FoodTracking.user_id == user.uid)
     )
     food_results = session.exec(food_tracking_statement).all()
 
@@ -133,14 +133,14 @@ def scan_qr(request: QRScanRequest, session: SessionDep):
         )
 
     scanned_count = session.exec(
-        select(func.count(Forms_HackathonApplicant.application_id)).where(
-            Forms_HackathonApplicant.status == StatusEnum.SCANNED_IN
+        select(func.count(HackathonApplicant.application_id)).where(
+            HackathonApplicant.status == StatusEnum.SCANNED_IN
         )
     ).one()
 
     walkin_count = session.exec(
-        select(func.count(Forms_HackathonApplicant.application_id)).where(
-            col(Forms_HackathonApplicant.status).in_(
+        select(func.count(HackathonApplicant.application_id)).where(
+            col(HackathonApplicant.status).in_(
                 [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]
             )
         )

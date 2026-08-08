@@ -1,10 +1,10 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from pydantic import BaseModel
-from sqlmodel import Column, DateTime, Field, LargeBinary, Relationship, SQLModel
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.models.user import AccountUser
@@ -26,7 +26,9 @@ class StatusEnum(str, Enum):
     WALK_IN_SUBMITTED = "WALK_IN_SUBMITTED"
 
 
-class Forms_Form(SQLModel, table=True):
+class FormWindow(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "forms_form"
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
@@ -40,7 +42,9 @@ class Forms_Form(SQLModel, table=True):
     end_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
 
 
-class Forms_Application(SQLModel, table=True):
+class FormApplication(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "forms_application"
+
     uid: uuid.UUID | None = Field(
         default=None,
         primary_key=True,
@@ -59,28 +63,25 @@ class Forms_Application(SQLModel, table=True):
         unique=True,
     )
     user: Optional["AccountUser"] = Relationship(back_populates="application")
-    form_answers: list["Forms_Answer"] = Relationship(
+    form_answers: list["FormAnswer"] = Relationship(
         back_populates="applicant"
     )
-    hackathonapplicant: Optional["Forms_HackathonApplicant"] = Relationship(
+    hackathonapplicant: Optional["HackathonApplicant"] = Relationship(
         back_populates="applicant"
     )
-    form_answersfile: Optional["Forms_AnswerFile"] = Relationship(
+    form_answersfile: Optional["FormAnswerFile"] = Relationship(
         back_populates="applicant"
     )
 
 
-class Forms_ApplicationUpdate(SQLModel):
-    is_draft: bool | None = None
-    updated_at: datetime | None = None
+class HackathonApplicant(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "forms_hackathonapplicant"
 
-
-class Forms_HackathonApplicant(SQLModel, table=True):
     application_id: uuid.UUID | None = Field(
         default=None, primary_key=True, foreign_key="forms_application.application_id"
     )
     status: StatusEnum = Field(index=True)
-    applicant: Optional["Forms_Application"] = Relationship(
+    applicant: Optional["FormApplication"] = Relationship(
         back_populates="hackathonapplicant"
     )
 
@@ -100,35 +101,37 @@ class Forms_HackathonApplicant(SQLModel, table=True):
         return self.status in [StatusEnum.APPLIED, StatusEnum.WALK_IN_SUBMITTED]
 
 
-class Forms_HackathonApplicantUpdate(SQLModel):
-    status: StatusEnum | None = None
+class FormQuestion(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "forms_question"
 
-
-class Forms_Question(SQLModel, table=True):
     question_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     question_order: int = Field(index=True, ge=0)
     label: str = Field(index=True, max_length=255)
     required: bool
 
 
-class Forms_Answer(SQLModel, table=True):
+class FormAnswer(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "forms_answer"
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     application_id: uuid.UUID | None = Field(
         default=None, index=True, foreign_key="forms_application.application_id"
     )
     question_id: uuid.UUID = Field(index=True, foreign_key="forms_question.question_id")
     answer: str | None = Field(None, max_length=5000)
-    applicant: Optional["Forms_Application"] = Relationship(
+    applicant: Optional["FormApplication"] = Relationship(
         back_populates="form_answers"
     )
 
 
-class Forms_AnswerUpdate(SQLModel):
+class FormAnswerUpdate(SQLModel):
     question_id: str = Field(max_length=36)
     answer: str | None = Field(None, max_length=5000)
 
 
-class Forms_AnswerFile(SQLModel, table=True):
+class FormAnswerFile(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "forms_answerfile"
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     application_id: uuid.UUID | None = Field(
         default=None, index=True, foreign_key="forms_application.application_id"
@@ -136,19 +139,14 @@ class Forms_AnswerFile(SQLModel, table=True):
     original_filename: Optional[str] = Field(None, max_length=255)
     file_path: Optional[str] = Field(None, max_length=500)
     question_id: uuid.UUID = Field(index=True, foreign_key="forms_question.question_id")
-    applicant: Optional["Forms_Application"] = Relationship(
+    applicant: Optional["FormApplication"] = Relationship(
         back_populates="form_answersfile"
     )
 
 
-class Forms_AnswerFileUpdate(SQLModel):
-    original_filename: str | None = Field(None, max_length=255)
-    file: bytes | None = Field(sa_column=Column(LargeBinary))
-
-
 class ApplicationResponse(BaseModel):
-    application: Forms_Application
-    form_answers: list[Forms_Answer]
+    application: FormApplication
+    form_answers: list[FormAnswer]
     form_answersfile: str | None
 
 

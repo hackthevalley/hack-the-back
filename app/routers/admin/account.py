@@ -10,7 +10,7 @@ from sqlmodel import select
 from app.config import EmailConfig
 from app.core.db import SessionDep
 from app.models.constants import RankingSort, SortOrder
-from app.models.forms import Forms_Application, StatusEnum
+from app.models.forms import FormApplication, StatusEnum
 from app.models.requests import BulkEmailRequest
 from app.models.user import AccountUser, UserPublic
 from app.services.admin_applications import (
@@ -47,7 +47,7 @@ def get_applicants(
 ):
     users = session.exec(
         select(AccountUser)
-        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
+        .join(FormApplication, AccountUser.uid == FormApplication.uid)
         .offset(offset)
         .limit(limit)
     ).all()

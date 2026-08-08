@@ -79,8 +79,8 @@ def test_activation_email_passes_complete_url(monkeypatch):
 
     monkeypatch.setattr(
         email_service,
-        "create_access_token",
-        lambda **_kwargs: "example-token",
+        "create_user_access_token",
+        lambda *_args, **_kwargs: "example-token",
     )
     monkeypatch.setattr(email_service, "send_email", fake_send_email)
     monkeypatch.setattr(AppConfig, "FRONTEND_URL", "http://localhost:3000")
@@ -122,8 +122,8 @@ def test_activation_email_failure_does_not_start_cooldown(monkeypatch):
     session = Session()
     monkeypatch.setattr(
         email_service,
-        "create_access_token",
-        lambda **_kwargs: "example-token",
+        "create_user_access_token",
+        lambda *_args, **_kwargs: "example-token",
     )
 
     def fail_to_send(*_args, **_kwargs):

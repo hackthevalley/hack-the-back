@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlmodel import Column, Enum, Field, Relationship, SQLModel, UniqueConstraint
 
 if TYPE_CHECKING:
-    from app.models.food_tracking import Food_Tracking
+    from app.models.food_tracking import FoodTracking
 
 
 class MealType(str, enum.Enum):
@@ -45,7 +45,7 @@ class Meal(SQLModel, table=True):
     def name(self) -> str:
         return f"{self.day.capitalize()} {self.meal_type.capitalize()}"
 
-    tracking_records: List["Food_Tracking"] = Relationship(back_populates="meal")
+    tracking_records: List["FoodTracking"] = Relationship(back_populates="meal")
 
 
 class MealCreate(MealBase):

@@ -12,11 +12,11 @@ from app.models.constants import (
     QuestionLabel,
 )
 from app.models.forms import (
-    Forms_Answer,
-    Forms_AnswerUpdate,
-    Forms_Application,
-    Forms_HackathonApplicant,
-    Forms_Question,
+    FormAnswer,
+    FormAnswerUpdate,
+    FormApplication,
+    HackathonApplicant,
+    FormQuestion,
     StatusEnum,
 )
 from app.models.user import AccountUser
@@ -36,12 +36,12 @@ def get_or_create_application(session: Session, user: AccountUser) -> dict:
         application = create_application(user, session)
     else:
         application = session.exec(
-            select(Forms_Application)
-            .where(Forms_Application.uid == user.uid)
+            select(FormApplication)
+            .where(FormApplication.uid == user.uid)
             .options(
-                eager_load(Forms_Application.form_answers),
-                eager_load(Forms_Application.form_answersfile),
-                eager_load(Forms_Application.hackathonapplicant),
+                eager_load(FormApplication.form_answers),
+                eager_load(FormApplication.form_answersfile),
+                eager_load(FormApplication.hackathonapplicant),
             )
         ).first()
     if application is None:
@@ -58,7 +58,7 @@ def get_or_create_application(session: Session, user: AccountUser) -> dict:
 def save_answers(
     session: Session,
     user: AccountUser,
-    updates: list[Forms_AnswerUpdate],
+    updates: list[FormAnswerUpdate],
 ) -> dict:
     if not is_valid_submission_time(session, user):
         raise HTTPException(status_code=403, detail="Submission is currently closed")
@@ -66,9 +66,9 @@ def save_answers(
         user.application = create_application(user, session)
 
     application = session.exec(
-        select(Forms_Application)
-        .where(Forms_Application.uid == user.uid)
-        .options(eager_load(Forms_Application.form_answers))
+        select(FormApplication)
+        .where(FormApplication.uid == user.uid)
+        .options(eager_load(FormApplication.form_answers))
     ).first()
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -76,7 +76,7 @@ def save_answers(
     answers = {str(answer.question_id): answer for answer in application.form_answers}
     questions = {
         str(question.question_id): question
-        for question in session.exec(select(Forms_Question)).all()
+        for question in session.exec(select(FormQuestion)).all()
     }
     bulk_updates: list[dict] = []
     for update in updates:
@@ -97,7 +97,7 @@ def save_answers(
 
     try:
         if bulk_updates:
-            session.bulk_update_mappings(Forms_Answer, bulk_updates)
+            session.bulk_update_mappings(FormAnswer, bulk_updates)
         application.updated_at = datetime.now(timezone.utc)
         session.add(application)
         session.commit()
@@ -118,7 +118,7 @@ def submit_application(session: Session, user: AccountUser) -> str:
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    all_questions = session.exec(select(Forms_Question)).all()
+    all_questions = session.exec(select(FormQuestion)).all()
     questions = {str(question.question_id): question for question in all_questions}
     labels = {question.label for question in all_questions}
     superseded_labels = {"Race/Ethnicity": "Race/Ethnicity (Select all that apply)"}
@@ -153,8 +153,8 @@ def submit_application(session: Session, user: AccountUser) -> str:
         raise HTTPException(status_code=400, detail="Resume is required")
 
     applicant = session.exec(
-        select(Forms_HackathonApplicant)
-        .where(Forms_HackathonApplicant.application_id == application.application_id)
+        select(HackathonApplicant)
+        .where(HackathonApplicant.application_id == application.application_id)
         .with_for_update()
     ).first()
     if applicant is None:

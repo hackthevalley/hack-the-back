@@ -18,11 +18,11 @@ from app.models.constants import (
     SortOrder,
 )
 from app.models.forms import (
-    Forms_Answer,
-    Forms_AnswerFile,
-    Forms_Application,
-    Forms_HackathonApplicant,
-    Forms_Question,
+    FormAnswer,
+    FormAnswerFile,
+    FormApplication,
+    HackathonApplicant,
+    FormQuestion,
     StatusEnum,
 )
 from app.models.judging import JudgingApplicationScore
@@ -52,8 +52,8 @@ def sanitize_filename(filename: str) -> str:
 
 def get_resume_metadata(session: Session, application_id: UUID) -> tuple[Path, str]:
     resume = session.exec(
-        select(Forms_AnswerFile).where(
-            Forms_AnswerFile.application_id == application_id
+        select(FormAnswerFile).where(
+            FormAnswerFile.application_id == application_id
         )
     ).first()
     if not resume or not resume.file_path:
@@ -68,8 +68,8 @@ def get_resume_metadata(session: Session, application_id: UUID) -> tuple[Path, s
 
 def get_application_detail(session: Session, application_id: UUID) -> dict:
     application = session.exec(
-        select(Forms_Application).where(
-            Forms_Application.application_id == application_id
+        select(FormApplication).where(
+            FormApplication.application_id == application_id
         )
     ).first()
     if application is None:
@@ -96,10 +96,10 @@ def list_applications(
     ranking_sort: RankingSort | None,
     application_status: StatusEnum | None,
 ) -> dict:
-    def fetch_questions() -> dict[str, Forms_Question]:
+    def fetch_questions() -> dict[str, FormQuestion]:
         questions = session.exec(
-            select(Forms_Question).where(
-                col(Forms_Question.label).in_(
+            select(FormQuestion).where(
+                col(FormQuestion.label).in_(
                     [
                         QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,
                         QuestionLabel.GENDER.value,
@@ -117,17 +117,17 @@ def list_applications(
     gender_question = question_map.get(QuestionLabel.GENDER.value)
     school_question = question_map.get(QuestionLabel.SCHOOL_NAME.value)
 
-    level_answer = aliased(Forms_Answer)
-    gender_answer = aliased(Forms_Answer)
-    school_answer = aliased(Forms_Answer)
+    level_answer = aliased(FormAnswer)
+    gender_answer = aliased(FormAnswer)
+    school_answer = aliased(FormAnswer)
     level_column = col(level_answer.answer) if level_question else literal(None)
     gender_column = col(gender_answer.answer) if gender_question else literal(None)
     school_column = col(school_answer.answer) if school_question else literal(None)
     statement = (
         select(
             AccountUser,
-            Forms_Application,
-            Forms_HackathonApplicant,
+            FormApplication,
+            HackathonApplicant,
             level_column.label("level_of_study_answer"),
             gender_column.label("gender_answer"),
             school_column.label("school_answer"),
@@ -138,14 +138,14 @@ def list_applications(
             ),
         )
         .where(col(AccountUser.is_active).is_(True))
-        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
+        .join(FormApplication, AccountUser.uid == FormApplication.uid)
         .join(
-            Forms_HackathonApplicant,
-            Forms_Application.application_id == Forms_HackathonApplicant.application_id,
+            HackathonApplicant,
+            FormApplication.application_id == HackathonApplicant.application_id,
         )
         .outerjoin(
             JudgingApplicationScore,
-            JudgingApplicationScore.application_id == Forms_Application.application_id,
+            JudgingApplicationScore.application_id == FormApplication.application_id,
         )
     )
 
@@ -158,7 +158,7 @@ def list_applications(
             statement = statement.outerjoin(
                 answer_model,
                 and_(
-                    answer_model.application_id == Forms_Application.application_id,
+                    answer_model.application_id == FormApplication.application_id,
                     answer_model.question_id == question.question_id,
                 ),
             )
@@ -177,7 +177,7 @@ def list_applications(
         )
     if application_status:
         statement = statement.where(
-            Forms_HackathonApplicant.status == application_status
+            HackathonApplicant.status == application_status
         )
     if level_of_study and level_question:
         statement = statement.where(
@@ -200,19 +200,19 @@ def list_applications(
                 if ranking_sort == RankingSort.HIGHEST
                 else ranking_column.asc()
             ).nulls_last(),
-            col(Forms_Application.updated_at).desc(),
-            col(Forms_Application.application_id).asc(),
+            col(FormApplication.updated_at).desc(),
+            col(FormApplication.application_id).asc(),
         )
     elif date_sort:
-        date_column = col(Forms_Application.updated_at)
+        date_column = col(FormApplication.updated_at)
         statement = statement.order_by(
             date_column.asc() if date_sort == SortOrder.OLDEST else date_column.desc(),
-            col(Forms_Application.application_id).asc(),
+            col(FormApplication.application_id).asc(),
         )
     else:
         statement = statement.order_by(
-            col(Forms_Application.updated_at).desc(),
-            col(Forms_Application.application_id).asc(),
+            col(FormApplication.updated_at).desc(),
+            col(FormApplication.application_id).asc(),
         )
 
     results = session.exec(statement.offset(offset).limit(limit)).all()
@@ -253,10 +253,10 @@ def update_application_status(
     new_status: StatusEnum,
 ) -> dict:
     result = session.exec(
-        select(Forms_Application, AccountUser)
-        .join(AccountUser, Forms_Application.uid == AccountUser.uid)
-        .where(Forms_Application.application_id == application_id)
-        .options(eager_load(Forms_Application.hackathonapplicant))
+        select(FormApplication, AccountUser)
+        .join(AccountUser, FormApplication.uid == AccountUser.uid)
+        .where(FormApplication.application_id == application_id)
+        .options(eager_load(FormApplication.hackathonapplicant))
     ).first()
     if not result:
         raise HTTPException(status_code=404, detail="Application not found")

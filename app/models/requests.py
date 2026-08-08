@@ -5,12 +5,6 @@ from pydantic import BaseModel
 from app.models.forms import (
     StatusEnum,
 )
-
-
-class UIDRequest(BaseModel):
-    uid: str
-
-
 class BulkEmailRequest(BaseModel):
     template_path: str
     status: StatusEnum

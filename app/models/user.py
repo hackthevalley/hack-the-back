@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 
 from app.models.constants import UserRole
-from app.models.food_tracking import Food_Tracking
+from app.models.food_tracking import FoodTracking
 from app.validators import (
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
@@ -14,7 +14,7 @@ from app.validators import (
 )
 
 if TYPE_CHECKING:
-    from app.models.forms import Forms_Application
+    from app.models.forms import FormApplication
 
 
 class UserBase(SQLModel):
@@ -44,8 +44,8 @@ class AccountUser(UserBase, table=True):
     last_activation_email_sent: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
     )
-    application: Optional["Forms_Application"] = Relationship(back_populates="user")
-    meals: list["Food_Tracking"] = Relationship(back_populates="user")
+    application: Optional["FormApplication"] = Relationship(back_populates="user")
+    meals: list["FoodTracking"] = Relationship(back_populates="user")
 
     @property
     def full_name(self) -> str:

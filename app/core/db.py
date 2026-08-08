@@ -14,11 +14,11 @@ from sqlmodel import Session, col, create_engine, delete, select
 from app.config import AppConfig, DatabaseConfig
 from app.models.constants import QuestionLabel
 from app.models.forms import (
-    Forms_Answer,
-    Forms_AnswerFile,
-    Forms_Application,
-    Forms_Form,
-    Forms_Question,
+    FormAnswer,
+    FormAnswerFile,
+    FormApplication,
+    FormWindow,
+    FormQuestion,
 )
 from app.models.meal import Meal
 
@@ -107,10 +107,10 @@ def with_advisory_lock(lock_id: int):
 @with_advisory_lock(ADVISORY_LOCK_QUESTIONS)
 def seed_questions(questions: List, session: Session):
     try:
-        added_questions: list[Forms_Question] = []
+        added_questions: list[FormQuestion] = []
         existing_questions = {
             question.label: question
-            for question in session.exec(select(Forms_Question)).all()
+            for question in session.exec(select(FormQuestion)).all()
         }
         configured_labels = {question["label"] for question in questions}
         stale_question_ids = [
@@ -121,25 +121,25 @@ def seed_questions(questions: List, session: Session):
 
         if stale_question_ids:
             session.exec(
-                delete(Forms_Answer).where(
-                    col(Forms_Answer.question_id).in_(stale_question_ids)
+                delete(FormAnswer).where(
+                    col(FormAnswer.question_id).in_(stale_question_ids)
                 )
             )
             session.exec(
-                delete(Forms_AnswerFile).where(
-                    col(Forms_AnswerFile.question_id).in_(stale_question_ids)
+                delete(FormAnswerFile).where(
+                    col(FormAnswerFile.question_id).in_(stale_question_ids)
                 )
             )
             session.exec(
-                delete(Forms_Question).where(
-                    col(Forms_Question.question_id).in_(stale_question_ids)
+                delete(FormQuestion).where(
+                    col(FormQuestion.question_id).in_(stale_question_ids)
                 )
             )
 
         for index, question in enumerate(questions):
             existing_question = existing_questions.get(question["label"])
             if existing_question is None:
-                new_question = Forms_Question.model_validate(
+                new_question = FormQuestion.model_validate(
                     question, update={"question_order": index}
                 )
                 session.add(new_question)
@@ -153,11 +153,11 @@ def seed_questions(questions: List, session: Session):
         if added_questions:
             session.flush()
             application_ids = session.exec(
-                select(Forms_Application.application_id)
+                select(FormApplication.application_id)
             ).all()
             session.add_all(
                 [
-                    Forms_Answer(
+                    FormAnswer(
                         application_id=application_id,
                         question_id=question.question_id,
                         answer=None,
@@ -180,10 +180,10 @@ def seed_questions(questions: List, session: Session):
 @with_advisory_lock(ADVISORY_LOCK_FORM_TIME)
 def seed_form_time(session: Session):
     try:
-        row = session.exec(select(Forms_Form).limit(1)).first()
+        row = session.exec(select(FormWindow).limit(1)).first()
         current_time = datetime.now(timezone.utc)
         if row is None:
-            row = Forms_Form(
+            row = FormWindow(
                 created_at=current_time,
                 updated_at=current_time,
                 start_at=AppConfig.APPLICATION_START_DATE,

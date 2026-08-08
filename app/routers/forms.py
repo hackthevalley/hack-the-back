@@ -8,9 +8,9 @@ from app.cache import cache
 from app.core.db import SessionDep
 from app.models.forms import (
     ApplicationResponse,
-    Forms_AnswerUpdate,
-    Forms_Form,
-    Forms_Question,
+    FormAnswerUpdate,
+    FormWindow,
+    FormQuestion,
 )
 from app.models.user import AccountUser
 from app.services.applications import is_valid_submission_time
@@ -30,11 +30,11 @@ _validate_pdf = validate_pdf
 
 
 @router.get("/questions")
-def get_questions(session: SessionDep) -> list[Forms_Question]:
-    def fetch_questions() -> list[Forms_Question]:
+def get_questions(session: SessionDep) -> list[FormQuestion]:
+    def fetch_questions() -> list[FormQuestion]:
         return list(
             session.exec(
-                select(Forms_Question).order_by(col(Forms_Question.question_order))
+                select(FormQuestion).order_by(col(FormQuestion.question_order))
             ).all()
         )
 
@@ -53,7 +53,7 @@ def get_application(
 
 @router.put("/answers")
 def save_answers(
-    forms_batchupdate: list[Forms_AnswerUpdate],
+    forms_batchupdate: list[FormAnswerUpdate],
     current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
 ):
@@ -82,10 +82,10 @@ def submission_time(session: SessionDep):
     return is_valid_submission_time(session)
 
 
-@router.get("/registration-timerange", response_model=Forms_Form)
-def get_reg_time_range(session: SessionDep) -> Forms_Form:
+@router.get("/registration-timerange", response_model=FormWindow)
+def get_reg_time_range(session: SessionDep) -> FormWindow:
     def fetch_time_range():
-        return session.exec(select(Forms_Form)).first()
+        return session.exec(select(FormWindow)).first()
 
     return cache.get_or_set(
         "registration_timerange", fetch_time_range, timedelta(minutes=5)

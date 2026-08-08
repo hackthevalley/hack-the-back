@@ -2,11 +2,11 @@ from datetime import datetime, timedelta, timezone
 
 from app.config import AppConfig
 from app.core.db import seed_form_time
-from app.models.forms import Forms_Form
+from app.models.forms import FormWindow
 
 
 class FirstResult:
-    def __init__(self, row: Forms_Form | None):
+    def __init__(self, row: FormWindow | None):
         self.row = row
 
     def first(self):
@@ -14,22 +14,22 @@ class FirstResult:
 
 
 class FakeSession:
-    def __init__(self, row: Forms_Form | None):
+    def __init__(self, row: FormWindow | None):
         self.row = row
-        self.added: list[Forms_Form] = []
+        self.added: list[FormWindow] = []
         self.commit_count = 0
-        self.refreshed: list[Forms_Form] = []
+        self.refreshed: list[FormWindow] = []
 
     def exec(self, _statement):
         return FirstResult(self.row)
 
-    def add(self, row: Forms_Form):
+    def add(self, row: FormWindow):
         self.added.append(row)
 
     def commit(self):
         self.commit_count += 1
 
-    def refresh(self, row: Forms_Form):
+    def refresh(self, row: FormWindow):
         self.refreshed.append(row)
 
 
@@ -51,7 +51,7 @@ def test_form_time_seed_creates_missing_row():
 
 def test_form_time_seed_does_not_write_when_dates_match():
     original_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    row = Forms_Form(
+    row = FormWindow(
         created_at=original_updated_at,
         updated_at=original_updated_at,
         start_at=AppConfig.APPLICATION_START_DATE,
@@ -69,7 +69,7 @@ def test_form_time_seed_does_not_write_when_dates_match():
 
 def test_form_time_seed_updates_existing_row(monkeypatch):
     original_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    row = Forms_Form(
+    row = FormWindow(
         created_at=original_updated_at,
         updated_at=original_updated_at,
         start_at=AppConfig.APPLICATION_START_DATE,

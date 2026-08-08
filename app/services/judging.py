@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, col, select
 
-from app.models.forms import Forms_Application, Forms_HackathonApplicant, StatusEnum
+from app.models.forms import FormApplication, HackathonApplicant, StatusEnum
 from app.models.judging import (
     JudgingApplicationScore,
     JudgingDecision,
@@ -22,15 +22,15 @@ ELIGIBLE_STATUSES = (
 
 def _eligible_application_ids(session: Session) -> list[uuid.UUID]:
     statement = (
-        select(Forms_Application.application_id)
+        select(FormApplication.application_id)
         .join(
-            Forms_HackathonApplicant,
-            Forms_HackathonApplicant.application_id
-            == Forms_Application.application_id,
+            HackathonApplicant,
+            HackathonApplicant.application_id
+            == FormApplication.application_id,
         )
         .where(
-            Forms_Application.is_draft.is_(False),
-            col(Forms_HackathonApplicant.status).in_(ELIGIBLE_STATUSES),
+            FormApplication.is_draft.is_(False),
+            col(HackathonApplicant.status).in_(ELIGIBLE_STATUSES),
         )
     )
     return list(session.exec(statement).all())

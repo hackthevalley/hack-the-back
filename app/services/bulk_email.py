@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from sqlmodel import Session, func, select
 
 from app.config import EmailConfig
-from app.models.forms import Forms_Application, Forms_HackathonApplicant
+from app.models.forms import FormApplication, HackathonApplicant
 from app.models.requests import BulkEmailRequest
 from app.models.user import AccountUser
 from app.services.email import send_email
@@ -79,15 +79,15 @@ def get_bulk_email_recipients(
 ) -> tuple[int, list[dict]]:
     base_query = (
         select(AccountUser)
-        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
+        .join(FormApplication, AccountUser.uid == FormApplication.uid)
         .join(
-            Forms_HackathonApplicant,
-            Forms_Application.application_id
-            == Forms_HackathonApplicant.application_id,
+            HackathonApplicant,
+            FormApplication.application_id
+            == HackathonApplicant.application_id,
         )
         .where(
             AccountUser.is_active,
-            Forms_HackathonApplicant.status == request.status,
+            HackathonApplicant.status == request.status,
         )
     )
     total = session.exec(
@@ -102,15 +102,15 @@ def get_bulk_email_recipients(
             AccountUser.last_name,
             AccountUser.email,
         )
-        .join(Forms_Application, AccountUser.uid == Forms_Application.uid)
+        .join(FormApplication, AccountUser.uid == FormApplication.uid)
         .join(
-            Forms_HackathonApplicant,
-            Forms_Application.application_id
-            == Forms_HackathonApplicant.application_id,
+            HackathonApplicant,
+            FormApplication.application_id
+            == HackathonApplicant.application_id,
         )
         .where(
             AccountUser.is_active,
-            Forms_HackathonApplicant.status == request.status,
+            HackathonApplicant.status == request.status,
         )
     ).all()
     return total, [

@@ -73,8 +73,8 @@ def get_food_data(session: SessionDep):
 
 @router.post("/tracking")
 def track_food(request: FoodTrackingRequest, session: SessionDep):
-    from app.models.food_tracking import Food_Tracking
-    from app.models.forms import Forms_Application
+    from app.models.food_tracking import FoodTracking
+    from app.models.forms import FormApplication
 
     food_items = request.food
 
@@ -83,8 +83,8 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
 
     application_ids = [item.application for item in food_items]
 
-    app_statement = select(Forms_Application).where(
-        col(Forms_Application.application_id).in_(application_ids)
+    app_statement = select(FormApplication).where(
+        col(FormApplication.application_id).in_(application_ids)
     )
     applications = session.exec(app_statement).all()
 
@@ -107,7 +107,7 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
 
     try:
         inserted_ids = session.exec(
-            insert(Food_Tracking)
+            insert(FoodTracking)
             .values(
                 [
                     {"user_id": user_id, "meal_id": meal_id}
@@ -115,7 +115,7 @@ def track_food(request: FoodTrackingRequest, session: SessionDep):
                 ]
             )
             .on_conflict_do_nothing(constraint="uq_food_tracking_user_meal")
-            .returning(Food_Tracking.id)
+            .returning(FoodTracking.id)
         ).all()
         session.commit()
     except Exception as error:

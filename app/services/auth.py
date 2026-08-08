@@ -90,3 +90,24 @@ def create_access_token(
     )
     to_encode.update({"iat": datetime.now(timezone.utc), "exp": expire})
     return jwt.encode(to_encode, secret_key, algorithm=algorithm)
+
+
+def create_user_access_token(
+    user: AccountUser,
+    scopes: list[str],
+    expires_delta: timedelta,
+) -> str:
+    """Create a JWT with the canonical account claims used by every flow."""
+    return create_access_token(
+        data={
+            "sub": str(user.email),
+            "fullName": user.full_name,
+            "firstName": user.first_name,
+            "lastName": user.last_name,
+            "scopes": scopes,
+            "ver": user.token_version,
+        },
+        secret_key=SecurityConfig.SECRET_KEY,
+        algorithm=SecurityConfig.ALGORITHM,
+        expires_delta=expires_delta,
+    )

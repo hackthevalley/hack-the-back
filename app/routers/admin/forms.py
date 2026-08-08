@@ -5,17 +5,17 @@ from fastapi import APIRouter, Body, HTTPException, status
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.forms import Forms_Form
+from app.models.forms import FormWindow
 
 router = APIRouter()
 
 
-@router.put("/registration-timerange", response_model=Forms_Form)
+@router.put("/registration-timerange", response_model=FormWindow)
 def set_reg_time_range(
     session: SessionDep,
     start_at: Annotated[str, Body()],
     end_at: Annotated[str, Body()],
-) -> Forms_Form:
+) -> FormWindow:
     from datetime import timezone as tz
 
     current_utc_time = datetime.now(tz.utc)
@@ -33,7 +33,7 @@ def set_reg_time_range(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time range"
         )
 
-    current_time_range = session.exec(select(Forms_Form)).first()
+    current_time_range = session.exec(select(FormWindow)).first()
     if not current_time_range:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Data not found"
