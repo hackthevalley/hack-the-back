@@ -11,8 +11,8 @@ from app.config import SecurityConfig
 from app.core.db import SessionDep
 from app.core.orm import eager_load
 from app.models.constants import TokenScope, UserRole
-from app.models.token import TokenData
 from app.models.user import AccountUser
+from app.schemas.token import TokenData
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="login",

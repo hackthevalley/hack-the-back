@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.meal import Meal, MealCreate, MealRead, MealType, MealUpdate, WeekDay
+from app.models.meal import Meal, MealType, WeekDay
+from app.schemas.meal import MealCreate, MealRead, MealUpdate
 
 router = APIRouter()
 

@@ -6,13 +6,15 @@ from sqlmodel import col, select
 from app.core.db import SessionDep
 from app.models.judging import (
     JudgingApplicationScore,
+)
+from app.models.user import AccountUser
+from app.schemas.judging import (
     JudgingDecisionResponse,
     JudgingPairResponse,
     JudgingRankingEntry,
     JudgingScorePublic,
     JudgingVoteRequest,
 )
-from app.models.user import AccountUser
 from app.services.auth import get_current_user
 from app.services.judging import assign_pair, record_vote, sync_application_scores
 

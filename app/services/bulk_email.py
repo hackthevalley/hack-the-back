@@ -5,8 +5,8 @@ from sqlmodel import Session, func, select
 
 from app.config import EmailConfig
 from app.models.forms import FormApplication, HackathonApplicant
-from app.models.requests import BulkEmailRequest
 from app.models.user import AccountUser
+from app.schemas.bulk_email import BulkEmailRequest
 from app.services.email import send_email
 
 logger = logging.getLogger(__name__)

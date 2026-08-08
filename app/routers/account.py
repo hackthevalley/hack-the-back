@@ -19,14 +19,9 @@ from app.models.constants import (
     UserRole,
 )
 from app.models.forms import FormApplication, StatusEnum
-from app.models.token import Token
-from app.models.user import (
-    AccountUser,
-    PasswordReset,
-    UserCreate,
-    UserPublic,
-    UserUpdate,
-)
+from app.models.user import AccountUser
+from app.schemas.token import Token
+from app.schemas.user import PasswordReset, UserCreate, UserPublic, UserUpdate
 from app.services.auth import (
     create_user_access_token,
     decode_jwt,

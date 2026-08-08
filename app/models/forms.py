@@ -3,7 +3,6 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, Optional
 
-from pydantic import BaseModel
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -124,11 +123,6 @@ class FormAnswer(SQLModel, table=True):
     )
 
 
-class FormAnswerUpdate(SQLModel):
-    question_id: str = Field(max_length=36)
-    answer: str | None = Field(None, max_length=5000)
-
-
 class FormAnswerFile(SQLModel, table=True):
     __tablename__: ClassVar[str] = "forms_answerfile"
 
@@ -142,13 +136,3 @@ class FormAnswerFile(SQLModel, table=True):
     applicant: Optional["FormApplication"] = Relationship(
         back_populates="form_answersfile"
     )
-
-
-class ApplicationResponse(BaseModel):
-    application: FormApplication
-    form_answers: list[FormAnswer]
-    form_answersfile: str | None
-
-
-class WalkInRequest(BaseModel):
-    email: str = Field(max_length=255)

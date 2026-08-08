@@ -11,8 +11,9 @@ from app.config import EmailConfig
 from app.core.db import SessionDep
 from app.models.constants import RankingSort, SortOrder
 from app.models.forms import FormApplication, StatusEnum
-from app.models.requests import BulkEmailRequest
-from app.models.user import AccountUser, UserPublic
+from app.models.user import AccountUser
+from app.schemas.bulk_email import BulkEmailRequest
+from app.schemas.user import UserPublic
 from app.services.admin_applications import (
     get_application_detail,
     get_resume_metadata,

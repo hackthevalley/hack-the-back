@@ -13,13 +13,13 @@ from app.models.constants import (
 )
 from app.models.forms import (
     FormAnswer,
-    FormAnswerUpdate,
     FormApplication,
     HackathonApplicant,
     FormQuestion,
     StatusEnum,
 )
 from app.models.user import AccountUser
+from app.schemas.forms import FormAnswerUpdate
 from app.services.applications import create_application, is_valid_submission_time
 from app.services.email import send_email, send_rsvp
 from app.validators import validate_profile_url

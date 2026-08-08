@@ -1,6 +1,6 @@
 import enum
 import uuid
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List
 
 from sqlmodel import Column, Enum, Field, Relationship, SQLModel, UniqueConstraint
 
@@ -46,16 +46,3 @@ class Meal(SQLModel, table=True):
         return f"{self.day.capitalize()} {self.meal_type.capitalize()}"
 
     tracking_records: List["FoodTracking"] = Relationship(back_populates="meal")
-
-
-class MealCreate(MealBase):
-    pass
-
-
-class MealRead(MealBase):
-    id: uuid.UUID
-    name: str
-
-
-class MealUpdate(SQLModel):
-    is_active: Optional[bool] = None

@@ -10,8 +10,8 @@ from app.models.judging import (
     JudgingApplicationScore,
     JudgingDecision,
     JudgingJudgeState,
-    JudgingVoteRequest,
 )
+from app.schemas.judging import JudgingVoteRequest
 from app.services import judging
 
 judging_router = importlib.import_module("app.routers.admin.judging")

@@ -4,8 +4,9 @@ from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
 
 from app.core.db import SessionDep
-from app.models.forms import StatusEnum, WalkInRequest
+from app.models.forms import StatusEnum
 from app.models.user import AccountUser
+from app.schemas.forms import WalkInRequest
 from app.services.applications import create_application
 from app.services.email import send_rsvp
 

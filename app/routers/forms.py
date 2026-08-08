@@ -6,13 +6,9 @@ from sqlmodel import col, select
 
 from app.cache import cache
 from app.core.db import SessionDep
-from app.models.forms import (
-    ApplicationResponse,
-    FormAnswerUpdate,
-    FormWindow,
-    FormQuestion,
-)
+from app.models.forms import FormQuestion, FormWindow
 from app.models.user import AccountUser
+from app.schemas.forms import ApplicationResponse, FormAnswerUpdate
 from app.services.applications import is_valid_submission_time
 from app.services.auth import get_current_user
 from app.services.form_workflow import (
