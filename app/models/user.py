@@ -2,16 +2,11 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar, Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import EmailStr
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 
 from app.models.constants import UserRole
 from app.models.food_tracking import FoodTracking
-from app.validators import (
-    PASSWORD_MAX_LENGTH,
-    PASSWORD_MIN_LENGTH,
-    validate_password_requirements,
-)
 
 if TYPE_CHECKING:
     from app.models.forms import FormApplication
@@ -50,39 +45,3 @@ class AccountUser(UserBase, table=True):
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
-
-
-class UserCreate(UserBase):
-    password: str = Field(
-        min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH
-    )
-
-    @field_validator("password")
-    @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        return validate_password_requirements(v)
-
-
-class UserPublic(UserBase):
-    uid: uuid.UUID
-    role: UserRole
-    is_active: bool
-    application_status: Optional[str] = None
-
-
-class UserUpdate(BaseModel):
-    token: str = Field(max_length=1000)
-    password: Optional[str] = Field(
-        None, min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH
-    )
-
-    @field_validator("password")
-    @classmethod
-    def validate_password_strength(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return v
-        return validate_password_requirements(v)
-
-
-class PasswordReset(BaseModel):
-    email: EmailStr = Field(max_length=255)
