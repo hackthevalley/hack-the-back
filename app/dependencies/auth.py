@@ -14,7 +14,7 @@ from app.schemas.token import TokenData
 from app.services.tokens import decode_token
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="login",
+    tokenUrl="/api/account/sessions",
     scopes={
         TokenScope.ADMIN.value: "Allow user to call admin routes",
         TokenScope.VOLUNTEER.value: "Allow user to call qr routes",
@@ -52,6 +52,10 @@ def get_current_user(
             )
         )
     ).first()
-    if user is None or not user.is_active or user.token_version != token_data.token_version:
+    if (
+        user is None
+        or not user.is_active
+        or user.token_version != token_data.token_version
+    ):
         raise credentials_exception
     return user

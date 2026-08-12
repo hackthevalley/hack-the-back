@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlmodel import col, select
 
 from app.core.db import SessionDep
@@ -16,7 +17,8 @@ from app.schemas.judging import (
     JudgingVoteRequest,
 )
 from app.dependencies.auth import get_current_user
-from app.services.judging import assign_pair, record_vote, sync_application_scores
+from app.services.judging import ELIGIBLE_STATUSES, assign_pair, record_vote
+from app.models.forms import FormApplication, HackathonApplicant
 
 router = APIRouter()
 
@@ -72,17 +74,29 @@ def get_rankings(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[JudgingRankingEntry]:
-    eligible_scores = sync_application_scores(session)
-    session.commit()
-    eligible_ids = [score.application_id for score in eligible_scores]
-    if not eligible_ids:
-        return []
+    score_mu = func.coalesce(JudgingApplicationScore.mu, 0.0)
     scores = session.exec(
-        select(JudgingApplicationScore)
-        .where(col(JudgingApplicationScore.application_id).in_(eligible_ids))
+        select(
+            FormApplication.application_id,
+            score_mu,
+            func.coalesce(JudgingApplicationScore.sigma_sq, 1.0),
+            func.coalesce(JudgingApplicationScore.comparison_count, 0),
+        )
+        .outerjoin(
+            JudgingApplicationScore,
+            JudgingApplicationScore.application_id == FormApplication.application_id,
+        )
+        .join(
+            HackathonApplicant,
+            HackathonApplicant.application_id == FormApplication.application_id,
+        )
+        .where(
+            FormApplication.is_draft.is_(False),
+            col(HackathonApplicant.status).in_(ELIGIBLE_STATUSES),
+        )
         .order_by(
-            col(JudgingApplicationScore.mu).desc(),
-            col(JudgingApplicationScore.application_id),
+            score_mu.desc(),
+            col(FormApplication.application_id),
         )
         .offset(offset)
         .limit(limit)
@@ -90,7 +104,10 @@ def get_rankings(
     return [
         JudgingRankingEntry(
             rank=offset + index + 1,
-            **JudgingScorePublic.model_validate(score).model_dump(),
+            application_id=score[0],
+            mu=score[1],
+            sigma_sq=score[2],
+            comparison_count=score[3],
         )
         for index, score in enumerate(scores)
     ]

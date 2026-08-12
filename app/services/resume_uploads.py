@@ -109,11 +109,9 @@ def upload_resume(
             current_user.application = create_application(current_user, session)
         application = current_user.application
         old_resume = application.form_answer_files
-        if old_resume and old_resume.file_path:
-            try:
-                Path(old_resume.file_path).unlink(missing_ok=True)
-            except OSError:
-                logger.warning("Could not remove replaced resume %s", old_resume.file_path)
+        old_path = (
+            Path(old_resume.file_path) if old_resume and old_resume.file_path else None
+        )
 
         final_path = upload_dir / f"{uuid4()}{DEFAULT_FILE_EXTENSION}"
         shutil.move(temporary_path, final_path)
@@ -129,6 +127,11 @@ def upload_resume(
         session.add(application)
         session.commit()
         session.refresh(answer_file)
+        if old_path and old_path != final_path:
+            try:
+                old_path.unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Could not remove replaced resume %s", old_path)
         return answer_file.original_filename
     except ServiceError:
         Path(temporary_path).unlink(missing_ok=True)

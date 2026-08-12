@@ -24,8 +24,6 @@ from app.models.meal import Meal
 logger = logging.getLogger(__name__)
 
 
-
-
 ADVISORY_LOCK_DATABASE_INIT = 123456786
 ADVISORY_LOCK_FORM_TIME = 123456787
 ADVISORY_LOCK_QUESTIONS = 123456788
@@ -82,7 +80,6 @@ def advisory_lock(session: Session, lock_id: int):
 
 
 def with_advisory_lock(lock_id: int):
-
     def decorator(func: Callable) -> Callable:
         sig = inspect.signature(func)
 
@@ -151,9 +148,7 @@ def seed_questions(questions: List, session: Session):
 
         if added_questions:
             session.flush()
-            application_ids = session.exec(
-                select(FormApplication.application_id)
-            ).all()
+            application_ids = session.exec(select(FormApplication.application_id)).all()
             session.add_all(
                 [
                     FormAnswer(
@@ -163,6 +158,19 @@ def seed_questions(questions: List, session: Session):
                     )
                     for question in added_questions
                     if not QuestionLabel.contains_resume(question.label)
+                    for application_id in application_ids
+                ]
+            )
+            session.add_all(
+                [
+                    FormAnswerFile(
+                        application_id=application_id,
+                        question_id=question.question_id,
+                        original_filename=None,
+                        file_path=None,
+                    )
+                    for question in added_questions
+                    if QuestionLabel.contains_resume(question.label)
                     for application_id in application_ids
                 ]
             )
@@ -188,16 +196,8 @@ def seed_form_time(session: Session):
             session.add(row)
             session.commit()
             session.refresh(row)
-        elif (
-            row.start_at != AppConfig.APPLICATION_START_DATE
-            or row.end_at != AppConfig.APPLICATION_END_DATE
-        ):
-            row.start_at = AppConfig.APPLICATION_START_DATE
-            row.end_at = AppConfig.APPLICATION_END_DATE
-            row.updated_at = current_time
-            session.add(row)
-            session.commit()
-            session.refresh(row)
+        # Existing values may have been changed live by an administrator.
+        # Environment dates are defaults only and must never overwrite them.
     except Exception:
         session.rollback()
         raise

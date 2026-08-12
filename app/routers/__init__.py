@@ -19,7 +19,7 @@ def is_admin(
 ) -> bool:
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not have permission",
         )
     return True
@@ -30,7 +30,7 @@ def is_volunteer(
 ) -> bool:
     if current_user.role not in (UserRole.ADMIN, UserRole.VOLUNTEER):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not have permission",
         )
     return True

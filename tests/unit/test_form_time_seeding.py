@@ -70,7 +70,7 @@ def test_form_time_seed_does_not_write_when_dates_match():
     assert row.updated_at == original_updated_at
 
 
-def test_form_time_seed_updates_existing_row(monkeypatch):
+def test_form_time_seed_preserves_admin_updated_existing_row(monkeypatch):
     original_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
     row = FormWindow(
         created_at=original_updated_at,
@@ -86,9 +86,9 @@ def test_form_time_seed_updates_existing_row(monkeypatch):
 
     run_seed(session)
 
-    assert row.start_at == new_start
-    assert row.end_at == new_end
-    assert row.updated_at > original_updated_at
-    assert session.added == [row]
-    assert session.commit_count == 1
-    assert session.refreshed == [row]
+    assert row.start_at != new_start
+    assert row.end_at != new_end
+    assert row.updated_at == original_updated_at
+    assert session.added == []
+    assert session.commit_count == 0
+    assert session.refreshed == []

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 from sqlmodel import Session, select
@@ -22,7 +23,7 @@ from app.models.forms import (
 from app.models.user import AccountUser
 from app.schemas.forms import FormAnswerUpdate
 from app.services.applications import create_application, is_valid_submission_time
-from app.services.email import send_email, send_rsvp
+from app.services.email import send_email_safely, send_rsvp_safely
 from app.validators import validate_profile_url
 
 logger = logging.getLogger(__name__)
@@ -112,7 +113,11 @@ def save_answers(
     return {"message": "Answers saved successfully", "updated_count": len(bulk_updates)}
 
 
-def submit_application(session: Session, user: AccountUser) -> str:
+def submit_application(
+    session: Session,
+    user: AccountUser,
+    enqueue: Callable[..., None] | None = None,
+) -> str:
     if not is_valid_submission_time(session, user):
         raise ServiceError(status_code=403, detail="Submission is currently closed")
     application = user.application
@@ -191,20 +196,21 @@ def submit_application(session: Session, user: AccountUser) -> str:
             detail="Failed to submit application",
         ) from error
 
-    try:
-        if walk_in:
-            send_rsvp(user.email, user.full_name, str(application.application_id))
-        else:
-            send_email(
-                EmailTemplate.CONFIRMATION,
-                user.email,
-                EmailSubject.CONFIRMATION,
-                EmailMessage.CONFIRMATION,
-                {},
-            )
-    except Exception:
-        logger.exception(
-            "Application %s was submitted, but its notification could not be sent",
-            application.application_id,
+    schedule = enqueue or (lambda task, *args: task(*args))
+    if walk_in:
+        schedule(
+            send_rsvp_safely,
+            user.email,
+            user.full_name,
+            str(application.application_id),
+        )
+    else:
+        schedule(
+            send_email_safely,
+            EmailTemplate.CONFIRMATION,
+            user.email,
+            EmailSubject.CONFIRMATION,
+            EmailMessage.CONFIRMATION,
+            {},
         )
     return "Success"

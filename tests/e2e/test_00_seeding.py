@@ -19,9 +19,7 @@ def test_seed_contract_matches_source_data(client, admin_headers):
     expected_questions = json.loads(
         (ROOT / "app/data/form_questions.json").read_text(encoding="utf-8")
     )
-    expected_by_label = {
-        question["label"]: question for question in expected_questions
-    }
+    expected_by_label = {question["label"]: question for question in expected_questions}
     assert expected_by_label["Avatar"]["required"] is True
     assert expected_by_label["Accessory"]["required"] is True
     assert expected_by_label["Devpost"]["required"] is False
@@ -98,7 +96,7 @@ def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
     assert len(client.get("/api/meals", headers=admin_headers).json()) == 6
 
 
-def test_form_time_seed_reconciles_existing_row_with_environment(client):
+def test_form_time_seed_preserves_admin_updated_existing_row(client):
     db_query(
         "UPDATE forms_form "
         "SET start_at = '2021-01-01T00:00:00+00:00', "
@@ -109,5 +107,13 @@ def test_form_time_seed_reconciles_existing_row_with_environment(client):
 
     form = client.get("/api/forms/registration-timerange")
     assert form.status_code == 200
-    assert datetime.fromisoformat(form.json()["start_at"]).year == 2020
-    assert datetime.fromisoformat(form.json()["end_at"]).year == 2099
+    assert datetime.fromisoformat(form.json()["start_at"]).year == 2021
+    assert datetime.fromisoformat(form.json()["end_at"]).year == 2021
+
+    # Restore the intentionally broad E2E window for the remaining workflow tests.
+    db_query(
+        "UPDATE forms_form "
+        "SET start_at = '2020-01-01T00:00:00+00:00', "
+        "end_at = '2099-01-01T00:00:00+00:00'"
+    )
+    restart_api()

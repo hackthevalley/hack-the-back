@@ -39,27 +39,27 @@ def test_sync_application_scores_handles_empty_and_adds_missing_scores():
 
     first_id, second_id = uuid.uuid4(), uuid.uuid4()
     existing = score(first_id)
+    inserted = score(second_id)
     session.reset_mock()
     session.exec.side_effect = [
         result(all_values=(first_id, second_id)),
-        result(all_values=(existing,)),
+        result(),
+        result(all_values=(existing, inserted)),
     ]
 
     scores = judging.sync_application_scores(session)
 
     assert [item.application_id for item in scores] == [first_id, second_id]
-    session.add.assert_called_once()
-    session.flush.assert_called_once()
+    assert session.exec.call_count == 3
 
 
 def test_get_or_create_state_seen_and_busy_ids():
     judge_id = uuid.uuid4()
     session = MagicMock()
-    session.exec.return_value = result(first=None)
+    state = JudgingJudgeState(judge_id=judge_id)
+    session.exec.side_effect = [result(), result(first=state)]
     state = judging.get_or_create_judge_state(session, judge_id, lock=True)
     assert state.judge_id == judge_id
-    session.add.assert_called_once_with(state)
-    session.flush.assert_called_once()
 
     winner_id, loser_id, busy_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     decision = JudgingDecision(
@@ -304,13 +304,20 @@ def test_admin_judging_endpoints():
 
 def test_rankings_handles_empty_and_ranked_scores():
     session = MagicMock()
-    with patch.object(judging_router, "sync_application_scores", return_value=[]):
-        assert judging_router.get_rankings(session) == []
+    session.exec.return_value = result(all_values=())
+    assert judging_router.get_rankings(session) == []
 
     first, second = score(mu=2), score(mu=1)
-    session.exec.return_value = result(all_values=(first, second))
-    with patch.object(
-        judging_router, "sync_application_scores", return_value=[first, second]
-    ):
-        rankings = judging_router.get_rankings(session, offset=3, limit=2)
+    session.exec.return_value = result(
+        all_values=(
+            (first.application_id, first.mu, first.sigma_sq, first.comparison_count),
+            (
+                second.application_id,
+                second.mu,
+                second.sigma_sq,
+                second.comparison_count,
+            ),
+        )
+    )
+    rankings = judging_router.get_rankings(session, offset=3, limit=2)
     assert [entry.rank for entry in rankings] == [4, 5]

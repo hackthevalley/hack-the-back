@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlmodel import col, select
+from sqlalchemy.exc import IntegrityError
 
 from app.core.errors import ServiceError
 from sqlmodel import Session
@@ -50,7 +51,23 @@ def create_application(
         updated_at=datetime.now(timezone.utc),
     )
     session.add(application)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # A concurrent request created this user's application first.
+        session.rollback()
+        existing_application = session.exec(
+            select(FormApplication)
+            .where(FormApplication.uid == current_user.uid)
+            .options(
+                eager_load(FormApplication.form_answers),
+                eager_load(FormApplication.form_answer_files),
+                eager_load(FormApplication.hacker_applicant),
+            )
+        ).first()
+        if existing_application is None:
+            raise
+        return existing_application
 
     session.add(
         HackathonApplicant(
@@ -112,9 +129,7 @@ def create_application(
     return created_application
 
 
-def is_valid_submission_time(
-    session: Session, user: AccountUser | None = None
-) -> bool:
+def is_valid_submission_time(session: Session, user: AccountUser | None = None) -> bool:
     if user and user.application and user.application.hacker_applicant:
         application_status = user.application.hacker_applicant.status
         if application_status == StatusEnum.WALK_IN:

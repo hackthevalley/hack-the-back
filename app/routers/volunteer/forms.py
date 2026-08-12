@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from sqlmodel import select
 
 from app.core.db import SessionDep
@@ -9,14 +9,18 @@ from app.models.forms import StatusEnum
 from app.models.user import AccountUser
 from app.schemas.forms import WalkInRequest
 from app.services.applications import create_application
-from app.services.email import send_rsvp
+from app.services.email import send_rsvp_safely
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 @router.post("/walk-ins")
-def mark_walkin(request: WalkInRequest, session: SessionDep) -> dict[str, Any]:
+def mark_walkin(
+    request: WalkInRequest,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
     statement = select(AccountUser).where(AccountUser.email == request.email)
     user = session.exec(statement).first()
 
@@ -58,13 +62,9 @@ def mark_walkin(request: WalkInRequest, session: SessionDep) -> dict[str, Any]:
     session.refresh(user.application.hacker_applicant)
 
     if send_email:
-        try:
-            send_rsvp(user.email, user.full_name, application_id)
-        except Exception:
-            logger.exception(
-                "Walk-in %s was marked submitted, but its RSVP could not be sent",
-                application_id,
-            )
+        background_tasks.add_task(
+            send_rsvp_safely, user.email, user.full_name, application_id
+        )
 
     return {
         "message": message,

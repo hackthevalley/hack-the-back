@@ -26,6 +26,7 @@ from app.services.bulk_email import get_bulk_email_recipients, send_batch_email
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
 @router.get("/users", response_model=list[UserPublic])
 def get_users(
     session: SessionDep,
@@ -91,9 +92,12 @@ def list_applications(
 
 @router.patch("/applications/{application_id}/status")
 def update_application_status(
-    application_id: str, request: StatusEnum, session: SessionDep
+    application_id: str,
+    request: StatusEnum,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, Any]:
-    return update_status(session, application_id, request)
+    return update_status(session, application_id, request, background_tasks.add_task)
 
 
 @router.post("/bulk-emails")

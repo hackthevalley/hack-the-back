@@ -7,12 +7,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.config import AppConfig, SecurityConfig
 from app.core.db import SessionDep
 from app.core.orm import eager_load
-from app.core.errors import ServiceError
 from app.models.constants import (
     EmailMessage,
     EmailSubject,
@@ -30,7 +29,10 @@ from app.services.tokens import (
     decode_token,
     scopes_for_user,
 )
-from app.services.email import send_activation_email, send_email
+from app.services.email import (
+    send_activation_email_in_background,
+    send_email,
+)
 from app.services.wallet import generate_apple_wallet_pass
 
 router = APIRouter()
@@ -54,7 +56,9 @@ def _invalid_login() -> HTTPException:
 
 @router.post("/sessions")
 def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
 ) -> Token:
     statement = select(AccountUser).where(AccountUser.email == form_data.username)
     selected_user = session.exec(statement).first()
@@ -87,10 +91,9 @@ def login(
         raise _invalid_login()
 
     if not selected_user.is_active:
-        try:
-            send_activation_email(selected_user.email, session)
-        except ServiceError:
-            pass
+        background_tasks.add_task(
+            send_activation_email_in_background, selected_user.email
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=_INACTIVE_ACCOUNT_ERROR,
@@ -104,14 +107,14 @@ def login(
 
     scopes = scopes_for_user(selected_user)
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_user_access_token(
-        selected_user, scopes, access_token_expires
-    )
+    access_token = create_user_access_token(selected_user, scopes, access_token_expires)
     return Token(access_token=access_token, token_type="bearer")
 
 
 @router.post("/users", status_code=status.HTTP_202_ACCEPTED)
-def signup(user: UserCreate, session: SessionDep) -> dict[str, str]:
+def signup(
+    user: UserCreate, session: SessionDep, background_tasks: BackgroundTasks
+) -> dict[str, str]:
     hashed_password = bcrypt.hashpw(
         user.password.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
@@ -119,10 +122,9 @@ def signup(user: UserCreate, session: SessionDep) -> dict[str, str]:
     selected_user = session.exec(statement).first()
     if selected_user:
         if not selected_user.is_active:
-            try:
-                send_activation_email(selected_user.email, session)
-            except ServiceError:
-                pass
+            background_tasks.add_task(
+                send_activation_email_in_background, selected_user.email
+            )
         return _GENERIC_ACCOUNT_EMAIL_RESPONSE
     extra_data = {
         "password": hashed_password,
@@ -130,10 +132,21 @@ def signup(user: UserCreate, session: SessionDep) -> dict[str, str]:
         "is_active": False,
     }
     db_user = AccountUser.model_validate(user, update=extra_data)
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    send_activation_email(user.email, session)
+    try:
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+    except IntegrityError:
+        # Another request may have created the same email after our initial
+        # lookup. Preserve the endpoint's enumeration-safe response contract.
+        session.rollback()
+        selected_user = session.exec(statement).first()
+        if selected_user and not selected_user.is_active:
+            background_tasks.add_task(
+                send_activation_email_in_background, selected_user.email
+            )
+        return _GENERIC_ACCOUNT_EMAIL_RESPONSE
+    background_tasks.add_task(send_activation_email_in_background, user.email)
     return _GENERIC_ACCOUNT_EMAIL_RESPONSE
 
 
@@ -181,9 +194,7 @@ def send_reset_password(
     access_token_expires = timedelta(
         minutes=SecurityConfig.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
     )
-    access_token = create_user_access_token(
-        selected_user, scopes, access_token_expires
-    )
+    access_token = create_user_access_token(selected_user, scopes, access_token_expires)
     password_reset_url = AppConfig.get_password_reset_url(access_token)
     background_tasks.add_task(
         send_email,

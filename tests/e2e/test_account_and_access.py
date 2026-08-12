@@ -27,7 +27,7 @@ def test_signup_activation_login_refresh_and_me(client, unique_email):
         },
     )
     assert signup.status_code == 202
-    assert len(httpx.get(f"{MAIL_URL}/messages").json()) == 1
+    _wait_for_mail_count(1)
 
     inactive_login = client.post(
         "/api/account/sessions",
@@ -72,11 +72,11 @@ def test_authentication_and_role_boundaries(client, active_hacker):
         client.get(
             "/api/admin/account/users", headers=active_hacker["headers"]
         ).status_code
-        == 401
+        == 403
     )
     assert (
         client.get("/api/volunteer/food", headers=active_hacker["headers"]).status_code
-        == 401
+        == 403
     )
 
     expired = token(active_hacker["email"], expires=timedelta(seconds=-1))
@@ -99,7 +99,7 @@ def test_live_role_and_account_state_revoke_existing_tokens(client, admin_identi
         f"WHERE email = '{admin_identity['email']}'"
     )
     assert (
-        client.get("/api/admin/account/users", headers=admin_headers).status_code == 401
+        client.get("/api/admin/account/users", headers=admin_headers).status_code == 403
     )
 
     db_query(

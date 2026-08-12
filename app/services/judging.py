@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, col, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert
 
 from app.models.forms import FormApplication, HackathonApplicant, StatusEnum
 from app.models.judging import (
@@ -25,8 +27,7 @@ def _eligible_application_ids(session: Session) -> list[uuid.UUID]:
         select(FormApplication.application_id)
         .join(
             HackathonApplicant,
-            HackathonApplicant.application_id
-            == FormApplication.application_id,
+            HackathonApplicant.application_id == FormApplication.application_id,
         )
         .where(
             FormApplication.is_draft.is_(False),
@@ -40,6 +41,23 @@ def sync_application_scores(session: Session) -> list[JudgingApplicationScore]:
     application_ids = _eligible_application_ids(session)
     if not application_ids:
         return []
+    now = datetime.now(timezone.utc)
+    session.exec(
+        insert(JudgingApplicationScore)
+        .values(
+            [
+                {
+                    "application_id": application_id,
+                    "mu": 0.0,
+                    "sigma_sq": 1.0,
+                    "comparison_count": 0,
+                    "updated_at": now,
+                }
+                for application_id in application_ids
+            ]
+        )
+        .on_conflict_do_nothing(index_elements=["application_id"])
+    )
     existing = {
         score.application_id: score
         for score in session.exec(
@@ -48,28 +66,30 @@ def sync_application_scores(session: Session) -> list[JudgingApplicationScore]:
             )
         ).all()
     }
-    for application_id in application_ids:
-        if application_id not in existing:
-            score = JudgingApplicationScore(application_id=application_id)
-            session.add(score)
-            existing[application_id] = score
-    session.flush()
     return [existing[application_id] for application_id in application_ids]
 
 
 def get_or_create_judge_state(
     session: Session, judge_id: uuid.UUID, *, lock: bool = False
 ) -> JudgingJudgeState:
-    statement = select(JudgingJudgeState).where(
-        JudgingJudgeState.judge_id == judge_id
+    session.exec(
+        insert(JudgingJudgeState)
+        .values(
+            judge_id=judge_id,
+            alpha=10.0,
+            beta=1.0,
+            left_application_id=None,
+            right_application_id=None,
+            updated_at=datetime.now(timezone.utc),
+        )
+        .on_conflict_do_nothing(index_elements=["judge_id"])
     )
+    statement = select(JudgingJudgeState).where(JudgingJudgeState.judge_id == judge_id)
     if lock:
         statement = statement.with_for_update()
     state = session.exec(statement).first()
     if state is None:
-        state = JudgingJudgeState(judge_id=judge_id)
-        session.add(state)
-        session.flush()
+        raise RuntimeError("Judge state could not be created")
     return state
 
 
@@ -88,9 +108,7 @@ def _seen_ids(session: Session, judge_id: uuid.UUID) -> set[uuid.UUID]:
 
 
 def _busy_ids(session: Session, judge_id: uuid.UUID) -> set[uuid.UUID]:
-    cutoff = datetime.now(timezone.utc) - timedelta(
-        minutes=ASSIGNMENT_TIMEOUT_MINUTES
-    )
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=ASSIGNMENT_TIMEOUT_MINUTES)
     states = session.exec(
         select(JudgingJudgeState).where(
             JudgingJudgeState.judge_id != judge_id,
@@ -261,6 +279,26 @@ def record_vote(
         loser_application_id=loser_application_id,
     )
     session.add_all([state, winner, loser, decision])
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as error:
+        # request_id is the idempotency key. A concurrent retry may commit
+        # while this transaction waits on score locks; reload its decision.
+        session.rollback()
+        duplicate = session.exec(
+            select(JudgingDecision).where(JudgingDecision.request_id == request_id)
+        ).first()
+        if duplicate is None:
+            raise
+        if duplicate.judge_id != judge_id:
+            raise ValueError(
+                "Request ID has already been used by another judge"
+            ) from error
+        winner = session.get(JudgingApplicationScore, duplicate.winner_application_id)
+        loser = session.get(JudgingApplicationScore, duplicate.loser_application_id)
+        state = session.get(JudgingJudgeState, judge_id)
+        if winner is None or loser is None or state is None:
+            raise RuntimeError("Decision references missing score state") from error
+        return duplicate, winner, loser, state.alpha / (state.alpha + state.beta)
     session.refresh(decision)
     return decision, winner, loser, state.alpha / (state.alpha + state.beta)

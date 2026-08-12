@@ -1,4 +1,3 @@
-from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
@@ -17,7 +16,11 @@ def test_wallet_missing_files(monkeypatch):
 
 @pytest.mark.parametrize(
     "setting",
-    ["APPLE_TEAM_IDENTIFIER", "APPLE_PASS_TYPE_IDENTIFIER", "APPLE_WALLET_KEY_PASSWORD"],
+    [
+        "APPLE_TEAM_IDENTIFIER",
+        "APPLE_PASS_TYPE_IDENTIFIER",
+        "APPLE_WALLET_KEY_PASSWORD",
+    ],
 )
 def test_apple_wallet_required_configuration(monkeypatch, setting):
     monkeypatch.setattr(wallet.Path, "exists", lambda _self: True)
@@ -40,7 +43,9 @@ def test_google_wallet_required_configuration_and_success(monkeypatch):
     with pytest.raises(RuntimeError, match="CLASS"):
         wallet.generate_google_wallet_pass("User", "app-id")
 
-    credentials = SimpleNamespace(service_account_email="e2e@example.com", signer=object())
+    credentials = SimpleNamespace(
+        service_account_email="e2e@example.com", signer=object()
+    )
     monkeypatch.setattr(AppConfig, "GOOGLE_WALLET_CLASS_ID", "class")
     monkeypatch.setattr(
         wallet.service_account.Credentials,

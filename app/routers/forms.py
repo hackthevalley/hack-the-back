@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, status
 from sqlmodel import col, select
 
 from app.cache import cache
@@ -20,6 +20,7 @@ from app.services.resume_uploads import upload_resume as store_resume
 
 router = APIRouter()
 
+
 @router.get("/questions")
 def get_questions(session: SessionDep) -> list[FormQuestion]:
     def fetch_questions() -> list[FormQuestion]:
@@ -29,9 +30,7 @@ def get_questions(session: SessionDep) -> list[FormQuestion]:
             ).all()
         )
 
-    return cache.get_or_set(
-        "form_questions", fetch_questions, timedelta(minutes=10)
-    )
+    return cache.get_or_set("form_questions", fetch_questions, timedelta(minutes=10))
 
 
 @router.get("/application", response_model=ApplicationResponse)
@@ -64,8 +63,9 @@ def upload_resume(
 def submit(
     current_user: Annotated[AccountUser, Depends(get_current_user)],
     session: SessionDep,
+    background_tasks: BackgroundTasks,
 ) -> str:
-    return submit_application(session, current_user)
+    return submit_application(session, current_user, background_tasks.add_task)
 
 
 @router.get("/submission-time")

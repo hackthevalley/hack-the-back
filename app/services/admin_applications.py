@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -28,7 +29,7 @@ from app.models.forms import (
 )
 from app.models.judging import JudgingApplicationScore
 from app.models.user import AccountUser
-from app.services.email import send_rsvp
+from app.services.email import send_rsvp_safely
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +54,7 @@ def sanitize_filename(filename: str) -> str:
 
 def get_resume_metadata(session: Session, application_id: UUID) -> tuple[Path, str]:
     resume = session.exec(
-        select(FormAnswerFile).where(
-            FormAnswerFile.application_id == application_id
-        )
+        select(FormAnswerFile).where(FormAnswerFile.application_id == application_id)
     ).first()
     if not resume or not resume.file_path:
         raise ServiceError(status_code=404, detail="Resume not found")
@@ -69,9 +68,7 @@ def get_resume_metadata(session: Session, application_id: UUID) -> tuple[Path, s
 
 def get_application_detail(session: Session, application_id: UUID) -> dict:
     application = session.exec(
-        select(FormApplication).where(
-            FormApplication.application_id == application_id
-        )
+        select(FormApplication).where(FormApplication.application_id == application_id)
     ).first()
     if application is None:
         raise ServiceError(status_code=404, detail="Application not found")
@@ -171,15 +168,13 @@ def list_applications(
                 col(AccountUser.first_name).ilike(pattern),
                 col(AccountUser.last_name).ilike(pattern),
                 col(AccountUser.email).ilike(pattern),
-                (
-                    col(AccountUser.first_name) + " " + col(AccountUser.last_name)
-                ).ilike(pattern),
+                (col(AccountUser.first_name) + " " + col(AccountUser.last_name)).ilike(
+                    pattern
+                ),
             )
         )
     if application_status:
-        statement = statement.where(
-            HackathonApplicant.status == application_status
-        )
+        statement = statement.where(HackathonApplicant.status == application_status)
     if level_of_study and level_question:
         statement = statement.where(
             func.lower(level_answer.answer) == level_of_study.lower()
@@ -252,6 +247,7 @@ def update_application_status(
     session: Session,
     application_id: str,
     new_status: StatusEnum,
+    enqueue: Callable[..., None] | None = None,
 ) -> dict:
     result = session.exec(
         select(FormApplication, AccountUser)
@@ -284,13 +280,8 @@ def update_application_status(
         ) from error
 
     if new_status == StatusEnum.ACCEPTED and previous_status != StatusEnum.ACCEPTED:
-        try:
-            send_rsvp(user.email, user.full_name, application_id)
-        except Exception:
-            logger.exception(
-                "Application %s was accepted, but its RSVP could not be sent",
-                application_id,
-            )
+        schedule = enqueue or (lambda task, *args: task(*args))
+        schedule(send_rsvp_safely, user.email, user.full_name, application_id)
 
     return {
         "application_id": application_id,

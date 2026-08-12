@@ -1,5 +1,6 @@
 import base64
 import io
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -15,6 +16,8 @@ from app.models.constants import EmailMessage, EmailSubject, EmailTemplate, Toke
 from app.models.user import AccountUser
 from app.services.tokens import create_user_access_token
 from app.services.wallet import generate_google_wallet_pass
+
+logger = logging.getLogger(__name__)
 
 
 def send_email(
@@ -55,10 +58,24 @@ def send_email(
         "Content-Type": "application/json",
         "X-Postmark-Server-Token": EmailConfig.POSTMARK_API_KEY,
     }
-    with httpx.Client() as client:
-        response = client.post(EmailConfig.POSTMARK_URL, json=data, headers=headers)
-    response.raise_for_status()
-    return (response.status_code, response.json())
+    timeout = httpx.Timeout(10.0, connect=5.0)
+    transport = httpx.HTTPTransport(retries=2)
+    with httpx.Client(timeout=timeout, transport=transport) as client:
+        for attempt in range(3):
+            try:
+                response = client.post(
+                    EmailConfig.POSTMARK_URL, json=data, headers=headers
+                )
+            except httpx.RequestError:
+                if attempt == 2:
+                    raise
+                continue
+            if response.status_code == 429 or response.status_code >= 500:
+                if attempt < 2:
+                    continue
+            response.raise_for_status()
+            return (response.status_code, response.json())
+    raise RuntimeError("Postmark request exhausted retries")
 
 
 def send_activation_email(email: str, session: Session) -> tuple[int, Any]:
@@ -66,13 +83,9 @@ def send_activation_email(email: str, session: Session) -> tuple[int, Any]:
         select(AccountUser).where(AccountUser.email == email)
     ).first()
     if not selected_user:
-        raise ServiceError(
-            status_code=404, detail="User does not exist"
-        )
+        raise ServiceError(status_code=404, detail="User does not exist")
     if selected_user.is_active:
-        raise ServiceError(
-            status_code=404, detail="User already activated"
-        )
+        raise ServiceError(status_code=404, detail="User already activated")
 
     now = datetime.now(timezone.utc)
     cooldown = timedelta(minutes=SecurityConfig.ACTIVATION_EMAIL_COOLDOWN_MINUTES)
@@ -103,6 +116,36 @@ def send_activation_email(email: str, session: Session) -> tuple[int, Any]:
     session.add(selected_user)
     session.commit()
     return result
+
+
+def send_activation_email_in_background(email: str) -> None:
+    """Send activation mail with a fresh session after the HTTP response."""
+    from app.core.db import engine
+
+    try:
+        with Session(engine) as session:
+            send_activation_email(email, session)
+    except ServiceError as error:
+        if error.status_code != 429:
+            logger.warning(
+                "Activation email for %s was not sent: %s", email, error.detail
+            )
+    except Exception:
+        logger.exception("Activation email for %s could not be sent", email)
+
+
+def send_email_safely(*args, **kwargs) -> None:
+    try:
+        send_email(*args, **kwargs)
+    except Exception:
+        logger.exception("Background email could not be sent")
+
+
+def send_rsvp_safely(user_email: str, user_full_name: str, application_id: str) -> None:
+    try:
+        send_rsvp(user_email, user_full_name, application_id)
+    except Exception:
+        logger.exception("RSVP for application %s could not be sent", application_id)
 
 
 def create_qr_code(application_id: str):
