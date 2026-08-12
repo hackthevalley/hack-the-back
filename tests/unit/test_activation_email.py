@@ -1,9 +1,12 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import httpx
+import pytest
 from jinja2 import Template
 
 from app.config import AppConfig
+from app.core.errors import ServiceError
 from app.services import email as email_service
 
 
@@ -140,3 +143,140 @@ def test_activation_email_failure_does_not_start_cooldown(monkeypatch):
 
     assert user.last_activation_email_sent is None
     assert session.commits == 0
+
+
+def test_send_email_retries_transient_statuses(monkeypatch, tmp_path):
+    template = tmp_path / "email.html"
+    template.write_text("Hello {{ name }}", encoding="utf-8")
+    responses = [
+        httpx.Response(500, request=httpx.Request("POST", "https://postmark.test")),
+        httpx.Response(429, request=httpx.Request("POST", "https://postmark.test")),
+        httpx.Response(
+            200,
+            json={"Message": "OK"},
+            request=httpx.Request("POST", "https://postmark.test"),
+        ),
+    ]
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def post(self, *_args, **_kwargs):
+            return responses.pop(0)
+
+    monkeypatch.setattr(email_service.httpx, "Client", Client)
+
+    status_code, body = email_service.send_email(
+        str(template),
+        "hacker@example.com",
+        "Subject",
+        "Text",
+        {"name": "Hacker"},
+    )
+
+    assert status_code == 200
+    assert body == {"Message": "OK"}
+    assert responses == []
+
+
+def test_send_email_retries_request_errors_then_raises(monkeypatch, tmp_path):
+    template = tmp_path / "email.html"
+    template.write_text("Hello", encoding="utf-8")
+    attempts = 0
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def post(self, *_args, **_kwargs):
+            nonlocal attempts
+            attempts += 1
+            raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr(email_service.httpx, "Client", Client)
+
+    with pytest.raises(httpx.ConnectError):
+        email_service.send_email(
+            str(template), "hacker@example.com", "Subject", "Text", {}
+        )
+    assert attempts == 3
+
+
+def test_background_email_helpers_contain_failures(monkeypatch):
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(email_service, "send_email", fail)
+    monkeypatch.setattr(email_service, "send_rsvp", fail)
+
+    assert email_service.send_email_safely("template", "receiver") is None
+    assert email_service.send_rsvp_safely("email", "name", "application") is None
+
+
+def test_background_activation_uses_fresh_session(monkeypatch):
+    calls = []
+
+    class Session:
+        def __init__(self, engine):
+            calls.append(("session", engine))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+    monkeypatch.setattr(email_service, "Session", Session)
+    monkeypatch.setattr(
+        email_service,
+        "send_activation_email",
+        lambda email, session: calls.append((email, session)),
+    )
+
+    email_service.send_activation_email_in_background("hacker@example.com")
+
+    assert calls[1][0] == "hacker@example.com"
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ServiceError(status_code=429, detail="cooldown"),
+        ServiceError(status_code=503, detail="provider unavailable"),
+        RuntimeError("unexpected"),
+    ],
+)
+def test_background_activation_contains_failures(monkeypatch, error):
+    class Session:
+        def __init__(self, _engine):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+    monkeypatch.setattr(email_service, "Session", Session)
+    monkeypatch.setattr(
+        email_service,
+        "send_activation_email",
+        lambda *_args: (_ for _ in ()).throw(error),
+    )
+
+    assert (
+        email_service.send_activation_email_in_background("hacker@example.com") is None
+    )

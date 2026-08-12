@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.models.judging import (
     JudgingApplicationScore,
@@ -260,6 +261,105 @@ def test_record_vote_updates_scores_and_state():
     assert state.right_application_id is None
     assert reliability == pytest.approx(11 / 13)
     session.commit.assert_called_once()
+
+
+def test_record_vote_recovers_concurrent_idempotent_commit():
+    judge_id = uuid.uuid4()
+    request_id = uuid.uuid4()
+    left, right = score(), score()
+    state = JudgingJudgeState(
+        judge_id=judge_id,
+        left_application_id=left.application_id,
+        right_application_id=right.application_id,
+    )
+    duplicate = JudgingDecision(
+        request_id=request_id,
+        judge_id=judge_id,
+        winner_application_id=left.application_id,
+        loser_application_id=right.application_id,
+    )
+    session = MagicMock()
+    session.exec.side_effect = [
+        result(first=None),
+        result(all_values=(left, right)),
+        result(first=duplicate),
+    ]
+    session.commit.side_effect = IntegrityError("insert", {}, Exception("duplicate"))
+    session.get.side_effect = [left, right, state]
+    update = SimpleNamespace(
+        alpha=11.0,
+        beta=2.0,
+        winner_mu=0.5,
+        winner_sigma_sq=0.8,
+        loser_mu=-0.5,
+        loser_sigma_sq=0.8,
+    )
+
+    with (
+        patch.object(judging, "get_or_create_judge_state", return_value=state),
+        patch.object(judging.crowd_bt, "update", return_value=update),
+    ):
+        returned = judging.record_vote(
+            session,
+            judge_id,
+            request_id,
+            left.application_id,
+            right.application_id,
+            left.application_id,
+        )
+
+    assert returned[:3] == (duplicate, left, right)
+    assert returned[3] == pytest.approx(11 / 13)
+    session.rollback.assert_called_once()
+
+
+def test_record_vote_rejects_concurrent_request_id_owned_by_another_judge():
+    judge_id = uuid.uuid4()
+    request_id = uuid.uuid4()
+    left, right = score(), score()
+    state = JudgingJudgeState(
+        judge_id=judge_id,
+        left_application_id=left.application_id,
+        right_application_id=right.application_id,
+    )
+    duplicate = JudgingDecision(
+        request_id=request_id,
+        judge_id=uuid.uuid4(),
+        winner_application_id=left.application_id,
+        loser_application_id=right.application_id,
+    )
+    session = MagicMock()
+    session.exec.side_effect = [
+        result(first=None),
+        result(all_values=(left, right)),
+        result(first=duplicate),
+    ]
+    session.commit.side_effect = IntegrityError("insert", {}, Exception("duplicate"))
+
+    with (
+        patch.object(judging, "get_or_create_judge_state", return_value=state),
+        patch.object(
+            judging.crowd_bt,
+            "update",
+            return_value=SimpleNamespace(
+                alpha=11.0,
+                beta=2.0,
+                winner_mu=0.5,
+                winner_sigma_sq=0.8,
+                loser_mu=-0.5,
+                loser_sigma_sq=0.8,
+            ),
+        ),
+        pytest.raises(ValueError, match="another judge"),
+    ):
+        judging.record_vote(
+            session,
+            judge_id,
+            request_id,
+            left.application_id,
+            right.application_id,
+            left.application_id,
+        )
 
 
 def test_admin_judging_endpoints():
