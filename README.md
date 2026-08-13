@@ -1,4 +1,5 @@
 # hack-the-back
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hackthevalley/hack-the-back)
 
 ## Local development with Docker
 
