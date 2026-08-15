@@ -3,14 +3,23 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import bcrypt
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from fastapi.responses import Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.config import AppConfig, SecurityConfig
 from app.core.db import SessionDep
+from app.core.errors import ServiceError
 from app.core.orm import eager_load
 from app.models.constants import (
     EmailMessage,
@@ -28,6 +37,11 @@ from app.services.tokens import (
     create_user_access_token,
     decode_token,
     scopes_for_user,
+)
+from app.services.refresh_sessions import (
+    create_refresh_session,
+    revoke_refresh_session,
+    rotate_refresh_session,
 )
 from app.services.email import (
     send_activation_email_in_background,
@@ -54,11 +68,34 @@ def _invalid_login() -> HTTPException:
     )
 
 
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=SecurityConfig.REFRESH_COOKIE_NAME,
+        value=token,
+        max_age=SecurityConfig.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/api/account/tokens",
+        secure=SecurityConfig.REFRESH_COOKIE_SECURE,
+        httponly=True,
+        samesite=SecurityConfig.REFRESH_COOKIE_SAMESITE,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=SecurityConfig.REFRESH_COOKIE_NAME,
+        path="/api/account/tokens",
+        secure=SecurityConfig.REFRESH_COOKIE_SECURE,
+        httponly=True,
+        samesite=SecurityConfig.REFRESH_COOKIE_SAMESITE,
+    )
+
+
 @router.post("/sessions")
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: SessionDep,
     background_tasks: BackgroundTasks,
+    response: Response,
 ) -> Token:
     statement = select(AccountUser).where(AccountUser.email == form_data.username)
     selected_user = session.exec(statement).first()
@@ -108,6 +145,9 @@ def login(
     scopes = scopes_for_user(selected_user)
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_user_access_token(selected_user, scopes, access_token_expires)
+    _, refresh_token = create_refresh_session(session, selected_user)
+    session.commit()
+    _set_refresh_cookie(response, refresh_token)
     return Token(access_token=access_token, token_type="bearer")
 
 
@@ -268,13 +308,39 @@ def activate(user: UserUpdate, session: SessionDep) -> bool:
 
 @router.post("/tokens")
 def refresh(
-    current_user: Annotated[AccountUser, Depends(get_current_user)],
+    request: Request,
+    response: Response,
+    session: SessionDep,
 ) -> Token:
+    refresh_token = request.cookies.get(SecurityConfig.REFRESH_COOKIE_NAME)
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token required",
+        )
+    try:
+        current_user, replacement_token = rotate_refresh_session(session, refresh_token)
+    except ServiceError as error:
+        _clear_refresh_cookie(response)
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.detail,
+            headers={"Set-Cookie": response.headers["set-cookie"]},
+        ) from error
     access_token_expires = timedelta(minutes=SecurityConfig.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_user_access_token(
         current_user, scopes_for_user(current_user), access_token_expires
     )
+    _set_refresh_cookie(response, replacement_token)
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.delete("/tokens", status_code=status.HTTP_204_NO_CONTENT)
+def logout(request: Request, response: Response, session: SessionDep) -> None:
+    revoke_refresh_session(
+        session, request.cookies.get(SecurityConfig.REFRESH_COOKIE_NAME)
+    )
+    _clear_refresh_cookie(response)
 
 
 @router.get("/apple-wallet/{application_id}")

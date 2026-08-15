@@ -2,6 +2,7 @@ import time
 from datetime import timedelta
 
 import httpx
+import jwt
 
 from .conftest import MAIL_URL, PASSWORD, db_query, token
 
@@ -56,12 +57,20 @@ def test_signup_activation_login_refresh_and_me(client, unique_email):
         data={"username": unique_email, "password": PASSWORD},
     )
     assert login.status_code == 200
+    access_claims = jwt.decode(
+        login.json()["access_token"], options={"verify_signature": False}
+    )
+    assert access_claims["exp"] - access_claims["iat"] == 15 * 60
+    cookie_header = login.headers["set-cookie"]
+    assert "HttpOnly" in cookie_header
+    assert "SameSite=lax" in cookie_header
+    assert "Path=/api/account/tokens" in cookie_header
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
     me = client.get("/api/account/me", headers=headers)
     assert me.status_code == 200
     assert me.json()["email"] == unique_email
 
-    refresh = client.post("/api/account/tokens", headers=headers)
+    refresh = client.post("/api/account/tokens")
     assert refresh.status_code == 200
     assert refresh.json()["access_token"]
 
@@ -219,13 +228,8 @@ def test_account_validation_and_failure_paths(client, active_hacker):
         ).status_code
         == 401
     )
-    assert (
-        client.post(
-            "/api/account/tokens",
-            headers={"Authorization": f"Bearer {wrong_scope}"},
-        ).status_code
-        == 401
-    )
+    client.cookies.clear()
+    assert client.post("/api/account/tokens").status_code == 401
 
     assert (
         client.get(
@@ -233,6 +237,32 @@ def test_account_validation_and_failure_paths(client, active_hacker):
         ).status_code
         == 404
     )
+
+
+def test_refresh_rotation_reuse_detection_and_logout(client, active_hacker):
+    cookie_name = "htv_refresh"
+    original = client.cookies.get(cookie_name)
+    assert original
+
+    refreshed = client.post("/api/account/tokens")
+    assert refreshed.status_code == 200
+    replacement = client.cookies.get(cookie_name)
+    assert replacement and replacement != original
+
+    client.cookies.set(cookie_name, original, path="/api/account/tokens")
+    replay = client.post("/api/account/tokens")
+    assert replay.status_code == 401
+
+    client.cookies.set(cookie_name, replacement, path="/api/account/tokens")
+    assert client.post("/api/account/tokens").status_code == 401
+
+    login = client.post(
+        "/api/account/sessions",
+        data={"username": active_hacker["email"], "password": PASSWORD},
+    )
+    assert login.status_code == 200
+    assert client.delete("/api/account/tokens").status_code == 204
+    assert client.post("/api/account/tokens").status_code == 401
 
 
 def test_inactive_account_resends_are_generic_and_throttled(client, unique_email):
