@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from functools import lru_cache
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -30,7 +30,12 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    REFRESH_TOKEN_IDLE_DAYS: int = 7
+    REFRESH_COOKIE_NAME: str = "htv_refresh"
+    REFRESH_COOKIE_SECURE: bool = True
+    REFRESH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     ACTIVATION_TOKEN_EXPIRE_MINUTES: int = 60
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 15
     PASSWORD_RESET_COOLDOWN_MINUTES: int = 15

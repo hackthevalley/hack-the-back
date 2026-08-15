@@ -45,6 +45,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@e2e-db:5432/hack_the_back_e2e
       SECRET_KEY: e2e-only-secret-key-not-for-production
+      REFRESH_COOKIE_SECURE: "false"
       POSTMARK_KEY: e2e-postmark-key
       POSTMARK_URL: http://e2e-mail:8080/email
       FRONTEND_URL: http://frontend.e2e.test
