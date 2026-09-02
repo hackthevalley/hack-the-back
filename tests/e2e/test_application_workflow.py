@@ -27,12 +27,37 @@ def test_complete_application_submission_and_admin_review(
     for question in questions:
         if "resume" not in question["label"].lower():
             values = {
-                "School Name": "University of Toronto",
-                "Current Level of Study": "Undergraduate",
+                "Phone Number": "+1 416 555 1234",
+                "Country": "Canada",
+                "School Name": "University of Toronto (St. George)",
+                "Major": "Computer Science",
+                "Current Level of Study": "Freshman - Undergraduate",
+                "Expected Graduation Year": "2029",
+                "Age": "18",
                 "Gender": "Prefer not to say",
+                "Race/Ethnicity (Select all that apply)": '["Prefer not to say"]',
+                "Part of the LGBTQ+ Community": "Prefer not to say",
+                "Person with Disabilities?": "Prefer not to say",
+                "Hackathon Count?": "0",
+                "Avatar": "owl",
+                "Accessory": "hat",
                 "Github": "https://github.com/hackthevalley",
                 "LinkedIn": "https://www.linkedin.com/company/hack-the-valley",
                 "Devpost": "https://hackthevalley.devpost.com",
+                "Portfolio": "https://hackthevalley.io",
+                "UI/UX Design": "Beginner",
+                "Frontend Development": "Beginner",
+                "Backend Development": "Beginner",
+                "Fullstack Development": "Beginner",
+                "Project Management": "Beginner",
+                "Web, Crypto, Blockchain": "Beginner",
+                "Cybersecurity": "Beginner",
+                "Machine Learning": "Beginner",
+                "T-Shirt Size": "M",
+                "MLH Code of Conduct": "true",
+                "MLH Privacy Policy, MLH Contest Terms and Conditions": "true",
+                "MLH Event Communication": "false",
+                "Hack the Valley Consent Form Agreement": "true",
             }
             answers.append(
                 {
@@ -209,6 +234,15 @@ def test_form_validation_upload_limits_and_prefilled_fields(client, active_hacke
     )
     assert invalid_profile.status_code == 400
     assert "github.com" in invalid_profile.json()["detail"]
+
+    country = next(q for q in questions if q["label"] == "Country")
+    invalid_dropdown = client.put(
+        "/api/forms/answers",
+        json=[{"question_id": country["question_id"], "answer": "Answer 1"}],
+        headers=active_hacker["headers"],
+    )
+    assert invalid_dropdown.status_code == 400
+    assert invalid_dropdown.json()["detail"] == "Invalid option for Country"
 
     wrong_type = client.post(
         "/api/forms/resume",

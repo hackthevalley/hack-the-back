@@ -1,4 +1,14 @@
+import json
+import re
+from collections.abc import Collection
 from urllib.parse import urlsplit
+
+from app.data.form_answer_config import (
+    CHOICE_OPTIONS,
+    INTEGER_RANGES,
+    PROFILE_HOSTS,
+    RACE_ETHNICITY_OPTIONS,
+)
 
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
@@ -33,11 +43,66 @@ def validate_password_requirements(password: str) -> str:
     return password
 
 
-PROFILE_HOSTS = {
-    "github": "github.com",
-    "linkedin": "linkedin.com",
-    "devpost": "devpost.com",
-}
+def _validate_choice(label: str, value: str, options: Collection[str]) -> None:
+    if value not in options:
+        raise ValueError(f"Invalid option for {label}")
+
+
+def _validate_multi_choice(label: str, value: str) -> None:
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        parsed = [value]
+    if not isinstance(parsed, list) or not parsed or not all(
+        isinstance(option, str) for option in parsed
+    ):
+        raise ValueError(f"Invalid option for {label}")
+    if len(parsed) != len(set(parsed)) or any(
+        option not in RACE_ETHNICITY_OPTIONS for option in parsed
+    ):
+        raise ValueError(f"Invalid option for {label}")
+
+
+def _validate_web_url(label: str, value: str) -> None:
+    try:
+        parsed = urlsplit(value)
+    except ValueError as error:
+        raise ValueError(f"Enter a valid URL for {label}") from error
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValueError(f"Enter a valid URL for {label}")
+
+
+def validate_form_answer(question_label: str, value: str | None) -> str | None:
+    """Enforce form field constraints independently of the frontend."""
+    if value is None or not value.strip():
+        return value
+    value = value.strip()
+
+    options = CHOICE_OPTIONS.get(question_label)
+    if options is not None:
+        _validate_choice(question_label, value, options)
+    elif question_label == "Race/Ethnicity (Select all that apply)":
+        _validate_multi_choice(question_label, value)
+    elif question_label in INTEGER_RANGES:
+        minimum, maximum = INTEGER_RANGES[question_label]
+        if not re.fullmatch(r"\d+", value) or not minimum <= int(value) <= maximum:
+            raise ValueError(f"Invalid value for {question_label}")
+    elif question_label == "Phone Number":
+        if not re.fullmatch(r"[+()\-.\s\d]+", value):
+            raise ValueError("Enter a valid phone number")
+        digit_count = sum(character.isdigit() for character in value)
+        if not 7 <= digit_count <= 15:
+            raise ValueError("Enter a valid phone number")
+    elif question_label == "Portfolio":
+        _validate_web_url(question_label, value)
+
+    validate_profile_url(question_label, value)
+    return value
 
 
 def validate_profile_url(

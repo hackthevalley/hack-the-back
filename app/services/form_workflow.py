@@ -24,7 +24,7 @@ from app.models.user import AccountUser
 from app.schemas.forms import FormAnswerUpdate
 from app.services.applications import create_application, is_valid_submission_time
 from app.services.email import send_email_safely, send_rsvp_safely
-from app.validators import validate_profile_url
+from app.validators import validate_form_answer
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def save_answers(
             if QuestionLabel.is_prefilled_field(question.label):
                 continue
             try:
-                validate_profile_url(question.label, update.answer)
+                validate_form_answer(question.label, update.answer)
             except ValueError as error:
                 raise ServiceError(status_code=400, detail=str(error)) from error
         bulk_updates.append({"id": answer.id, "answer": update.answer})
@@ -152,6 +152,11 @@ def submit_application(
                 status_code=400,
                 detail=f"Required field not answered: {question.label}",
             )
+        if question:
+            try:
+                validate_form_answer(question.label, answer.answer)
+            except ValueError as error:
+                raise ServiceError(status_code=400, detail=str(error)) from error
     if (
         application.form_answer_files is None
         or application.form_answer_files.original_filename is None

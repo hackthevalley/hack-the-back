@@ -86,3 +86,52 @@ def test_profile_url_validation_allows_optional_and_unrelated_answers():
     assert validators.validate_profile_url("School Name", "Example University") == (
         "Example University"
     )
+
+
+@pytest.mark.parametrize(
+    ("label", "answer"),
+    [
+        ("Country", "Canada"),
+        ("School Name", "University of Toronto (Scarborough)"),
+        ("Expected Graduation Year", "2027"),
+        ("Age", "18"),
+        ("Hackathon Count?", "0"),
+        ("Phone Number", "+1 (416) 555-1234"),
+        ("Race/Ethnicity (Select all that apply)", '["Other"]'),
+        ("Avatar", "owl"),
+        ("Accessory", "hat"),
+        ("UI/UX Design", "Beginner"),
+        ("MLH Event Communication", "false"),
+        ("Portfolio", "https://example.com/portfolio"),
+    ],
+)
+def test_form_answer_validation_accepts_frontend_values(label, answer):
+    assert validators.validate_form_answer(label, answer) == answer
+
+
+@pytest.mark.parametrize(
+    ("label", "answer"),
+    [
+        ("Country", "Answer 1"),
+        ("School Name", "Answer 1"),
+        ("Expected Graduation Year", "Answer 1"),
+        ("Age", "0"),
+        ("Hackathon Count?", "-1"),
+        ("Phone Number", "Answer 1"),
+        ("Race/Ethnicity (Select all that apply)", '["Answer 1"]'),
+        ("Race/Ethnicity (Select all that apply)", '{"Other": true}'),
+        ("Avatar", "Answer 1"),
+        ("Accessory", "Answer 1"),
+        ("Frontend Development", "Answer 1"),
+        ("MLH Code of Conduct", "Answer 1"),
+        ("Portfolio", "not a URL"),
+    ],
+)
+def test_form_answer_validation_rejects_api_only_values(label, answer):
+    with pytest.raises(ValueError):
+        validators.validate_form_answer(label, answer)
+
+
+def test_form_answer_validation_allows_empty_draft_values():
+    assert validators.validate_form_answer("Country", "") == ""
+    assert validators.validate_form_answer("Country", None) is None
