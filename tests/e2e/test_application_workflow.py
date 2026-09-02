@@ -100,9 +100,9 @@ def test_complete_application_submission_and_admin_review(
     filtered = client.get(
         "/api/admin/account/applications",
         params={
-            "level_of_study": "undergraduate",
+            "level_of_study": "freshman - undergraduate",
             "gender": "prefer not to say",
-            "school": "university of toronto",
+            "school": "university of toronto (st. george)",
             "date_sort": "oldest",
         },
         headers=admin_headers,
