@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 
+from alembic.script import ScriptDirectory
+
 from .conftest import ROOT, db_query, restart_api
 
 
@@ -15,7 +17,9 @@ EXPECTED_MEALS = {
 
 
 def test_seed_contract_matches_source_data(client, admin_headers):
-    assert db_query("SELECT version_num FROM alembic_version") == ["a31f0e8c4d12"]
+    expected_head = ScriptDirectory(str(ROOT / "alembic")).get_current_head()
+    assert expected_head is not None
+    assert db_query("SELECT version_num FROM alembic_version") == [expected_head]
     expected_questions = json.loads(
         (ROOT / "app/data/form_questions.json").read_text(encoding="utf-8")
     )
