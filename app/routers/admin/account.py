@@ -3,12 +3,13 @@ from pathlib import Path
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlmodel import select
 
 from app.config import EmailConfig
 from app.core.db import SessionDep
+from app.dependencies.auth import get_current_user
 from app.models.constants import RankingSort, SortOrder
 from app.models.bulk_email import BulkEmailJob
 from app.models.forms import FormApplication, StatusEnum
@@ -92,12 +93,15 @@ def list_applications(
 
 @router.patch("/applications/{application_id}/status")
 def update_application_status(
-    application_id: str,
+    application_id: UUID,
     request: StatusEnum,
     session: SessionDep,
     background_tasks: BackgroundTasks,
+    current_user: Annotated[AccountUser, Depends(get_current_user)],
 ) -> dict[str, Any]:
-    return update_status(session, application_id, request, background_tasks.add_task)
+    return update_status(
+        session, application_id, request, background_tasks.add_task, admin=current_user
+    )
 
 
 @router.post("/bulk-emails")

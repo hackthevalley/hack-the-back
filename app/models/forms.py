@@ -137,3 +137,20 @@ class FormAnswerFile(SQLModel, table=True):
     applicant: Optional["FormApplication"] = Relationship(
         back_populates="form_answer_files"
     )
+
+
+class ApplicationStatusHistory(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "application_status_history"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    application_id: uuid.UUID = Field(
+        foreign_key="forms_application.application_id", index=True
+    )
+    admin_id: uuid.UUID = Field(foreign_key="account_user.uid")
+    admin_name: str
+    admin_email: str
+    previous_status: str
+    new_status: str
+    changed_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )

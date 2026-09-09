@@ -20,6 +20,7 @@ from app.models.constants import (
     SortOrder,
 )
 from app.models.forms import (
+    ApplicationStatusHistory,
     FormAnswer,
     FormAnswerFile,
     FormApplication,
@@ -73,6 +74,12 @@ def get_application_detail(session: Session, application_id: UUID) -> dict:
     if application is None:
         raise ServiceError(status_code=404, detail="Application not found")
     return {
+        "status_history": session.exec(
+            select(ApplicationStatusHistory)
+            .where(ApplicationStatusHistory.application_id == application_id)
+            .order_by(col(ApplicationStatusHistory.changed_at).desc(),
+                      col(ApplicationStatusHistory.id).desc())
+        ).all(),
         "application": application,
         "form_answers": application.form_answers,
         "form_answer_files": application.form_answer_files.original_filename
@@ -245,9 +252,11 @@ def list_applications(
 
 def update_application_status(
     session: Session,
-    application_id: str,
+    application_id: UUID,
     new_status: StatusEnum,
     enqueue: Callable[..., None] | None = None,
+    *,
+    admin: AccountUser,
 ) -> dict:
     result = session.exec(
         select(FormApplication, AccountUser)
@@ -258,14 +267,37 @@ def update_application_status(
     if not result:
         raise ServiceError(status_code=404, detail="Application not found")
     application, user = result
-    applicant = application.hacker_applicant
+    # Lock and refresh the status row so concurrent admin decisions record
+    # the actual previous status, including when auth loaded it earlier.
+    applicant = session.exec(
+        select(HackathonApplicant)
+        .where(HackathonApplicant.application_id == application_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).first()
     if applicant is None:
         raise ServiceError(status_code=404, detail="Applicant status not found")
 
     previous_status = applicant.status
+    if previous_status == new_status:
+        return {
+            "application_id": application_id,
+            "new_status": new_status.value,
+            "updated_at": application.updated_at,
+        }
+
     try:
         applicant.status = new_status.value
         application.updated_at = datetime.now(timezone.utc)
+        session.add(ApplicationStatusHistory(
+            application_id=application.application_id,
+            admin_id=admin.uid,
+            admin_name=admin.full_name,
+            admin_email=str(admin.email),
+            previous_status=previous_status,
+            new_status=new_status.value,
+            changed_at=application.updated_at,
+        ))
         session.add(applicant)
         session.add(application)
         session.commit()
@@ -281,7 +313,7 @@ def update_application_status(
 
     if new_status == StatusEnum.ACCEPTED and previous_status != StatusEnum.ACCEPTED:
         schedule = enqueue or (lambda task, *args: task(*args))
-        schedule(send_rsvp_safely, user.email, user.full_name, application_id)
+        schedule(send_rsvp_safely, user.email, user.full_name, str(application_id))
 
     return {
         "application_id": application_id,
