@@ -242,7 +242,7 @@ def test_form_validation_upload_limits_and_prefilled_fields(client, active_hacke
         headers=active_hacker["headers"],
     )
     assert invalid_dropdown.status_code == 400
-    assert invalid_dropdown.json()["detail"] == "Invalid option for Country"
+    assert invalid_dropdown.json()["detail"] == "Country: Select a valid option from the available choices."
 
     wrong_type = client.post(
         "/api/forms/resume",

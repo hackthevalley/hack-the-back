@@ -76,7 +76,7 @@ def test_profile_url_validation_success(label, url):
     ],
 )
 def test_profile_url_validation_failure(label, url):
-    with pytest.raises(ValueError, match="valid"):
+    with pytest.raises(ValueError, match=label):
         validators.validate_profile_url(label, url)
 
 
@@ -135,3 +135,23 @@ def test_form_answer_validation_rejects_api_only_values(label, answer):
 def test_form_answer_validation_allows_empty_draft_values():
     assert validators.validate_form_answer("Country", "") == ""
     assert validators.validate_form_answer("Country", None) is None
+
+
+@pytest.mark.parametrize(
+    ("label", "answer", "expected"),
+    [
+        ("Github", "github.com/person", "must start with https://"),
+        ("LinkedIn", "http://linkedin.com/in/person", "must start with https://"),
+        ("Portfolio", "example.com", "Include https://"),
+        ("Github", "https://example.com/person", "profile URL on github.com"),
+        ("Github", "https://github.com", "including your profile path"),
+        ("Age", "abc", "Enter a whole number between"),
+        ("Phone Number", "123", "Enter 7 to 15 digits"),
+        ("Country", "Atlantis", "Select a valid option"),
+    ],
+)
+def test_form_validation_errors_explain_question_and_fix(label, answer, expected):
+    with pytest.raises(ValueError) as error:
+        validators.validate_form_answer(label, answer)
+    assert label in str(error.value)
+    assert expected in str(error.value)

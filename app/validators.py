@@ -45,7 +45,7 @@ def validate_password_requirements(password: str) -> str:
 
 def _validate_choice(label: str, value: str, options: Collection[str]) -> None:
     if value not in options:
-        raise ValueError(f"Invalid option for {label}")
+        raise ValueError(f"{label}: Select a valid option from the available choices.")
 
 
 def _validate_multi_choice(label: str, value: str) -> None:
@@ -56,25 +56,30 @@ def _validate_multi_choice(label: str, value: str) -> None:
     if not isinstance(parsed, list) or not parsed or not all(
         isinstance(option, str) for option in parsed
     ):
-        raise ValueError(f"Invalid option for {label}")
+        raise ValueError(f"{label}: Select a valid option from the available choices.")
     if len(parsed) != len(set(parsed)) or any(
         option not in RACE_ETHNICITY_OPTIONS for option in parsed
     ):
-        raise ValueError(f"Invalid option for {label}")
+        raise ValueError(f"{label}: Select a valid option from the available choices.")
 
 
 def _validate_web_url(label: str, value: str) -> None:
+    if not value.lower().startswith(("http://", "https://")):
+        raise ValueError(
+            f"{label}: Include https:// at the start of your URL "
+            "(for example, https://example.com)."
+        )
     try:
         parsed = urlsplit(value)
     except ValueError as error:
-        raise ValueError(f"Enter a valid URL for {label}") from error
+        raise ValueError(f"{label}: Enter a complete website URL, such as https://example.com, without a username or password.") from error
     if (
         parsed.scheme.lower() not in {"http", "https"}
         or not parsed.hostname
         or parsed.username is not None
         or parsed.password is not None
     ):
-        raise ValueError(f"Enter a valid URL for {label}")
+        raise ValueError(f"{label}: Enter a complete website URL, such as https://example.com, without a username or password.")
 
 
 def validate_form_answer(question_label: str, value: str | None) -> str | None:
@@ -91,13 +96,13 @@ def validate_form_answer(question_label: str, value: str | None) -> str | None:
     elif question_label in INTEGER_RANGES:
         minimum, maximum = INTEGER_RANGES[question_label]
         if not re.fullmatch(r"\d+", value) or not minimum <= int(value) <= maximum:
-            raise ValueError(f"Invalid value for {question_label}")
+            raise ValueError(f"{question_label}: Enter a whole number between {minimum} and {maximum}.")
     elif question_label == "Phone Number":
         if not re.fullmatch(r"[+()\-.\s\d]+", value):
-            raise ValueError("Enter a valid phone number")
+            raise ValueError("Phone Number: Enter 7 to 15 digits, using only numbers, spaces, +, parentheses, hyphens, or periods.")
         digit_count = sum(character.isdigit() for character in value)
         if not 7 <= digit_count <= 15:
-            raise ValueError("Enter a valid phone number")
+            raise ValueError("Phone Number: Enter 7 to 15 digits, using only numbers, spaces, +, parentheses, hyphens, or periods.")
     elif question_label == "Portfolio":
         _validate_web_url(question_label, value)
 
@@ -113,6 +118,12 @@ def validate_profile_url(
     expected_host = PROFILE_HOSTS.get(platform)
     if expected_host is None or value is None or not value.strip():
         return value
+
+    if not value.strip().lower().startswith("https://"):
+        raise ValueError(
+            f"{question_label}: Your profile URL must start with https:// "
+            f"(for example, https://{expected_host}/your-profile)."
+        )
 
     try:
         parsed = urlsplit(value.strip())
@@ -138,7 +149,7 @@ def validate_profile_url(
         or not has_profile_path
     ):
         raise ValueError(
-            f"Enter a valid {question_label} profile URL on {expected_host}"
+            f"{question_label}: Enter a profile URL on {expected_host}, including your profile path (for example, https://{expected_host}/your-profile), without a username or password."
         )
 
     return value
