@@ -15,38 +15,10 @@ WALLET_BANNER_URL = (
 )
 
 
-class PosterWalletPass(Pass):
-    """Add the QR-compatible iOS 27 layout that py-pkpass doesn't serialize yet."""
-
-    def json_dict(self):
-        payload = super().json_dict()
-        legacy = payload["eventTicket"]
-        # Keep eventTicket for older devices. Poster event tickets don't support
-        # QR entry, so use posterGeneric with the same barcode and attendee data.
-        payload["posterGeneric"] = {
-            "headerFields": legacy["headerFields"],
-            "primaryFields": legacy["secondaryFields"],
-            "footerFields": legacy["auxiliaryFields"],
-            "backFields": legacy["backFields"],
-        }
-        return payload
-
-
 def generate_apple_wallet_pass(user_name: str, application_id: str):
     required_files = {
         "icon": "images/icon-29x29.png",
-        "logo": "images/apple-wallet/logo.png",
-        "logo@2x": "images/apple-wallet/logo@2x.png",
-        "logo@3x": "images/apple-wallet/logo@3x.png",
-        "background": "images/apple-wallet/background.png",
-        "background@2x": "images/apple-wallet/background@2x.png",
-        "background@3x": "images/apple-wallet/background@3x.png",
-        "artwork": "images/apple-wallet/artwork.png",
-        "artwork@2x": "images/apple-wallet/artwork@2x.png",
-        "artwork@3x": "images/apple-wallet/artwork@3x.png",
-        "primaryLogo": "images/apple-wallet/primaryLogo.png",
-        "primaryLogo@2x": "images/apple-wallet/primaryLogo@2x.png",
-        "primaryLogo@3x": "images/apple-wallet/primaryLogo@3x.png",
+        "logo": "images/logo-50x50.png",
         "cert": "certs/apple/cert.pem",
         "key": "certs/apple/key.pem",
         "wwdr": "certs/apple/wwdr.pem",
@@ -70,14 +42,12 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
         raise RuntimeError("APPLE_WALLET_KEY_PASSWORD not configured")
 
     card_info = EventTicket()
-    # The background artwork sits behind the logo and header, with purple below.
-    card_info.addHeaderField("role", "Hacker", "Role")
+    card_info.addPrimaryField("role", "Hacker", "Role")
     card_info.addSecondaryField("name", user_name, "Name")
     card_info.addSecondaryField("date", AppConfig.get_event_date_range(), "Date")
     card_info.addAuxiliaryField("location", AppConfig.EVENT_LOCATION, "Location")
-    card_info.addBackField("event", AppConfig.EVENT_NAME, "Event")
 
-    apple_pass = PosterWalletPass(
+    apple_pass = Pass(
         card_info,
         teamIdentifier=AppConfig.APPLE_TEAM_IDENTIFIER,
         passTypeIdentifier=AppConfig.APPLE_PASS_TYPE_IDENTIFIER,
@@ -86,19 +56,15 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.serialNumber = application_id
     apple_pass.description = f"{AppConfig.EVENT_NAME} hacker pass"
     apple_pass.logoText = AppConfig.EVENT_NAME
-    apple_pass.backgroundColor = "rgb(120, 57, 220)"
+    apple_pass.backgroundColor = "rgb(25, 24, 32)"
     apple_pass.foregroundColor = "rgb(255,255,255)"
-    apple_pass.labelColor = "rgb(230, 224, 241)"
+    apple_pass.labelColor = "rgb(255, 255, 255)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
-    for asset in (
-        "icon", "logo", "logo@2x", "logo@3x",
-        "background", "background@2x", "background@3x",
-        "artwork", "artwork@2x", "artwork@3x",
-        "primaryLogo", "primaryLogo@2x", "primaryLogo@3x",
-    ):
-        with open(required_files[asset], "rb") as image_file:
-            apple_pass.addFile(f"{asset}.png", image_file)
+    with open(required_files["icon"], "rb") as icon_file:
+        apple_pass.addFile("icon.png", icon_file)
+    with open(required_files["logo"], "rb") as logo_file:
+        apple_pass.addFile("logo.png", logo_file)
 
     return apple_pass.create(
         required_files["cert"],
