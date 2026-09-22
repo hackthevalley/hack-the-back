@@ -42,7 +42,7 @@ def test_apple_wallet_branding_and_check_in_details(monkeypatch):
 
     result = wallet.generate_apple_wallet_pass("User", "app-id")
     payload = result.json_dict()
-    assert payload["backgroundColor"] == "rgb(25, 24, 32)"
+    assert payload["backgroundColor"] == "rgb(10, 3, 36)"
     assert payload["labelColor"] == "rgb(255, 255, 255)"
     assert payload["serialNumber"] == "app-id"
     assert payload["barcodes"][0]["message"] == "app-id"

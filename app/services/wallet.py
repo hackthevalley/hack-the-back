@@ -56,7 +56,7 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.serialNumber = application_id
     apple_pass.description = f"{AppConfig.EVENT_NAME} hacker pass"
     apple_pass.logoText = AppConfig.EVENT_NAME
-    apple_pass.backgroundColor = "rgb(25, 24, 32)"
+    apple_pass.backgroundColor = "rgb(10, 3, 36)"
     apple_pass.foregroundColor = "rgb(255,255,255)"
     apple_pass.labelColor = "rgb(255, 255, 255)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
