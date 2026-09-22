@@ -278,19 +278,46 @@
         }
 
         .footer-top {
-          padding: 24px 24px 0 !important;
+          padding: 22px 22px 0 !important;
         }
 
         .footer-main {
-          padding: 24px 24px 28px !important;
+          padding: 20px 22px 22px !important;
+        }
+
+        .footer-subgrid {
+          table-layout: auto !important;
         }
 
         .footer-stack {
           display: block !important;
           width: 100% !important;
           max-width: 100% !important;
+          box-sizing: border-box !important;
           padding-right: 0 !important;
-          padding-bottom: 18px !important;
+          padding-bottom: 20px !important;
+          text-align: center !important;
+        }
+
+        .footer-stack + .footer-stack {
+          padding-top: 20px !important;
+          border-top: 1px solid #2b2447 !important;
+        }
+
+        .footer-social-links a {
+          margin: 0 8px !important;
+        }
+
+        .footer-brand {
+          display: block !important;
+          width: 100% !important;
+          padding-top: 2px !important;
+          text-align: center !important;
+        }
+
+        .footer-logo {
+          margin-right: auto !important;
+          margin-left: auto !important;
         }
       }
     </style>
@@ -444,14 +471,14 @@
                             <p class="footer-heading" style="margin: 0 0 10px; font-size: 16px; font-weight: bold; text-transform: capitalize; color: #ffffff">
                               Socials
                             </p>
-                            <p class="footer-link" style="margin: 0; font-size: 14px; line-height: 1.45; color: #d5dced">
+                            <p class="footer-link footer-social-links" style="margin: 0; font-size: 14px; line-height: 1.45; color: #d5dced">
                               <a href="https://www.linkedin.com/company/hack-the-valley" target="_blank" rel="noopener noreferrer" style="display: inline-block; font-size: 14px; line-height: 1.45; color: #d5dced; text-decoration: none">LinkedIn ↗</a><br />
                               <a href="https://instagram.com/hackthevalley" target="_blank" rel="noopener noreferrer" style="display: inline-block; font-size: 14px; line-height: 1.45; color: #d5dced; text-decoration: none">Instagram ↗</a>
                             </p>
                           </td>
                         </tr>
                         <tr>
-                          <td colspan="3" align="right" valign="bottom" style="padding-top: 20px; text-align: right">
+                          <td class="footer-brand" colspan="3" align="right" valign="bottom" style="padding-top: 20px; text-align: right">
                             <a href="https://hackthevalley.io" target="_blank" rel="noopener noreferrer" style="display: inline-block">
                               <img src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/htvlogo.png" alt="Hack the Valley" width="42" class="footer-logo" style="display: block; width: 42px; height: auto; border: 0; margin-left: auto" />
                             </a>
