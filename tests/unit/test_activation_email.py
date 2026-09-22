@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -300,3 +301,22 @@ def test_rsvp_greeting_uses_account_first_name(monkeypatch, first_name):
     assert len(rendered) == 1
     assert greeting in rendered[0]
     assert "Congratulations !" not in rendered[0]
+
+
+@pytest.mark.parametrize("deadline", ["October 9th 2026", "October 9th, 2026"])
+def test_rsvp_dates_include_commas(monkeypatch, deadline):
+    rendered = []
+
+    def capture_email(template, receiver, subject, textbody, context, **kwargs):
+        rendered.append(Template(Path(template).read_text()).render(context))
+
+    monkeypatch.setattr(email_service, "send_email", capture_email)
+    monkeypatch.setattr(AppConfig, "GOOGLE_WALLET_PASS_URL", "https://example.com/wallet")
+    monkeypatch.setattr(AppConfig, "EVENT_START_DATE", datetime(2026, 10, 16))
+    monkeypatch.setattr(AppConfig, "EVENT_END_DATE", datetime(2026, 10, 18))
+    monkeypatch.setattr(AppConfig, "RSVP_DUE_DATE", deadline)
+
+    email_service.send_rsvp("hacker@example.com", "Ada Lovelace", "application-id", "Ada")
+
+    assert "October 16, 2026 to October 18, 2026" in rendered[0]
+    assert "RSVP by October 9th, 2026" in rendered[0]
