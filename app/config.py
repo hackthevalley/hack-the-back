@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     APPLICATION_END_DATE: datetime = datetime.fromisoformat(
         "2026-09-01T00:00:00-04:00"
     )
-    RSVP_DUE_DATE: str = "October 9th 2026"
+    RSVP_DUE_DATE: str = "October 9th, 2026"
     APPLE_TEAM_IDENTIFIER: str | None = None
     APPLE_PASS_TYPE_IDENTIFIER: str | None = None
     APPLE_WALLET_KEY_PASSWORD: str | None = None

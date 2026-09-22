@@ -208,6 +208,7 @@ def submit_application(
             user.email,
             user.full_name,
             str(application.application_id),
+            user.first_name,
         )
     else:
         schedule(

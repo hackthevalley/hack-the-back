@@ -7,10 +7,19 @@ from py_pkpass.models import Barcode, BarcodeFormat, EventTicket, Pass
 from app.config import AppConfig
 
 
+# Match the RSVP email's purple accents and event artwork.
+WALLET_BACKGROUND_HEX = "#7839DC"
+WALLET_BANNER_URL = (
+    "https://raw.githubusercontent.com/hackthevalley/internal-resources/"
+    "main/functions/static/email-banner.png"
+)
+
+
 def generate_apple_wallet_pass(user_name: str, application_id: str):
     required_files = {
         "icon": "images/icon-29x29.png",
         "logo": "images/logo-50x50.png",
+        "strip": "images/wallet-banner.png",
         "cert": "certs/apple/cert.pem",
         "key": "certs/apple/key.pem",
         "wwdr": "certs/apple/wwdr.pem",
@@ -34,7 +43,8 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
         raise RuntimeError("APPLE_WALLET_KEY_PASSWORD not configured")
 
     card_info = EventTicket()
-    card_info.addPrimaryField("role", "Hacker", "Role")
+    # Keep text clear of the event artwork in the primary field area.
+    card_info.addHeaderField("role", "Hacker", "Role")
     card_info.addSecondaryField("name", user_name, "Name")
     card_info.addSecondaryField("date", AppConfig.get_event_date_range(), "Date")
     card_info.addAuxiliaryField("location", AppConfig.EVENT_LOCATION, "Location")
@@ -48,15 +58,17 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.serialNumber = application_id
     apple_pass.description = f"{AppConfig.EVENT_NAME} hacker pass"
     apple_pass.logoText = AppConfig.EVENT_NAME
-    apple_pass.backgroundColor = "rgb(25, 24, 32)"
+    apple_pass.backgroundColor = "rgb(120, 57, 220)"
     apple_pass.foregroundColor = "rgb(255,255,255)"
-    apple_pass.labelColor = "rgb(255, 255, 255)"
+    apple_pass.labelColor = "rgb(230, 224, 241)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
     with open(required_files["icon"], "rb") as icon_file:
         apple_pass.addFile("icon.png", icon_file)
     with open(required_files["logo"], "rb") as logo_file:
         apple_pass.addFile("logo.png", logo_file)
+    with open(required_files["strip"], "rb") as strip_file:
+        apple_pass.addFile("strip.png", strip_file)
 
     return apple_pass.create(
         required_files["cert"],
@@ -95,6 +107,16 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
                     "classId": f"{issuer_id}.{AppConfig.GOOGLE_WALLET_CLASS_ID}",
                     "ticketHolderName": user_name,
                     "state": "ACTIVE",
+                    "hexBackgroundColor": WALLET_BACKGROUND_HEX,
+                    "heroImage": {
+                        "sourceUri": {"uri": WALLET_BANNER_URL},
+                        "contentDescription": {
+                            "defaultValue": {
+                                "language": "en-US",
+                                "value": AppConfig.EVENT_NAME,
+                            }
+                        },
+                    },
                     "barcode": {
                         "type": "QR_CODE",
                         "value": application_id,

@@ -280,3 +280,23 @@ def test_background_activation_contains_failures(monkeypatch, error):
     assert (
         email_service.send_activation_email_in_background("hacker@example.com") is None
     )
+
+
+@pytest.mark.parametrize("first_name", ["Ada", "Mary Jane", ""])
+def test_rsvp_greeting_uses_account_first_name(monkeypatch, first_name):
+    rendered = []
+
+    def capture_email(template, receiver, subject, textbody, context, **kwargs):
+        rendered.append(Template(Path(template).read_text()).render(context))
+
+    monkeypatch.setattr(email_service, "send_email", capture_email)
+    monkeypatch.setattr(AppConfig, "GOOGLE_WALLET_PASS_URL", "https://example.com/wallet")
+
+    email_service.send_rsvp_safely(
+        "hacker@example.com", f"{first_name} Smith", "application-id", first_name
+    )
+
+    greeting = f"Congratulations {first_name}!" if first_name else "Congratulations!"
+    assert len(rendered) == 1
+    assert greeting in rendered[0]
+    assert "Congratulations !" not in rendered[0]

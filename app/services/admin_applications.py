@@ -313,7 +313,9 @@ def update_application_status(
 
     if new_status == StatusEnum.ACCEPTED and previous_status != StatusEnum.ACCEPTED:
         schedule = enqueue or (lambda task, *args: task(*args))
-        schedule(send_rsvp_safely, user.email, user.full_name, str(application_id))
+        schedule(
+            send_rsvp_safely, user.email, user.full_name, str(application_id), user.first_name
+        )
 
     return {
         "application_id": application_id,

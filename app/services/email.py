@@ -1,6 +1,7 @@
 import base64
 import io
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -141,9 +142,11 @@ def send_email_safely(*args, **kwargs) -> None:
         logger.exception("Background email could not be sent")
 
 
-def send_rsvp_safely(user_email: str, user_full_name: str, application_id: str) -> None:
+def send_rsvp_safely(
+    user_email: str, user_full_name: str, application_id: str, first_name: str = ""
+) -> None:
     try:
-        send_rsvp(user_email, user_full_name, application_id)
+        send_rsvp(user_email, user_full_name, application_id, first_name)
     except Exception:
         logger.exception("RSVP for application %s could not be sent", application_id)
 
@@ -160,7 +163,9 @@ def create_qr_code(application_id: str):
     return qr.make_image(fill_color="black", back_color="white")
 
 
-def send_rsvp(user_email: str, user_full_name: str, application_id: str):
+def send_rsvp(
+    user_email: str, user_full_name: str, application_id: str, first_name: str = ""
+):
     image_bytes = io.BytesIO()
     create_qr_code(application_id).save(image_bytes, format="PNG")
     image_bytes.seek(0)
@@ -171,9 +176,10 @@ def send_rsvp(user_email: str, user_full_name: str, application_id: str):
         EmailSubject.rsvp(AppConfig.EVENT_NAME),
         EmailMessage.rsvp_text(AppConfig.FRONTEND_URL),
         {
-            "start_date": AppConfig.EVENT_START_DATE.strftime("%B %d %Y"),
-            "end_date": AppConfig.EVENT_END_DATE.strftime("%B %d %Y"),
-            "due_date": AppConfig.RSVP_DUE_DATE,
+            "first_name": first_name.strip(),
+            "start_date": AppConfig.EVENT_START_DATE.strftime("%B %d, %Y"),
+            "end_date": AppConfig.EVENT_END_DATE.strftime("%B %d, %Y"),
+            "due_date": re.sub(r"(?<!,)\s+(\d{4})$", r", \1", AppConfig.RSVP_DUE_DATE.strip()),
             "apple_url": AppConfig.get_apple_wallet_url(application_id),
             "google_url": AppConfig.GOOGLE_WALLET_PASS_URL
             or generate_google_wallet_pass(user_full_name, application_id),

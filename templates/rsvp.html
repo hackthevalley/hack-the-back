@@ -345,7 +345,7 @@
                         You're invited
                       </p>
                       <p class="heading" style="margin: 0 0 18px; font-size: 34px; line-height: 1.15; font-weight: bold; color: #221b36">
-                        Congratulations {{ first_name }}! You’re in!
+                        Congratulations{% if first_name %} {{ first_name }}{% endif %}! You’re in!
                       </p>
                       <p class="body-copy" style="margin: 0 0 18px; font-size: 18px; line-height: 1.7; color: #3f3757">
                         We are pleased to announce that you have been accepted to attend Hack the Valley,
@@ -376,12 +376,12 @@
                       <img src="cid:qr_code" alt="Your event check-in QR code" width="200" style="display: block; width: 200px; max-width: 100%; height: auto" />
                       <div style="margin-top: 12px; margin-bottom: 12px">
                         <a href="{{ apple_url|safe }}" target="_blank" rel="noopener noreferrer">
-                          <img src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/apple.png" alt="Add to Apple Wallet" style="display: block; max-width: 100%; height: auto" />
+                          <img src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/apple.png" alt="Add to Apple Wallet" width="129" height="40" style="display: block; width: 129px; max-width: 100%; height: auto" />
                         </a>
                       </div>
                       <div style="margin-top: 12px; margin-bottom: 12px">
                         <a href="{{ google_url|safe }}" target="_blank" rel="noopener noreferrer">
-                          <img src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/google.png" alt="Add to Google Wallet" style="display: block; max-width: 100%; height: auto" />
+                          <img src="https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/google.png" alt="Add to Google Wallet" width="220" height="40" style="display: block; width: 220px; max-width: 100%; height: auto" />
                         </a>
                       </div>
                     </td>

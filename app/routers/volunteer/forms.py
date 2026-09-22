@@ -63,7 +63,7 @@ def mark_walkin(
 
     if send_email:
         background_tasks.add_task(
-            send_rsvp_safely, user.email, user.full_name, application_id
+            send_rsvp_safely, user.email, user.full_name, application_id, user.first_name
         )
 
     return {
