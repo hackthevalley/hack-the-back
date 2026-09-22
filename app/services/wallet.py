@@ -21,9 +21,9 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
         "logo": "images/apple-wallet/logo.png",
         "logo@2x": "images/apple-wallet/logo@2x.png",
         "logo@3x": "images/apple-wallet/logo@3x.png",
-        "strip": "images/apple-wallet/strip.png",
-        "strip@2x": "images/apple-wallet/strip@2x.png",
-        "strip@3x": "images/apple-wallet/strip@3x.png",
+        "background": "images/apple-wallet/background.png",
+        "background@2x": "images/apple-wallet/background@2x.png",
+        "background@3x": "images/apple-wallet/background@3x.png",
         "cert": "certs/apple/cert.pem",
         "key": "certs/apple/key.pem",
         "wwdr": "certs/apple/wwdr.pem",
@@ -47,7 +47,7 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
         raise RuntimeError("APPLE_WALLET_KEY_PASSWORD not configured")
 
     card_info = EventTicket()
-    # Keep text clear of the event artwork in the primary field area.
+    # The background artwork sits behind the logo and header, with purple below.
     card_info.addHeaderField("role", "Hacker", "Role")
     card_info.addSecondaryField("name", user_name, "Name")
     card_info.addSecondaryField("date", AppConfig.get_event_date_range(), "Date")
@@ -67,7 +67,10 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.labelColor = "rgb(230, 224, 241)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
-    for asset in ("icon", "logo", "logo@2x", "logo@3x", "strip", "strip@2x", "strip@3x"):
+    for asset in (
+        "icon", "logo", "logo@2x", "logo@3x",
+        "background", "background@2x", "background@3x",
+    ):
         with open(required_files[asset], "rb") as image_file:
             apple_pass.addFile(f"{asset}.png", image_file)
 
