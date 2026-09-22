@@ -18,8 +18,12 @@ WALLET_BANNER_URL = (
 def generate_apple_wallet_pass(user_name: str, application_id: str):
     required_files = {
         "icon": "images/icon-29x29.png",
-        "logo": "images/logo-50x50.png",
-        "strip": "images/wallet-banner.png",
+        "logo": "images/apple-wallet/logo.png",
+        "logo@2x": "images/apple-wallet/logo@2x.png",
+        "logo@3x": "images/apple-wallet/logo@3x.png",
+        "strip": "images/apple-wallet/strip.png",
+        "strip@2x": "images/apple-wallet/strip@2x.png",
+        "strip@3x": "images/apple-wallet/strip@3x.png",
         "cert": "certs/apple/cert.pem",
         "key": "certs/apple/key.pem",
         "wwdr": "certs/apple/wwdr.pem",
@@ -63,12 +67,9 @@ def generate_apple_wallet_pass(user_name: str, application_id: str):
     apple_pass.labelColor = "rgb(230, 224, 241)"
     apple_pass.barcode = Barcode(application_id, format=BarcodeFormat.QR)
 
-    with open(required_files["icon"], "rb") as icon_file:
-        apple_pass.addFile("icon.png", icon_file)
-    with open(required_files["logo"], "rb") as logo_file:
-        apple_pass.addFile("logo.png", logo_file)
-    with open(required_files["strip"], "rb") as strip_file:
-        apple_pass.addFile("strip.png", strip_file)
+    for asset in ("icon", "logo", "logo@2x", "logo@3x", "strip", "strip@2x", "strip@3x"):
+        with open(required_files[asset], "rb") as image_file:
+            apple_pass.addFile(f"{asset}.png", image_file)
 
     return apple_pass.create(
         required_files["cert"],

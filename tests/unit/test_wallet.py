@@ -52,7 +52,11 @@ def test_apple_wallet_branding_and_check_in_details(monkeypatch):
     assert ticket["secondaryFields"][0]["value"] == "User"
     assert ticket["secondaryFields"][1]["value"] == AppConfig.get_event_date_range()
     assert ticket["auxiliaryFields"][0]["value"] == AppConfig.EVENT_LOCATION
-    assert result._files["strip.png"] == wallet.Path("images/wallet-banner.png").read_bytes()
+    assert "background.png" not in result._files
+    for asset in ("logo", "logo@2x", "logo@3x", "strip", "strip@2x", "strip@3x"):
+        assert result._files[f"{asset}.png"] == wallet.Path(
+            f"images/apple-wallet/{asset}.png"
+        ).read_bytes()
 
 
 def test_google_wallet_required_configuration_and_success(monkeypatch):
