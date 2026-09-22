@@ -54,6 +54,32 @@ def test_sync_application_scores_handles_empty_and_adds_missing_scores():
     assert session.exec.call_count == 3
 
 
+def test_sync_application_scores_filters_by_level_of_study():
+    session = MagicMock()
+    with patch.object(
+        judging, "_eligible_application_ids", return_value=[]
+    ) as eligible_ids:
+        assert judging.sync_application_scores(
+            session, "Senior - Undergraduate"
+        ) == []
+
+    eligible_ids.assert_called_once_with(session, "Senior - Undergraduate")
+
+
+def test_eligible_application_ids_filters_level_answer():
+    session = MagicMock()
+    session.exec.return_value = result(all_values=())
+
+    judging._eligible_application_ids(session, "Senior - Undergraduate")
+
+    statement = session.exec.call_args.args[0]
+    compiled = statement.compile()
+    assert "forms_answer" in str(compiled)
+    assert "forms_question" in str(compiled)
+    assert "Current Level of Study" in compiled.params.values()
+    assert "senior - undergraduate" in compiled.params.values()
+
+
 def test_get_or_create_state_seen_and_busy_ids():
     judge_id = uuid.uuid4()
     session = MagicMock()
@@ -372,8 +398,13 @@ def test_admin_judging_endpoints():
             judging_router.get_pair(session, user)
         assert exc.value.status_code == 404
     with patch.object(judging_router, "assign_pair", return_value=(left, right)):
-        response = judging_router.get_pair(session, user)
+        response = judging_router.get_pair(
+            session, user, level_of_study="Senior - Undergraduate"
+        )
         assert response.left.application_id == left.application_id
+        judging_router.assign_pair.assert_called_once_with(
+            session, user.uid, "Senior - Undergraduate"
+        )
 
     vote = JudgingVoteRequest(
         request_id=uuid.uuid4(),

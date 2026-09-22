@@ -27,8 +27,9 @@ router = APIRouter()
 def get_pair(
     session: SessionDep,
     current_user: Annotated[AccountUser, Depends(get_current_user)],
+    level_of_study: Annotated[str, Query(max_length=100)] = "",
 ) -> JudgingPairResponse:
-    pair = assign_pair(session, current_user.uid)
+    pair = assign_pair(session, current_user.uid, level_of_study or None)
     if pair is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

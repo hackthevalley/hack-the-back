@@ -3,10 +3,18 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, col, select
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import insert
 
-from app.models.forms import FormApplication, HackathonApplicant, StatusEnum
+from app.models.constants import QuestionLabel
+from app.models.forms import (
+    FormAnswer,
+    FormApplication,
+    FormQuestion,
+    HackathonApplicant,
+    StatusEnum,
+)
 from app.models.judging import (
     JudgingApplicationScore,
     JudgingDecision,
@@ -22,7 +30,9 @@ ELIGIBLE_STATUSES = (
 )
 
 
-def _eligible_application_ids(session: Session) -> list[uuid.UUID]:
+def _eligible_application_ids(
+    session: Session, level_of_study: str | None = None
+) -> list[uuid.UUID]:
     statement = (
         select(FormApplication.application_id)
         .join(
@@ -34,11 +44,28 @@ def _eligible_application_ids(session: Session) -> list[uuid.UUID]:
             col(HackathonApplicant.status).in_(ELIGIBLE_STATUSES),
         )
     )
+    if level_of_study:
+        statement = (
+            statement.join(
+                FormAnswer,
+                FormAnswer.application_id == FormApplication.application_id,
+            )
+            .join(
+                FormQuestion,
+                FormQuestion.question_id == FormAnswer.question_id,
+            )
+            .where(
+                FormQuestion.label == QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,
+                func.lower(FormAnswer.answer) == level_of_study.lower(),
+            )
+        )
     return list(session.exec(statement).all())
 
 
-def sync_application_scores(session: Session) -> list[JudgingApplicationScore]:
-    application_ids = _eligible_application_ids(session)
+def sync_application_scores(
+    session: Session, level_of_study: str | None = None
+) -> list[JudgingApplicationScore]:
+    application_ids = _eligible_application_ids(session, level_of_study)
     if not application_ids:
         return []
     now = datetime.now(timezone.utc)
@@ -127,9 +154,11 @@ def _busy_ids(session: Session, judge_id: uuid.UUID) -> set[uuid.UUID]:
 
 
 def assign_pair(
-    session: Session, judge_id: uuid.UUID
+    session: Session,
+    judge_id: uuid.UUID,
+    level_of_study: str | None = None,
 ) -> tuple[JudgingApplicationScore, JudgingApplicationScore] | None:
-    scores = sync_application_scores(session)
+    scores = sync_application_scores(session, level_of_study)
     score_by_id = {score.application_id: score for score in scores}
     state = get_or_create_judge_state(session, judge_id, lock=True)
 
