@@ -47,14 +47,24 @@ def test_apple_wallet_branding_and_check_in_details(monkeypatch):
     assert payload["serialNumber"] == "app-id"
     assert payload["barcodes"][0]["message"] == "app-id"
     ticket = payload["eventTicket"]
-    assert ticket["primaryFields"][0]["value"] == "Hacker"
-    assert not ticket.get("headerFields")
+    assert ticket["headerFields"][0]["value"] == "Hacker"
+    assert not ticket.get("primaryFields")
     assert ticket["secondaryFields"][0]["value"] == "User"
     assert ticket["secondaryFields"][1]["value"] == AppConfig.get_event_date_range()
     assert ticket["auxiliaryFields"][0]["value"] == AppConfig.EVENT_LOCATION
     assert "posterGeneric" not in payload
-    assert set(result._files) == {"icon.png", "logo.png"}
-    assert result._files["logo.png"] == wallet.Path("images/logo-50x50.png").read_bytes()
+    assert set(result._files) == {
+        "icon.png", "logo.png", "logo@2x.png", "logo@3x.png",
+        "strip.png", "strip@2x.png", "strip@3x.png",
+    }
+    for asset in ("logo", "logo@2x", "logo@3x"):
+        assert result._files[f"{asset}.png"] == wallet.Path(
+            f"images/wallet-logo/{asset}.png"
+        ).read_bytes()
+    for asset in ("strip", "strip@2x", "strip@3x"):
+        assert result._files[f"{asset}.png"] == wallet.Path(
+            f"images/apple-wallet/{asset}.png"
+        ).read_bytes()
 
 
 def test_google_wallet_required_configuration_and_success(monkeypatch):
@@ -87,8 +97,8 @@ def test_google_wallet_required_configuration_and_success(monkeypatch):
     result = wallet.generate_google_wallet_pass("User", "app-id")
     assert result == "https://pay.google.com/gp/v/save/signed"
     ticket = captured["payload"]["eventTicketObjects"][0]
-    assert ticket["hexBackgroundColor"] == "#7839DC"
-    assert ticket["heroImage"]["sourceUri"]["uri"] == wallet.WALLET_BANNER_URL
+    assert ticket["hexBackgroundColor"] == "#0A0324"
+    assert "heroImage" not in ticket
     assert ticket["id"] == "issuer.app-id"
     assert ticket["classId"] == "issuer.class"
     assert ticket["ticketHolderName"] == "User"
