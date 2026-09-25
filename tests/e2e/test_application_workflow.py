@@ -1,4 +1,5 @@
 from io import BytesIO
+import zipfile
 
 from pypdf import PdfWriter
 
@@ -121,6 +122,29 @@ def test_complete_application_submission_and_admin_review(
     )
     assert resume.status_code == 200
     assert resume.headers["content-type"].startswith("application/pdf")
+
+    resume_export = client.get(
+        "/api/admin/account/resume-export",
+        params={
+            "level_of_study": "Freshman - Undergraduate",
+            "role": "APPLIED",
+        },
+        headers=admin_headers,
+    )
+    assert resume_export.status_code == 200, resume_export.text
+    assert resume_export.headers["content-type"].startswith("application/zip")
+    with zipfile.ZipFile(BytesIO(resume_export.content)) as archive:
+        names = archive.namelist()
+        assert "manifest.csv" in names
+        assert any(name.startswith("resumes/0001_") for name in names)
+        assert active_hacker["email"] in archive.read("manifest.csv").decode()
+
+    empty_export = client.get(
+        "/api/admin/account/resume-export",
+        params={"level_of_study": "PhD", "role": "REJECTED"},
+        headers=admin_headers,
+    )
+    assert empty_export.status_code == 404
 
     accepted = client.patch(
         f"/api/admin/account/applications/{app_id}/status",

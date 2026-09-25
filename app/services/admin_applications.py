@@ -1,6 +1,9 @@
+import csv
 import logging
-from collections.abc import Callable
 import re
+import tempfile
+import zipfile
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID
@@ -65,6 +68,153 @@ def get_resume_metadata(session: Session, application_id: UUID) -> tuple[Path, s
     return path, sanitize_filename(
         resume.original_filename or f"resume{DEFAULT_FILE_EXTENSION}"
     )
+
+
+def create_resume_export(
+    session: Session,
+    *,
+    level_of_study: str,
+    application_status: StatusEnum | None,
+) -> tuple[Path, int]:
+    """Create a temporary, alphabetically sorted ZIP of matching resumes."""
+    level_question = session.exec(
+        select(FormQuestion).where(
+            FormQuestion.label == QuestionLabel.CURRENT_LEVEL_OF_STUDY.value
+        )
+    ).first()
+    resume_question = session.exec(
+        select(FormQuestion).where(FormQuestion.label == QuestionLabel.RESUME.value)
+    ).first()
+    if not resume_question:
+        return _empty_resume_export()
+    level_answer = aliased(FormAnswer)
+    level_column = col(level_answer.answer) if level_question else literal(None)
+
+    statement = (
+        select(
+            AccountUser,
+            FormApplication,
+            HackathonApplicant,
+            FormAnswerFile,
+            level_column.label("level_of_study_answer"),
+        )
+        .where(col(AccountUser.is_active).is_(True))
+        .join(FormApplication, AccountUser.uid == FormApplication.uid)
+        .join(
+            HackathonApplicant,
+            FormApplication.application_id == HackathonApplicant.application_id,
+        )
+        .join(
+            FormAnswerFile,
+            and_(
+                FormApplication.application_id == FormAnswerFile.application_id,
+                FormAnswerFile.question_id == resume_question.question_id,
+            ),
+        )
+    )
+    if level_question:
+        statement = statement.outerjoin(
+            level_answer,
+            and_(
+                level_answer.application_id == FormApplication.application_id,
+                level_answer.question_id == level_question.question_id,
+            ),
+        )
+    if application_status:
+        statement = statement.where(HackathonApplicant.status == application_status)
+    if level_of_study:
+        if not level_question:
+            return _empty_resume_export()
+        statement = statement.where(
+            func.lower(level_answer.answer) == level_of_study.lower()
+        )
+    statement = statement.order_by(
+        col(AccountUser.last_name).asc(),
+        col(AccountUser.first_name).asc(),
+        col(FormApplication.application_id).asc(),
+    )
+
+    rows = session.exec(statement).all()
+    export_file = tempfile.NamedTemporaryFile(
+        prefix="resume-export-", suffix=".zip", delete=False
+    )
+    export_path = Path(export_file.name)
+    export_file.close()
+    exported = 0
+    manifest_rows: list[list[str]] = []
+    try:
+        with zipfile.ZipFile(
+            export_path, mode="w", compression=zipfile.ZIP_DEFLATED
+        ) as archive:
+            for user, application, applicant, resume, study_level in rows:
+                if not resume.file_path:
+                    continue
+                resume_path = Path(resume.file_path)
+                if not resume_path.exists() or not resume_path.is_file():
+                    logger.warning(
+                        "Skipping missing resume for application %s",
+                        application.application_id,
+                    )
+                    continue
+                exported += 1
+                last_name = sanitize_filename(user.last_name).replace(" ", "_")
+                first_name = sanitize_filename(user.first_name).replace(" ", "_")
+                archive_name = (
+                    f"resumes/{exported:04d}_{last_name}_{first_name}_"
+                    f"{application.application_id}.pdf"
+                )
+                archive.write(resume_path, archive_name)
+                manifest_rows.append(
+                    [
+                        str(exported),
+                        user.first_name,
+                        user.last_name,
+                        str(user.email),
+                        applicant.status.value,
+                        study_level or "",
+                        str(application.application_id),
+                        sanitize_filename(
+                            resume.original_filename
+                            or f"resume{DEFAULT_FILE_EXTENSION}"
+                        ),
+                        archive_name,
+                    ]
+                )
+
+            manifest = tempfile.SpooledTemporaryFile(mode="w+", newline="")
+            writer = csv.writer(manifest)
+            writer.writerow(
+                [
+                    "order",
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "application_status",
+                    "level_of_study",
+                    "application_id",
+                    "original_filename",
+                    "archive_filename",
+                ]
+            )
+            writer.writerows(manifest_rows)
+            manifest.seek(0)
+            archive.writestr("manifest.csv", manifest.read())
+            manifest.close()
+    except Exception:
+        export_path.unlink(missing_ok=True)
+        raise
+    return export_path, exported
+
+
+def _empty_resume_export() -> tuple[Path, int]:
+    export_file = tempfile.NamedTemporaryFile(
+        prefix="resume-export-", suffix=".zip", delete=False
+    )
+    export_path = Path(export_file.name)
+    export_file.close()
+    with zipfile.ZipFile(export_path, mode="w", compression=zipfile.ZIP_DEFLATED):
+        pass
+    return export_path, 0
 
 
 def get_application_detail(session: Session, application_id: UUID) -> dict:

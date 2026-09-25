@@ -17,6 +17,7 @@ from app.models.user import AccountUser
 from app.schemas.bulk_email import BulkEmailRequest
 from app.schemas.user import UserPublic
 from app.services.admin_applications import (
+    create_resume_export,
     get_application_detail,
     get_resume_metadata,
     list_applications as list_application_records,
@@ -57,6 +58,30 @@ def get_applicants(
 def get_resume(application_id: UUID, session: SessionDep) -> FileResponse:
     path, filename = get_resume_metadata(session, application_id)
     return FileResponse(path=str(path), media_type="application/pdf", filename=filename)
+
+
+@router.get("/resume-export")
+def export_resumes(
+    background_tasks: BackgroundTasks,
+    session: SessionDep,
+    level_of_study: Annotated[str, Query(max_length=100)] = "",
+    role: StatusEnum | None = None,
+) -> FileResponse:
+    path, exported = create_resume_export(
+        session,
+        level_of_study=level_of_study,
+        application_status=role,
+    )
+    if exported == 0:
+        path.unlink(missing_ok=True)
+        raise HTTPException(status_code=404, detail="No resumes matched these filters")
+    background_tasks.add_task(path.unlink, missing_ok=True)
+    return FileResponse(
+        path=str(path),
+        media_type="application/zip",
+        filename=f"resume-export-{exported}.zip",
+        headers={"X-Resume-Count": str(exported)},
+    )
 
 
 @router.get("/applications/{application_id}")
