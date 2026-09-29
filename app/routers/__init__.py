@@ -8,6 +8,7 @@ from app.routers.account import router as account
 from app.routers.admin import router as admin
 from app.routers.forms import router as forms
 from app.routers.meal import router as meal
+from app.routers.schedule import router as schedule
 from app.routers.volunteer import router as volunteer
 from app.dependencies.auth import get_current_user
 
@@ -38,6 +39,7 @@ def is_volunteer(
 
 router.include_router(account, prefix="/account", tags=["account"])
 router.include_router(forms, prefix="/forms", tags=["forms"])
+router.include_router(schedule, prefix="/schedule", tags=["schedule"])
 router.include_router(
     admin, prefix="/admin", tags=["admin"], dependencies=[Depends(is_admin)]
 )
