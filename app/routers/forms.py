@@ -26,7 +26,9 @@ def get_questions(session: SessionDep) -> list[FormQuestion]:
     def fetch_questions() -> list[FormQuestion]:
         return list(
             session.exec(
-                select(FormQuestion).order_by(col(FormQuestion.question_order))
+                select(FormQuestion)
+                .where(col(FormQuestion.is_active).is_(True))
+                .order_by(col(FormQuestion.question_order))
             ).all()
         )
 

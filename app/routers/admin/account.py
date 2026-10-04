@@ -27,6 +27,19 @@ from app.services.bulk_email import get_bulk_email_recipients, send_batch_email
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+TEMPLATE_DIR = (Path(__file__).resolve().parents[3] / "templates").resolve()
+
+
+def resolve_email_template(template_path: str) -> Path:
+    path = Path(template_path)
+    if not path.is_absolute():
+        path = TEMPLATE_DIR.parent / path
+    path = path.resolve()
+    if not path.is_relative_to(TEMPLATE_DIR):
+        raise HTTPException(status_code=400, detail="Template must be in templates/")
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Template file not found")
+    return path
 
 
 @router.get("/users", response_model=list[UserPublic])
@@ -135,9 +148,7 @@ def send_bulk_email_endpoint(
     session: SessionDep,
     background_tasks: BackgroundTasks,
 ) -> dict[str, Any]:
-    template = Path(request.template_path)
-    if not template.exists() or not template.is_file():
-        raise HTTPException(status_code=404, detail="Template file not found")
+    template = resolve_email_template(request.template_path)
 
     total, recipients = get_bulk_email_recipients(session, request)
     if total == 0:
@@ -157,7 +168,7 @@ def send_bulk_email_endpoint(
     background_tasks.add_task(
         send_batch_email,
         recipients,
-        request.template_path,
+        str(template),
         request.subject,
         request.text_body,
         request.context,

@@ -8,7 +8,7 @@ from typing import Annotated, Callable
 from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
-from sqlmodel import Session, col, create_engine, delete, select
+from sqlmodel import Session, create_engine, select
 
 from app.config import AppConfig, DatabaseConfig
 from app.models.constants import QuestionLabel
@@ -109,28 +109,9 @@ def seed_questions(questions: list[dict], session: Session):
             for question in session.exec(select(FormQuestion)).all()
         }
         configured_labels = {question["label"] for question in questions}
-        stale_question_ids = [
-            question.question_id
-            for label, question in existing_questions.items()
-            if label not in configured_labels
-        ]
-
-        if stale_question_ids:
-            session.exec(
-                delete(FormAnswer).where(
-                    col(FormAnswer.question_id).in_(stale_question_ids)
-                )
-            )
-            session.exec(
-                delete(FormAnswerFile).where(
-                    col(FormAnswerFile.question_id).in_(stale_question_ids)
-                )
-            )
-            session.exec(
-                delete(FormQuestion).where(
-                    col(FormQuestion.question_id).in_(stale_question_ids)
-                )
-            )
+        for label, question in existing_questions.items():
+            question.is_active = label in configured_labels
+            session.add(question)
 
         for index, question in enumerate(questions):
             existing_question = existing_questions.get(question["label"])
@@ -144,6 +125,7 @@ def seed_questions(questions: list[dict], session: Session):
 
             existing_question.question_order = index
             existing_question.required = question["required"]
+            existing_question.is_active = True
             session.add(existing_question)
 
         if added_questions:

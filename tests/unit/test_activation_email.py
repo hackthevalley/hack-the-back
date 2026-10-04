@@ -32,6 +32,16 @@ def test_activation_template_uses_complete_url():
     assert f">{activation_url}</a" in rendered
 
 
+def test_password_reset_template_uses_complete_configured_url():
+    reset_url = "https://preview.example/reset-password?token=example-token"
+    with open("templates/password_reset.html", encoding="utf-8") as template_file:
+        rendered = Template(template_file.read()).render(url=reset_url)
+
+    assert f'href="{reset_url}"' in rendered
+    assert f">{reset_url}</a" in rendered
+    assert "https://hackthevalley.io/reset-password?token=" not in rendered
+
+
 def test_email_footers_use_table_aligned_current_logo():
     for template_name in EMAIL_TEMPLATES:
         template = (Path("templates") / template_name).read_text(encoding="utf-8")
@@ -250,6 +260,53 @@ def test_background_activation_uses_fresh_session(monkeypatch):
     email_service.send_activation_email_in_background("hacker@example.com")
 
     assert calls[1][0] == "hacker@example.com"
+
+
+def test_failed_password_reset_email_releases_cooldown(monkeypatch):
+    requested_at = datetime.now().astimezone()
+    user = SimpleNamespace(
+        email="hacker@example.com", last_password_reset_request=requested_at
+    )
+
+    class Result:
+        def first(self):
+            return user
+
+    class Session:
+        commits = 0
+
+        def __init__(self, _engine):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def exec(self, _statement):
+            return Result()
+
+        def add(self, _user):
+            pass
+
+        def commit(self):
+            self.commits += 1
+
+    monkeypatch.setattr(email_service, "Session", Session)
+    monkeypatch.setattr(
+        email_service,
+        "send_email",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("provider unavailable")
+        ),
+    )
+
+    email_service.send_password_reset_email_in_background(
+        user.email, "example-token", requested_at
+    )
+
+    assert user.last_password_reset_request is None
 
 
 @pytest.mark.parametrize(

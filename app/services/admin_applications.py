@@ -79,11 +79,15 @@ def create_resume_export(
     """Create a temporary, alphabetically sorted ZIP of matching resumes."""
     level_question = session.exec(
         select(FormQuestion).where(
-            FormQuestion.label == QuestionLabel.CURRENT_LEVEL_OF_STUDY.value
+            FormQuestion.label == QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,
+            col(FormQuestion.is_active).is_(True),
         )
     ).first()
     resume_question = session.exec(
-        select(FormQuestion).where(FormQuestion.label == QuestionLabel.RESUME.value)
+        select(FormQuestion).where(
+            FormQuestion.label == QuestionLabel.RESUME.value,
+            col(FormQuestion.is_active).is_(True),
+        )
     ).first()
     if not resume_question:
         return _empty_resume_export()
@@ -254,6 +258,7 @@ def list_applications(
     def fetch_questions() -> dict[str, FormQuestion]:
         questions = session.exec(
             select(FormQuestion).where(
+                col(FormQuestion.is_active).is_(True),
                 col(FormQuestion.label).in_(
                     [
                         QuestionLabel.CURRENT_LEVEL_OF_STUDY.value,

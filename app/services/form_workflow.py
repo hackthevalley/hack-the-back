@@ -2,7 +2,7 @@ import logging
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.errors import ServiceError
@@ -78,7 +78,9 @@ def save_answers(
     answers = {str(answer.question_id): answer for answer in application.form_answers}
     questions = {
         str(question.question_id): question
-        for question in session.exec(select(FormQuestion)).all()
+        for question in session.exec(
+            select(FormQuestion).where(col(FormQuestion.is_active).is_(True))
+        ).all()
     }
     bulk_updates: list[dict] = []
     for update in updates:
@@ -88,13 +90,16 @@ def save_answers(
                 status_code=400, detail=f"Invalid question_id: {update.question_id}"
             )
         question = questions.get(update.question_id)
-        if question:
-            if QuestionLabel.is_prefilled_field(question.label):
-                continue
-            try:
-                validate_form_answer(question.label, update.answer)
-            except ValueError as error:
-                raise ServiceError(status_code=400, detail=str(error)) from error
+        if question is None:
+            raise ServiceError(
+                status_code=400, detail=f"Inactive question_id: {update.question_id}"
+            )
+        if QuestionLabel.is_prefilled_field(question.label):
+            continue
+        try:
+            validate_form_answer(question.label, update.answer)
+        except ValueError as error:
+            raise ServiceError(status_code=400, detail=str(error)) from error
         bulk_updates.append({"id": answer.id, "answer": update.answer})
 
     try:
@@ -124,7 +129,9 @@ def submit_application(
     if application is None:
         raise ServiceError(status_code=404, detail="Application not found")
 
-    all_questions = session.exec(select(FormQuestion)).all()
+    all_questions = session.exec(
+        select(FormQuestion).where(col(FormQuestion.is_active).is_(True))
+    ).all()
     questions = {str(question.question_id): question for question in all_questions}
     labels = {question.label for question in all_questions}
     superseded_labels = {"Race/Ethnicity": "Race/Ethnicity (Select all that apply)"}

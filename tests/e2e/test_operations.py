@@ -21,13 +21,32 @@ def test_admin_meal_and_volunteer_food_workflow(
     application = client.get(
         "/api/forms/application", headers=active_hacker["headers"]
     ).json()["application"]
+    request_body = {
+        "food": [
+            {"application": application["application_id"], "serving": meal["id"]}
+        ]
+    }
+    not_checked_in = client.post(
+        "/api/volunteer/food/tracking",
+        json=request_body,
+        headers=volunteer_headers,
+    )
+    assert not_checked_in.status_code == 409
+
+    assert client.post(
+        "/api/volunteer/forms/walk-ins",
+        json={"email": active_hacker["email"]},
+        headers=volunteer_headers,
+    ).status_code == 200
+    assert client.post(
+        "/api/volunteer/check-ins",
+        json={"id": application["application_id"]},
+        headers=volunteer_headers,
+    ).status_code == 200
+
     tracked = client.post(
         "/api/volunteer/food/tracking",
-        json={
-            "food": [
-                {"application": application["application_id"], "serving": meal["id"]}
-            ]
-        },
+        json=request_body,
         headers=volunteer_headers,
     )
     assert tracked.status_code == 200, tracked.text
@@ -54,6 +73,14 @@ def test_walk_in_and_qr_check_in(client, active_hacker, volunteer_headers):
     )
     assert walk_in.status_code == 200, walk_in.text
     assert walk_in.json()["new_status"] == "WALK_IN"
+    repeated = client.post(
+        "/api/volunteer/forms/walk-ins",
+        json={"email": active_hacker["email"]},
+        headers=volunteer_headers,
+    )
+    assert repeated.status_code == 200
+    assert repeated.json()["new_status"] == "WALK_IN"
+    assert repeated.json()["rsvp_sent"] is False
 
     application = client.get(
         "/api/forms/application", headers=active_hacker["headers"]
@@ -147,6 +174,18 @@ def test_registration_window_and_bulk_email_paths(
         headers=admin_headers,
     )
     assert missing_template.status_code == 404
+    outside_template_dir = client.post(
+        "/api/admin/account/bulk-emails",
+        json={
+            "template_path": ".env",
+            "status": "REJECTED",
+            "subject": "E2E",
+            "text_body": "E2E",
+            "context": {},
+        },
+        headers=admin_headers,
+    )
+    assert outside_template_dir.status_code == 400
     no_recipients = client.post(
         "/api/admin/account/bulk-emails",
         json={

@@ -1,5 +1,6 @@
-from uuid import UUID
+from datetime import datetime, timezone
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -62,6 +63,9 @@ def scan_qr(request: QRScanRequest, session: SessionDep) -> dict[str, Any]:
                 "is not eligible for check-in"
             ),
         )
+
+    if hacker_applicant.checked_in_at is None:
+        hacker_applicant.checked_in_at = datetime.now(timezone.utc)
 
     message = ""
 

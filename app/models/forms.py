@@ -81,6 +81,9 @@ class HackathonApplicant(SQLModel, table=True):
         default=None, primary_key=True, foreign_key="forms_application.application_id"
     )
     status: StatusEnum = Field(index=True)
+    checked_in_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     applicant: Optional["FormApplication"] = Relationship(
         back_populates="hacker_applicant"
     )
@@ -108,6 +111,7 @@ class FormQuestion(SQLModel, table=True):
     question_order: int = Field(index=True, ge=0)
     label: str = Field(index=True, max_length=255)
     required: bool
+    is_active: bool = Field(default=True, nullable=False)
 
 
 class FormAnswer(SQLModel, table=True):

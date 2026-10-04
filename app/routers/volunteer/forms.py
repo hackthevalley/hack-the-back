@@ -42,20 +42,30 @@ def mark_walkin(
     current_status = user.application.hacker_applicant.status
     application_id = str(user.application.application_id)
 
-    early_statuses = [
+    early_statuses = {
         StatusEnum.NOT_APPLIED,
         StatusEnum.APPLYING,
         StatusEnum.ACCOUNT_INACTIVE,
-    ]
+    }
 
     if current_status in early_statuses or current_status is None:
         user.application.hacker_applicant.status = StatusEnum.WALK_IN
         message = f"User {user.email} marked as WALK_IN - they can now complete their application"
         send_email = False
-    else:
+    elif current_status == StatusEnum.APPLIED:
         user.application.hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = f"User {user.email} marked as WALK_IN_SUBMITTED - RSVP email sent"
         send_email = True
+    elif current_status in {StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED}:
+        message = f"User {user.email} is already marked as {current_status.value}"
+        send_email = False
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"User with status {current_status.value} cannot be marked as a walk-in"
+            ),
+        )
 
     session.add(user.application.hacker_applicant)
     session.commit()

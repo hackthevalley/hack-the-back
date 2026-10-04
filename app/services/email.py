@@ -135,6 +135,33 @@ def send_activation_email_in_background(email: str) -> None:
         logger.exception("Activation email for %s could not be sent", email)
 
 
+def send_password_reset_email_in_background(
+    email: str, token: str, requested_at: datetime
+) -> None:
+    """Send a reset email and release its cooldown reservation on failure."""
+    reset_url = AppConfig.get_password_reset_url(token)
+    try:
+        send_email(
+            EmailTemplate.PASSWORD_RESET,
+            email,
+            EmailSubject.PASSWORD_RESET,
+            EmailMessage.password_reset_text(reset_url),
+            {"url": reset_url},
+        )
+    except Exception:
+        from app.core.db import engine
+
+        logger.exception("Password reset email for %s could not be sent", email)
+        with Session(engine) as session:
+            user = session.exec(
+                select(AccountUser).where(AccountUser.email == email)
+            ).first()
+            if user and user.last_password_reset_request == requested_at:
+                user.last_password_reset_request = None
+                session.add(user)
+                session.commit()
+
+
 def send_email_safely(*args, **kwargs) -> None:
     try:
         send_email(*args, **kwargs)

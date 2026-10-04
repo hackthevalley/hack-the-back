@@ -76,7 +76,7 @@ def get_food_data(session: SessionDep) -> FoodResponse:
 @router.post("/tracking")
 def track_food(request: FoodTrackingRequest, session: SessionDep) -> dict[str, Any]:
     from app.models.food_tracking import FoodTracking
-    from app.models.forms import FormApplication
+    from app.models.forms import FormApplication, HackathonApplicant
 
     food_items = request.food
 
@@ -85,12 +85,17 @@ def track_food(request: FoodTrackingRequest, session: SessionDep) -> dict[str, A
 
     application_ids = [item.application for item in food_items]
 
-    app_statement = select(FormApplication).where(
-        col(FormApplication.application_id).in_(application_ids)
+    app_statement = (
+        select(FormApplication, HackathonApplicant)
+        .join(
+            HackathonApplicant,
+            FormApplication.application_id == HackathonApplicant.application_id,
+        )
+        .where(col(FormApplication.application_id).in_(application_ids))
     )
     applications = session.exec(app_statement).all()
 
-    app_map = {app.application_id: app for app in applications}
+    app_map = {app.application_id: (app, applicant) for app, applicant in applications}
 
     for item in food_items:
         if item.application not in app_map:
@@ -98,10 +103,31 @@ def track_food(request: FoodTrackingRequest, session: SessionDep) -> dict[str, A
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Application not found: {item.application}",
             )
+        if app_map[item.application][1].checked_in_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Application is not checked in: {item.application}",
+            )
+
+    meal_ids = {item.serving for item in food_items}
+    meals = session.exec(select(Meal).where(col(Meal.id).in_(meal_ids))).all()
+    meal_map = {meal.id: meal for meal in meals}
+    for meal_id in meal_ids:
+        meal = meal_map.get(meal_id)
+        if meal is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Meal not found: {meal_id}",
+            )
+        if not meal.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Meal is not active: {meal_id}",
+            )
 
     tracking_pairs = []
     for item in food_items:
-        application = app_map[item.application]
+        application = app_map[item.application][0]
         meal_id = item.serving
         tracking_pairs.append((application.uid, meal_id))
 

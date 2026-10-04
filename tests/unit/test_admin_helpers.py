@@ -3,6 +3,8 @@ from importlib import import_module
 from pathlib import Path
 import zipfile
 
+import pytest
+from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.models.constants import QuestionLabel, UserRole
@@ -16,8 +18,16 @@ from app.models.forms import (
 )
 from app.models.user import AccountUser
 from app.services.admin_applications import create_resume_export, sanitize_filename
+from app.routers.admin.account import resolve_email_template
 
 bulk_email = import_module("app.services.bulk_email")
+
+
+def test_bulk_email_templates_stay_in_template_directory(tmp_path):
+    assert resolve_email_template("templates/confirmation.html").is_file()
+    with pytest.raises(HTTPException) as error:
+        resolve_email_template(str(tmp_path / "secret"))
+    assert error.value.status_code == 400
 
 
 def test_filename_sanitization():

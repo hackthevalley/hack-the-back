@@ -13,9 +13,6 @@ from app.config import AppConfig, SecurityConfig
 from app.core.db import SessionDep
 from app.core.orm import eager_load
 from app.models.constants import (
-    EmailMessage,
-    EmailSubject,
-    EmailTemplate,
     TokenScope,
     UserRole,
 )
@@ -31,7 +28,7 @@ from app.services.tokens import (
 )
 from app.services.email import (
     send_activation_email_in_background,
-    send_email,
+    send_password_reset_email_in_background,
 )
 from app.services.wallet import generate_apple_wallet_pass
 
@@ -195,14 +192,11 @@ def send_reset_password(
         minutes=SecurityConfig.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
     )
     access_token = create_user_access_token(selected_user, scopes, access_token_expires)
-    password_reset_url = AppConfig.get_password_reset_url(access_token)
     background_tasks.add_task(
-        send_email,
-        EmailTemplate.PASSWORD_RESET,
+        send_password_reset_email_in_background,
         user.email,
-        EmailSubject.PASSWORD_RESET,
-        EmailMessage.password_reset_text(password_reset_url),
-        {"url": access_token},
+        access_token,
+        now,
     )
     return _GENERIC_ACCOUNT_EMAIL_RESPONSE
 

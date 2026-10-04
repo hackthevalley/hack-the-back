@@ -41,7 +41,9 @@ def create_application(
         )
 
     questions = session.exec(
-        select(FormQuestion).order_by(col(FormQuestion.question_order))
+        select(FormQuestion)
+        .where(col(FormQuestion.is_active).is_(True))
+        .order_by(col(FormQuestion.question_order))
     ).all()
 
     application = FormApplication(

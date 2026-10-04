@@ -55,7 +55,9 @@ def test_seed_contract_matches_source_data(client, admin_headers):
 
 
 def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
-    question_count = int(db_query("SELECT count(*) FROM forms_question")[0])
+    question_count = int(
+        db_query("SELECT count(*) FROM forms_question WHERE is_active")[0]
+    )
     assert question_count > 0
     assert db_query("SELECT count(*) FROM meal") == ["6"]
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
@@ -67,22 +69,28 @@ def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
         "'Removed stale question', true)"
     )
     restart_api()
-    assert db_query("SELECT count(*) FROM forms_question") == [str(question_count)]
+    assert db_query("SELECT count(*) FROM forms_question WHERE is_active") == [
+        str(question_count)
+    ]
     assert db_query(
-        "SELECT count(*) FROM forms_question WHERE label = 'Removed stale question'"
-    ) == ["0"]
+        "SELECT is_active FROM forms_question WHERE label = 'Removed stale question'"
+    ) == ["f"]
     assert db_query("SELECT count(*) FROM meal") == ["6"]
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
 
     db_query("DELETE FROM forms_question WHERE question_order = 0")
     db_query("DELETE FROM meal WHERE day = 'FRIDAY' AND meal_type = 'DINNER'")
     db_query("DELETE FROM forms_form")
-    assert db_query("SELECT count(*) FROM forms_question") == [str(question_count - 1)]
+    assert db_query("SELECT count(*) FROM forms_question WHERE is_active") == [
+        str(question_count - 1)
+    ]
     assert db_query("SELECT count(*) FROM meal") == ["5"]
     assert db_query("SELECT count(*) FROM forms_form") == ["0"]
 
     restart_api()
-    assert db_query("SELECT count(*) FROM forms_question") == [str(question_count)]
+    assert db_query("SELECT count(*) FROM forms_question WHERE is_active") == [
+        str(question_count)
+    ]
     assert db_query("SELECT count(*) FROM meal") == ["6"]
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
 
