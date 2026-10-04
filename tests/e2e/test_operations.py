@@ -204,7 +204,7 @@ def test_registration_window_and_bulk_email_paths(
         "/api/forms/application", headers=active_hacker["headers"]
     )
     assert application.status_code == 200
-    queued = client.post(
+    completed = client.post(
         "/api/admin/account/bulk-emails",
         json={
             "template_path": "templates/confirmation.html",
@@ -215,6 +215,7 @@ def test_registration_window_and_bulk_email_paths(
         },
         headers=admin_headers,
     )
-    assert queued.status_code == 200, queued.text
-    assert queued.json()["status"] == "queued"
-    assert queued.json()["total_recipients"] >= 1
+    assert completed.status_code == 200, completed.text
+    assert completed.json()["status"] == "completed"
+    assert completed.json()["total_recipients"] >= 1
+    assert completed.json()["successful"] >= 1

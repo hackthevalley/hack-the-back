@@ -57,7 +57,11 @@ def login(
     session: SessionDep,
     background_tasks: BackgroundTasks,
 ) -> Token:
-    statement = select(AccountUser).where(AccountUser.email == form_data.username)
+    statement = (
+        select(AccountUser)
+        .where(AccountUser.email == form_data.username)
+        .with_for_update()
+    )
     selected_user = session.exec(statement).first()
     password_hash = selected_user.password if selected_user else _DUMMY_PASSWORD_HASH
     password_matches = bcrypt.checkpw(

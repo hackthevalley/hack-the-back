@@ -405,6 +405,14 @@ def list_applications(
     return {"applications": applications, "offset": offset, "limit": limit}
 
 
+ADMIN_DECISION_STATUSES = {
+    StatusEnum.UNDER_REVIEW,
+    StatusEnum.ACCEPTED,
+    StatusEnum.WAITLISTED,
+    StatusEnum.REJECTED,
+}
+
+
 def update_application_status(
     session: Session,
     application_id: UUID,
@@ -413,6 +421,9 @@ def update_application_status(
     *,
     admin: AccountUser,
 ) -> dict:
+    if new_status not in ADMIN_DECISION_STATUSES:
+        raise ServiceError(status_code=400, detail="Invalid admin decision status")
+
     result = session.exec(
         select(FormApplication, AccountUser)
         .join(AccountUser, FormApplication.uid == AccountUser.uid)

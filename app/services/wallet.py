@@ -116,7 +116,6 @@ def generate_google_wallet_pass(user_name: str, application_id: str):
                         "value": application_id,
                         "alternateText": "Present when signing in/getting food!",
                     },
-                    "eventId": "hackthevalleyx",
                     "venue": {"name": AppConfig.EVENT_LOCATION},
                     "textModulesData": [{"header": "Name", "body": user_name}],
                 }

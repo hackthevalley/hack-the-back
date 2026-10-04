@@ -12,7 +12,6 @@ services:
     volumes:
       - ./certbot-data/conf:/etc/letsencrypt:ro
       - ./certbot-data/www:/var/www/certbot:ro
-      - uploads:/var/www/media:ro
     command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec nginx -g "daemon off;"'
 
   certbot:

@@ -55,3 +55,11 @@ def test_failed_commit_rolls_back_decision_and_history(records, monkeypatch):
     assert session.get(HackathonApplicant, application_id).status == StatusEnum.APPLIED
     assert session.exec(select(ApplicationStatusHistory)).all() == []
     enqueue.assert_not_called()
+
+
+def test_admin_cannot_set_operational_status(records):
+    session, application_id, admin = records
+    with pytest.raises(ServiceError, match="Invalid admin decision status"):
+        update_application_status(
+            session, application_id, StatusEnum.SCANNED_IN, Mock(), admin=admin
+        )

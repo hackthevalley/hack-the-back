@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
 from sqlmodel import col, select
 
 from app.cache import cache
@@ -77,9 +77,7 @@ def submission_time(session: SessionDep) -> bool:
 
 @router.get("/registration-timerange", response_model=FormWindow)
 def get_reg_time_range(session: SessionDep) -> FormWindow:
-    def fetch_time_range() -> FormWindow | None:
-        return session.exec(select(FormWindow)).first()
-
-    return cache.get_or_set(
-        "registration_timerange", fetch_time_range, timedelta(minutes=5)
-    )
+    time_range = session.exec(select(FormWindow)).first()
+    if time_range is None:
+        raise HTTPException(status_code=404, detail="Registration window not found")
+    return time_range

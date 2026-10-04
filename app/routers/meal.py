@@ -2,13 +2,24 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlmodel import select
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select
 
 from app.core.db import SessionDep
 from app.models.meal import Meal, MealType, WeekDay
 from app.schemas.meal import MealCreate, MealRead, MealUpdate
 
 router = APIRouter()
+
+
+def _commit_or_conflict(session: Session, detail: str) -> None:
+    try:
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=detail
+        ) from error
 
 
 @router.post("", response_model=MealRead, status_code=status.HTTP_201_CREATED)
@@ -24,7 +35,7 @@ def create_meal(*, session: SessionDep, meal: MealCreate) -> MealRead:
     db_meal = Meal.model_validate(meal)
 
     session.add(db_meal)
-    session.commit()
+    _commit_or_conflict(session, "A meal already exists for that day and type")
     session.refresh(db_meal)
 
     response = MealRead.model_validate(db_meal)
@@ -87,7 +98,7 @@ def update_meal(
         setattr(db_meal, key, value)
 
     session.add(db_meal)
-    session.commit()
+    _commit_or_conflict(session, "Meal update conflicts with an existing meal")
     session.refresh(db_meal)
 
     response = MealRead.model_validate(db_meal)
@@ -104,4 +115,4 @@ def delete_meal(meal_id: UUID, session: SessionDep) -> None:
         )
 
     session.delete(meal)
-    session.commit()
+    _commit_or_conflict(session, "Meal cannot be deleted while it has check-ins")

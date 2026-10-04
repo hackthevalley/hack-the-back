@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Any
 from uuid import UUID
@@ -146,7 +147,6 @@ def update_application_status(
 def send_bulk_email_endpoint(
     request: BulkEmailRequest,
     session: SessionDep,
-    background_tasks: BackgroundTasks,
 ) -> dict[str, Any]:
     template = resolve_email_template(request.template_path)
 
@@ -160,26 +160,37 @@ def send_bulk_email_endpoint(
     if total > EmailConfig.BULK_WARN_THRESHOLD:
         logger.warning("Large bulk email operation: %s recipients", total)
 
-    job = BulkEmailJob(total_recipients=total)
+    job = BulkEmailJob(total_recipients=total, status="processing")
     session.add(job)
     session.commit()
     session.refresh(job)
 
-    background_tasks.add_task(
-        send_batch_email,
-        recipients,
-        str(template),
-        request.subject,
-        request.text_body,
-        request.context,
-        job.job_id,
-    )
+    try:
+        send_batch_email(
+            recipients,
+            str(template),
+            request.subject,
+            request.text_body,
+            request.context,
+            job.job_id,
+        )
+    except Exception as error:
+        logger.exception("Bulk email job %s failed", job.job_id)
+        job.status = "failed"
+        job.error_summary = str(error)[:500]
+        job.completed_at = datetime.now(timezone.utc)
+        session.add(job)
+        session.commit()
+        raise HTTPException(status_code=500, detail="Bulk email job failed") from error
+
+    session.refresh(job)
     return {
-        "message": f"Bulk email job queued for status: {request.status.value}",
+        "message": f"Bulk email completed for status: {request.status.value}",
         "total_recipients": total,
-        "status": "queued",
+        "status": job.status,
         "job_id": str(job.job_id),
-        "note": "Emails are being sent concurrently in the background (chunks of 100, max 10 concurrent)",
+        "successful": job.successful,
+        "failed": job.failed,
     }
 
 

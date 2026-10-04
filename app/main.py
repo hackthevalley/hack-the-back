@@ -6,6 +6,8 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -93,5 +95,10 @@ app = get_application()
 
 
 @app.get("/health", include_in_schema=False)
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+def health_check() -> JSONResponse:
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        return JSONResponse(status_code=503, content={"status": "unhealthy"})
+    return JSONResponse(content={"status": "ok"})

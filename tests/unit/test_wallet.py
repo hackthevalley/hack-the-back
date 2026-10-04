@@ -101,5 +101,6 @@ def test_google_wallet_required_configuration_and_success(monkeypatch):
     assert "heroImage" not in ticket
     assert ticket["id"] == "issuer.app-id"
     assert ticket["classId"] == "issuer.class"
+    assert "eventId" not in ticket
     assert ticket["ticketHolderName"] == "User"
     assert ticket["barcode"]["value"] == "app-id"
