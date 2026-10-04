@@ -25,9 +25,7 @@ from app.routers import router
 
 def load_form_questions() -> list[dict]:
     questions_path = Path(__file__).parent / "data" / "form_questions.json"
-    with open(questions_path, encoding="utf-8") as f:
-        content = f.read()
-        return json.loads(content)
+    return json.loads(questions_path.read_text(encoding="utf-8"))
 
 
 meals = [

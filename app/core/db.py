@@ -3,7 +3,7 @@ import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
-from typing import Annotated, Callable, List
+from typing import Annotated, Callable
 
 from fastapi import Depends
 from sqlalchemy import text
@@ -101,7 +101,7 @@ def with_advisory_lock(lock_id: int):
 
 
 @with_advisory_lock(ADVISORY_LOCK_QUESTIONS)
-def seed_questions(questions: List, session: Session):
+def seed_questions(questions: list[dict], session: Session):
     try:
         added_questions: list[FormQuestion] = []
         existing_questions = {
@@ -204,7 +204,7 @@ def seed_form_time(session: Session):
 
 
 @with_advisory_lock(ADVISORY_LOCK_MEALS)
-def seed_meals(meals: List, session: Session):
+def seed_meals(meals: list[dict], session: Session):
     try:
         existing_meals = set(session.exec(select(Meal.day, Meal.meal_type)).all())
 
