@@ -360,8 +360,7 @@ def test_rsvp_greeting_uses_account_first_name(monkeypatch, first_name):
     assert "Congratulations !" not in rendered[0]
 
 
-@pytest.mark.parametrize("deadline", ["October 9th 2026", "October 9th, 2026"])
-def test_rsvp_dates_include_commas(monkeypatch, deadline):
+def test_rsvp_dates_include_commas(monkeypatch):
     rendered = []
 
     def capture_email(template, receiver, subject, textbody, context, **kwargs):
@@ -371,9 +370,9 @@ def test_rsvp_dates_include_commas(monkeypatch, deadline):
     monkeypatch.setattr(AppConfig, "GOOGLE_WALLET_PASS_URL", "https://example.com/wallet")
     monkeypatch.setattr(AppConfig, "EVENT_START_DATE", datetime(2026, 10, 16))
     monkeypatch.setattr(AppConfig, "EVENT_END_DATE", datetime(2026, 10, 18))
-    monkeypatch.setattr(AppConfig, "RSVP_DUE_DATE", deadline)
+    monkeypatch.setattr(AppConfig, "RSVP_DUE_DATE", datetime(2026, 10, 9).date())
 
     email_service.send_rsvp("hacker@example.com", "Ada Lovelace", "application-id", "Ada")
 
     assert "October 16, 2026 to October 18, 2026" in rendered[0]
-    assert "RSVP by October 9th, 2026" in rendered[0]
+    assert "RSVP by October 9, 2026" in rendered[0]

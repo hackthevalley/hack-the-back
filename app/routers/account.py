@@ -322,6 +322,11 @@ def rsvp_status_update(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid RSVP status",
         )
+    if not AppConfig.is_rsvp_open():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The RSVP deadline has passed",
+        )
 
     application_statement = (
         select(FormApplication)

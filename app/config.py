@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import date, datetime, timezone
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     APPLICATION_END_DATE: datetime = datetime.fromisoformat(
         "2026-09-01T00:00:00-04:00"
     )
-    RSVP_DUE_DATE: str = "October 9th, 2026"
+    RSVP_DUE_DATE: date = date(2026, 10, 9)
     APPLE_TEAM_IDENTIFIER: str | None = None
     APPLE_PASS_TYPE_IDENTIFIER: str | None = None
     APPLE_WALLET_KEY_PASSWORD: str | None = None
@@ -158,6 +158,19 @@ class AppConfig(metaclass=_SettingsProxyMeta):
     @staticmethod
     def get_apple_wallet_url(application_id: str) -> str:
         return f"{AppConfig.BACKEND_URL}/api/account/apple-wallet/{application_id}"
+
+    @staticmethod
+    def get_rsvp_due_date() -> str:
+        due_date = AppConfig.RSVP_DUE_DATE
+        return f"{due_date.strftime('%B')} {due_date.day}, {due_date.year}"
+
+    @staticmethod
+    def is_rsvp_open(now: datetime | None = None) -> bool:
+        event_timezone = AppConfig.EVENT_START_DATE.tzinfo or timezone.utc
+        current_date = (now or datetime.now(timezone.utc)).astimezone(
+            event_timezone
+        ).date()
+        return current_date <= AppConfig.RSVP_DUE_DATE
 
     @staticmethod
     def get_event_date_range() -> str:

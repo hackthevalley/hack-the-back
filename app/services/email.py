@@ -1,7 +1,6 @@
 import base64
 import io
 import logging
-import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -206,7 +205,7 @@ def send_rsvp(
             "first_name": first_name.strip(),
             "start_date": AppConfig.EVENT_START_DATE.strftime("%B %d, %Y"),
             "end_date": AppConfig.EVENT_END_DATE.strftime("%B %d, %Y"),
-            "due_date": re.sub(r"(?<!,)\s+(\d{4})$", r", \1", AppConfig.RSVP_DUE_DATE.strip()),
+            "due_date": AppConfig.get_rsvp_due_date(),
             "apple_url": AppConfig.get_apple_wallet_url(application_id),
             "google_url": AppConfig.GOOGLE_WALLET_PASS_URL
             or generate_google_wallet_pass(user_full_name, application_id),
