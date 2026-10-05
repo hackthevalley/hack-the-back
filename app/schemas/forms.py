@@ -1,7 +1,9 @@
+from datetime import date
+
 from pydantic import BaseModel, Field
 from sqlmodel import SQLModel
 
-from app.models.forms import FormAnswer, FormApplication
+from app.models.forms import FormAnswer, FormApplication, FormWindow
 
 
 class FormAnswerUpdate(SQLModel):
@@ -13,6 +15,10 @@ class ApplicationResponse(BaseModel):
     application: FormApplication
     form_answers: list[FormAnswer]
     form_answer_files: str | None
+
+
+class FormWindowResponse(FormWindow):
+    rsvp_due_date: date
 
 
 class WalkInRequest(BaseModel):

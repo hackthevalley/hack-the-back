@@ -5,10 +5,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFi
 from sqlmodel import col, select
 
 from app.cache import cache
+from app.config import AppConfig
 from app.core.db import SessionDep
 from app.models.forms import FormQuestion, FormWindow
 from app.models.user import AccountUser
-from app.schemas.forms import ApplicationResponse, FormAnswerUpdate
+from app.schemas.forms import ApplicationResponse, FormAnswerUpdate, FormWindowResponse
 from app.services.applications import is_valid_submission_time
 from app.dependencies.auth import get_current_user
 from app.services.form_workflow import (
@@ -75,9 +76,11 @@ def submission_time(session: SessionDep) -> bool:
     return is_valid_submission_time(session)
 
 
-@router.get("/registration-timerange", response_model=FormWindow)
-def get_reg_time_range(session: SessionDep) -> FormWindow:
+@router.get("/registration-timerange", response_model=FormWindowResponse)
+def get_reg_time_range(session: SessionDep) -> FormWindowResponse:
     time_range = session.exec(select(FormWindow)).first()
     if time_range is None:
         raise HTTPException(status_code=404, detail="Registration window not found")
-    return time_range
+    return FormWindowResponse.model_validate(
+        time_range, update={"rsvp_due_date": AppConfig.RSVP_DUE_DATE}
+    )

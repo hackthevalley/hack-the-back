@@ -51,6 +51,7 @@ def test_seed_contract_matches_source_data(client, admin_headers):
     assert form.status_code == 200
     assert datetime.fromisoformat(form.json()["start_at"]).year == 2020
     assert datetime.fromisoformat(form.json()["end_at"]).year == 2099
+    assert form.json()["rsvp_due_date"] == "2026-10-09"
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
 
 
