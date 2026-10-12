@@ -97,30 +97,6 @@ def test_walk_in_and_qr_check_in(client, active_hacker, volunteer_headers):
     assert scanned.json()["body"]["applicant"]["status"] == "WALK_IN"
 
 
-def test_walk_in_submitted_stays_submitted_after_qr_check_in(
-    client, active_hacker, admin_headers, volunteer_headers
-):
-    application = client.get(
-        "/api/forms/application", headers=active_hacker["headers"]
-    ).json()["application"]
-    application_id = application["application_id"]
-
-    updated = client.patch(
-        f"/api/admin/account/applications/{application_id}/status",
-        params={"request": "WALK_IN_SUBMITTED"},
-        headers=admin_headers,
-    )
-    assert updated.status_code == 200, updated.text
-
-    scanned = client.post(
-        "/api/volunteer/check-ins",
-        json={"id": application_id},
-        headers=volunteer_headers,
-    )
-    assert scanned.status_code == 200, scanned.text
-    assert scanned.json()["body"]["applicant"]["status"] == "WALK_IN_SUBMITTED"
-
-
 def test_admin_listing_and_input_validation(client, admin_headers, volunteer_headers):
     users = client.get("/api/admin/account/users", headers=admin_headers)
     assert users.status_code == 200

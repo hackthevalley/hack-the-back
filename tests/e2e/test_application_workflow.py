@@ -13,7 +13,7 @@ def _pdf():
 
 
 def test_complete_application_submission_and_admin_review(
-    client, active_hacker, admin_headers
+    client, active_hacker, admin_headers, volunteer_headers
 ):
     questions = client.get("/api/forms/questions").json()
     assert questions
@@ -145,6 +145,22 @@ def test_complete_application_submission_and_admin_review(
         headers=admin_headers,
     )
     assert empty_export.status_code == 404
+
+    walk_in = client.post(
+        "/api/volunteer/forms/walk-ins",
+        json={"email": active_hacker["email"]},
+        headers=volunteer_headers,
+    )
+    assert walk_in.status_code == 200, walk_in.text
+    assert walk_in.json()["new_status"] == "WALK_IN_SUBMITTED"
+
+    scanned = client.post(
+        "/api/volunteer/check-ins",
+        json={"id": app_id},
+        headers=volunteer_headers,
+    )
+    assert scanned.status_code == 200, scanned.text
+    assert scanned.json()["body"]["applicant"]["status"] == "WALK_IN_SUBMITTED"
 
     accepted = client.patch(
         f"/api/admin/account/applications/{app_id}/status",
