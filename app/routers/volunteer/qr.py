@@ -27,6 +27,11 @@ class QRScanRequest(BaseModel):
     id: str
 
 
+@router.get("/counts")
+def read_check_in_counts(session: SessionDep) -> dict[str, int]:
+    return get_check_in_counts(session)
+
+
 @router.post("")
 def scan_qr(
     request: QRScanRequest, session: SessionDep, background_tasks: BackgroundTasks

@@ -6,6 +6,10 @@ from websockets.sync.client import connect
 def test_live_check_in_counts(client, active_hacker, volunteer_headers):
     socket_url = str(client.base_url).replace("http", "ws", 1).rstrip("/")
     token = volunteer_headers["Authorization"].removeprefix("Bearer ")
+    counts = client.get(
+        "/api/volunteer/check-ins/counts", headers=volunteer_headers
+    )
+    assert counts.status_code == 200, counts.text
 
     with connect(f"{socket_url}/api/volunteer/check-ins/live") as websocket:
         websocket.send(json.dumps({"token": token}))
@@ -23,6 +27,9 @@ def test_live_check_in_counts(client, active_hacker, volunteer_headers):
             "scannedCount": initial["scannedCount"],
             "walkinCount": initial["walkinCount"] + 1,
         }
+        assert client.get(
+            "/api/volunteer/check-ins/counts", headers=volunteer_headers
+        ).json() == updated
 
 
 def test_admin_meal_and_volunteer_food_workflow(
