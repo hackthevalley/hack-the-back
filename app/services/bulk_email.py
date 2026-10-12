@@ -81,7 +81,7 @@ def send_batch_email(
         with Session(engine) as session:
             job = session.get(BulkEmailJob, job_id)
             if job is not None:
-                job.status = "completed" if not failures else "completed_with_failures"
+                job.status = "completed" if not failures else "partial_failure"
                 job.successful = successful
                 job.failed = len(failures)
                 job.error_summary = "; ".join(
