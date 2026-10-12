@@ -46,4 +46,21 @@ def test_removed_questions_become_inactive_without_deleting_answers(monkeypatch)
         assert question.is_active is False
         assert session.exec(select(FormAnswer)).one().answer == "Keep me"
 
+        questions = [{"label": "Added", "required": True}]
+        db.seed_questions(questions, session)
+        db.seed_questions(questions, session)
+
+        added = session.exec(
+            select(FormQuestion).where(FormQuestion.label == "Added")
+        ).all()
+        assert len(added) == 1
+        assert added[0].is_active is True
+        assert len(
+            session.exec(
+                select(FormAnswer).where(
+                    FormAnswer.question_id == added[0].question_id
+                )
+            ).all()
+        ) == 1
+
     engine.dispose()

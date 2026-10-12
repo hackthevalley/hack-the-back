@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import jwt
+import psycopg2
 import pytest
 
 
@@ -21,6 +22,10 @@ COMPOSE = [
 ]
 API_URL = os.getenv("E2E_API_URL", "http://127.0.0.1:58000")
 MAIL_URL = os.getenv("E2E_MAIL_URL", "http://127.0.0.1:58080")
+DATABASE_URL = os.getenv(
+    "E2E_DATABASE_URL",
+    "postgresql://postgres:postgres@127.0.0.1:55432/hack_the_back_e2e",
+)
 SECRET = "e2e-only-secret-key-not-for-production"
 PASSWORD = "CorrectHorseBatteryStaple!42"
 PASSWORD_HASH = "$2b$04$aINO.uxUOdITehDsZzp7YepCdzSmdCeO40EnGqdeBWkCWRi5CDFzy"
@@ -74,35 +79,21 @@ def _wait_for_api():
 
 
 def db_query(sql: str) -> list[str]:
-    result = subprocess.run(
-        COMPOSE
-        + [
-            "exec",
-            "-T",
-            "e2e-db",
-            "psql",
-            "-U",
-            "postgres",
-            "-d",
-            "hack_the_back_e2e",
-            "-At",
-            "-c",
-            sql,
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return [line for line in result.stdout.splitlines() if line]
+    with psycopg2.connect(DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            if cursor.description is None:
+                return []
+            return [
+                "|".join(
+                    "t" if value is True else "f" if value is False else str(value)
+                    for value in row
+                )
+                for row in cursor.fetchall()
+            ]
 
 
-def restart_api():
-    subprocess.run(COMPOSE + ["restart", "e2e-api"], cwd=ROOT, check=True)
-    _wait_for_api()
-
-
-@pytest.fixture
+@pytest.fixture(scope="session")
 def client():
     with httpx.Client(base_url=API_URL, timeout=15) as value:
         yield value

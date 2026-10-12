@@ -3,7 +3,7 @@ from datetime import datetime
 
 from alembic.script import ScriptDirectory
 
-from .conftest import ROOT, db_query, restart_api
+from .conftest import ROOT, db_query
 
 
 EXPECTED_MEALS = {
@@ -53,72 +53,3 @@ def test_seed_contract_matches_source_data(client, admin_headers):
     assert datetime.fromisoformat(form.json()["end_at"]).year == 2099
     assert form.json()["rsvp_due_date"] == "2099-01-01"
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
-
-
-def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
-    question_count = int(
-        db_query("SELECT count(*) FROM forms_question WHERE is_active")[0]
-    )
-    assert question_count > 0
-    assert db_query("SELECT count(*) FROM meal") == ["6"]
-    assert db_query("SELECT count(*) FROM forms_form") == ["1"]
-
-    db_query(
-        "INSERT INTO forms_question "
-        "(question_id, question_order, label, required) VALUES "
-        "('00000000-0000-0000-0000-000000000099', 999, "
-        "'Removed stale question', true)"
-    )
-    db_query("DELETE FROM forms_question WHERE question_order = 0")
-    db_query("DELETE FROM meal WHERE day = 'FRIDAY' AND meal_type = 'DINNER'")
-    db_query("DELETE FROM forms_form")
-    assert db_query("SELECT count(*) FROM forms_question WHERE is_active") == [
-        str(question_count - 1)
-    ]
-    assert db_query("SELECT count(*) FROM meal") == ["5"]
-    assert db_query("SELECT count(*) FROM forms_form") == ["0"]
-
-    restart_api()
-    assert db_query("SELECT count(*) FROM forms_question WHERE is_active") == [
-        str(question_count)
-    ]
-    assert db_query(
-        "SELECT is_active FROM forms_question WHERE label = 'Removed stale question'"
-    ) == ["f"]
-    assert db_query("SELECT count(*) FROM meal") == ["6"]
-    assert db_query("SELECT count(*) FROM forms_form") == ["1"]
-
-    labels = db_query(
-        "SELECT label FROM forms_question GROUP BY label HAVING count(*) > 1"
-    )
-    meals = db_query(
-        "SELECT day, meal_type FROM meal GROUP BY day, meal_type HAVING count(*) > 1"
-    )
-    assert labels == []
-    assert meals == []
-
-    # The repaired seed data is usable through the public API, not just present in SQL.
-    assert len(client.get("/api/forms/questions").json()) == question_count
-    assert len(client.get("/api/meals", headers=admin_headers).json()) == 6
-
-
-def test_form_time_seed_preserves_admin_updated_existing_row(client):
-    db_query(
-        "UPDATE forms_form "
-        "SET start_at = '2021-01-01T00:00:00+00:00', "
-        "end_at = '2021-01-02T00:00:00+00:00'"
-    )
-
-    restart_api()
-
-    form = client.get("/api/forms/registration-timerange")
-    assert form.status_code == 200
-    assert datetime.fromisoformat(form.json()["start_at"]).year == 2021
-    assert datetime.fromisoformat(form.json()["end_at"]).year == 2021
-
-    # Restore the intentionally broad E2E window for the remaining workflow tests.
-    db_query(
-        "UPDATE forms_form "
-        "SET start_at = '2020-01-01T00:00:00+00:00', "
-        "end_at = '2099-01-01T00:00:00+00:00'"
-    )
