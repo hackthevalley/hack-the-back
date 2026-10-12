@@ -47,15 +47,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build test and production image
+      - name: Build E2E image
         uses: docker/build-push-action@v7
         with:
           context: .
+          target: e2e
           load: true
-          tags: |
-            hack-the-back-e2e-api:ci
-            ghcr.io/${{ github.repository }}:main
-            ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          tags: hack-the-back-e2e-api:ci
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -66,6 +64,20 @@ jobs:
         run: uv run pytest -m e2e tests/e2e -q
         env:
           E2E_SKIP_BUILD: "1"
+
+      - name: Build production image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: production
+          load: true
+          tags: |
+            ghcr.io/${{ github.repository }}:main
+            ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=hack-the-back-api
 
       - name: Run unit tests and combine coverage
         run: |

@@ -15,6 +15,7 @@ services:
 
   e2e-mail:
     image: python:3.14.6-slim-bookworm
+    init: true
     working_dir: /workspace
     command: python tests/e2e/fake_postmark.py
     volumes:
@@ -29,7 +30,7 @@ services:
 
   e2e-migrate:
     image: hack-the-back-e2e-api:ci
-    command: uv run alembic upgrade head
+    command: /bin/sh -c "alembic upgrade head && alembic check"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@e2e-db:5432/hack_the_back_e2e
     depends_on:
@@ -41,7 +42,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: uv run coverage run --rcfile=/htb/.coveragerc -m fastapi run app/main.py --host 0.0.0.0 --port 8000
+    command: coverage run --rcfile=/htb/.coveragerc -m fastapi run app/main.py --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: postgresql://postgres:postgres@e2e-db:5432/hack_the_back_e2e
       SECRET_KEY: e2e-only-secret-key-not-for-production
@@ -62,7 +63,7 @@ services:
     ports:
       - "58000:8000"
     depends_on:
-      e2e-alembic-check:
+      e2e-migrate:
         condition: service_completed_successfully
       e2e-mail:
         condition: service_healthy
@@ -71,12 +72,3 @@ services:
       interval: 1s
       timeout: 3s
       retries: 60
-
-  e2e-alembic-check:
-    image: hack-the-back-e2e-api:ci
-    command: uv run alembic check
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@e2e-db:5432/hack_the_back_e2e
-    depends_on:
-      e2e-migrate:
-        condition: service_completed_successfully
