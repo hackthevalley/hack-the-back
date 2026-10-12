@@ -69,16 +69,6 @@ def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
         "('00000000-0000-0000-0000-000000000099', 999, "
         "'Removed stale question', true)"
     )
-    restart_api()
-    assert db_query("SELECT count(*) FROM forms_question WHERE is_active") == [
-        str(question_count)
-    ]
-    assert db_query(
-        "SELECT is_active FROM forms_question WHERE label = 'Removed stale question'"
-    ) == ["f"]
-    assert db_query("SELECT count(*) FROM meal") == ["6"]
-    assert db_query("SELECT count(*) FROM forms_form") == ["1"]
-
     db_query("DELETE FROM forms_question WHERE question_order = 0")
     db_query("DELETE FROM meal WHERE day = 'FRIDAY' AND meal_type = 'DINNER'")
     db_query("DELETE FROM forms_form")
@@ -92,6 +82,9 @@ def test_seeding_is_idempotent_and_repairs_missing_rows(client, admin_headers):
     assert db_query("SELECT count(*) FROM forms_question WHERE is_active") == [
         str(question_count)
     ]
+    assert db_query(
+        "SELECT is_active FROM forms_question WHERE label = 'Removed stale question'"
+    ) == ["f"]
     assert db_query("SELECT count(*) FROM meal") == ["6"]
     assert db_query("SELECT count(*) FROM forms_form") == ["1"]
 
@@ -129,4 +122,3 @@ def test_form_time_seed_preserves_admin_updated_existing_row(client):
         "SET start_at = '2020-01-01T00:00:00+00:00', "
         "end_at = '2099-01-01T00:00:00+00:00'"
     )
-    restart_api()

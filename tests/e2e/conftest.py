@@ -1,6 +1,7 @@
 import os
 import subprocess
 import time
+import uuid
 from datetime import timedelta
 from pathlib import Path
 
@@ -22,6 +23,7 @@ API_URL = os.getenv("E2E_API_URL", "http://127.0.0.1:58000")
 MAIL_URL = os.getenv("E2E_MAIL_URL", "http://127.0.0.1:58080")
 SECRET = "e2e-only-secret-key-not-for-production"
 PASSWORD = "CorrectHorseBatteryStaple!42"
+PASSWORD_HASH = "$2b$04$aINO.uxUOdITehDsZzp7YepCdzSmdCeO40EnGqdeBWkCWRi5CDFzy"
 
 
 def pytest_addoption(parser):
@@ -136,80 +138,40 @@ def unique_email(request):
     return f"{request.node.name}-{time.time_ns()}@example.com"
 
 
-@pytest.fixture
-def active_hacker(client, unique_email):
-    response = client.post(
-        "/api/account/users",
-        json={
-            "first_name": "E2E",
-            "last_name": "Hacker",
-            "email": unique_email,
-            "password": PASSWORD,
-        },
+def _identity(role: str, email: str | None = None):
+    email = email or f"e2e-{role.lower()}-{time.time_ns()}@example.com"
+    db_query(
+        "INSERT INTO account_user "
+        "(first_name, last_name, email, uid, password, role, is_active, "
+        "token_version, failed_login_attempts) VALUES "
+        f"('E2E', '{role.title()}', '{email}', '{uuid.uuid4()}', "
+        f"'{PASSWORD_HASH}', '{role}', true, 0, 0)"
     )
-    assert response.status_code == 202, response.text
-    activation = token(unique_email, ["account_activate"])
-    response = client.post(
-        "/api/account/activations",
-        json={"token": activation, "password": None},
-    )
-    assert response.status_code == 200, response.text
-    login = client.post(
-        "/api/account/sessions",
-        data={"username": unique_email, "password": PASSWORD},
-    )
-    assert login.status_code == 200, login.text
-    httpx.delete(f"{MAIL_URL}/messages")
-    return {
-        "email": unique_email,
-        "password": PASSWORD,
-        "token": login.json()["access_token"],
-        "token_version": jwt.decode(
-            login.json()["access_token"], SECRET, algorithms=["HS256"]
-        )["ver"],
-        "headers": {"Authorization": f"Bearer {login.json()['access_token']}"},
-    }
-
-
-def _role_identity(client, role: str):
-    email = f"e2e-{role.lower()}-{time.time_ns()}@example.com"
-    signup = client.post(
-        "/api/account/users",
-        json={
-            "first_name": "E2E",
-            "last_name": role.title(),
-            "email": email,
-            "password": PASSWORD,
-        },
-    )
-    assert signup.status_code == 202, signup.text
-    activation = token(email, ["account_activate"])
-    activated = client.post(
-        "/api/account/activations", json={"token": activation, "password": None}
-    )
-    assert activated.status_code == 200, activated.text
-    db_query(f"UPDATE account_user SET role = '{role}' WHERE email = '{email}'")
-    login = client.post(
-        "/api/account/sessions",
-        data={"username": email, "password": PASSWORD},
-    )
-    assert login.status_code == 200, login.text
+    scopes = [role.lower()] if role in {"ADMIN", "VOLUNTEER"} else []
+    access_token = token(email, scopes)
     return {
         "email": email,
-        "headers": {"Authorization": f"Bearer {login.json()['access_token']}"},
+        "headers": {"Authorization": f"Bearer {access_token}"},
     }
 
 
 @pytest.fixture
-def admin_identity(client):
-    return _role_identity(client, "ADMIN")
+def active_hacker(unique_email):
+    identity = _identity("HACKER", unique_email)
+    identity.update({"password": PASSWORD, "token_version": 0})
+    return identity
 
 
 @pytest.fixture
-def admin_headers(admin_identity):
-    return admin_identity["headers"]
+def admin_identity():
+    return _identity("ADMIN")
 
 
-@pytest.fixture
-def volunteer_headers(client):
-    return _role_identity(client, "VOLUNTEER")["headers"]
+@pytest.fixture(scope="session")
+def admin_headers():
+    return _identity("ADMIN")["headers"]
+
+
+@pytest.fixture(scope="session")
+def volunteer_headers():
+    return _identity("VOLUNTEER")["headers"]

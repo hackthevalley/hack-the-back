@@ -6,14 +6,22 @@ import httpx
 from .conftest import MAIL_URL, PASSWORD, db_query, token
 
 
-def _wait_for_mail_count(expected: int):
+def _mail_for(email: str) -> list[dict]:
+    return [
+        message
+        for message in httpx.get(f"{MAIL_URL}/messages").json()
+        if message["To"] == email
+    ]
+
+
+def _wait_for_mail_count(email: str, expected: int):
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
-        messages = httpx.get(f"{MAIL_URL}/messages").json()
+        messages = _mail_for(email)
         if len(messages) == expected:
             return
         time.sleep(0.05)
-    raise AssertionError(f"Expected {expected} email messages")
+    raise AssertionError(f"Expected {expected} messages for {email}, got {len(messages)}")
 
 
 def test_signup_activation_login_refresh_and_me(client, unique_email):
@@ -27,7 +35,7 @@ def test_signup_activation_login_refresh_and_me(client, unique_email):
         },
     )
     assert signup.status_code == 202
-    _wait_for_mail_count(1)
+    _wait_for_mail_count(unique_email, 1)
 
     inactive_login = client.post(
         "/api/account/sessions",
@@ -132,7 +140,7 @@ def test_password_reset_changes_login_password(client, active_hacker):
         "/api/account/password-resets", json={"email": active_hacker["email"]}
     )
     assert requested.status_code == 200
-    _wait_for_mail_count(1)
+    _wait_for_mail_count(active_hacker["email"], 1)
 
     reset_token = token(
         active_hacker["email"],
@@ -273,14 +281,14 @@ def test_password_reset_cooldown_and_recovered_login_state(client, active_hacker
         "/api/account/password-resets", json={"email": active_hacker["email"]}
     )
     assert first_reset.status_code == 200
-    _wait_for_mail_count(1)
+    _wait_for_mail_count(active_hacker["email"], 1)
 
     second_reset = client.post(
         "/api/account/password-resets", json={"email": active_hacker["email"]}
     )
     assert second_reset.status_code == 200
     assert second_reset.json() == first_reset.json()
-    assert len(httpx.get(f"{MAIL_URL}/messages").json()) == 1
+    assert len(_mail_for(active_hacker["email"])) == 1
 
     db_query(
         "UPDATE account_user SET failed_login_attempts = 2, "
