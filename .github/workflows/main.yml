@@ -22,11 +22,35 @@ jobs:
       contents: read
       packages: write
     env:
-      # Import-time configuration for unit tests. The E2E API overrides these
-      # values with its isolated Compose environment.
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/hack_the_back_e2e
-      SECRET_KEY: ci-only-secret-key
-      POSTMARK_KEY: ci-only-postmark-key
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/hack_the_back_e2e
+      E2E_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/hack_the_back_e2e
+      E2E_MAIL_URL: http://127.0.0.1:8080
+      SECRET_KEY: e2e-only-secret-key-not-for-production
+      BCRYPT_ROUNDS: "4"
+      POSTMARK_KEY: e2e-postmark-key
+      POSTMARK_URL: http://127.0.0.1:8080/email
+      FRONTEND_URL: http://frontend.e2e.test
+      BACKEND_URL: http://127.0.0.1:58000
+      GOOGLE_WALLET_PASS_URL: http://wallet.e2e.test/pass
+      APPLICATION_START_DATE: "2020-01-01T00:00:00+00:00"
+      APPLICATION_END_DATE: "2099-01-01T00:00:00+00:00"
+      RSVP_DUE_DATE: "2099-01-01"
+      UPLOAD_DIR: /tmp/hack-the-back-e2e-uploads
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: hack_the_back_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hack_the_back_e2e"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
 
     steps:
       - name: Check out repository
@@ -41,43 +65,76 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
-      - name: Run static type checks
-        run: uv run basedpyright app --level error
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build test and production image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          load: true
-          tags: |
-            hack-the-back-e2e-api:ci
-            ghcr.io/${{ github.repository }}:main
-            ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha,scope=hack-the-back-api
-          cache-to: type=gha,mode=max,scope=hack-the-back-api
-
-      - name: Run Docker-backed E2E tests
-        run: uv run pytest -m e2e tests/e2e -q
-        env:
-          E2E_SKIP_BUILD: "1"
-
-      - name: Run unit tests and combine coverage
+      - name: Build image and run tests
         run: |
-          uv run coverage run \
-            --data-file=test-artifacts/coverage/.coverage.unit \
-            -m pytest tests/unit -q
-          uv run coverage combine test-artifacts/coverage
+          set -euo pipefail
+          mkdir -p test-artifacts/coverage
+          rm -f test-artifacts/coverage/.coverage.e2e \
+            test-artifacts/coverage/.coverage.unit
 
-      - name: Enforce coverage threshold
-        run: >-
-          uv run coverage report
-          --fail-under=90
+          docker build \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            -t hack-the-back-e2e-api:ci \
+            -t ghcr.io/${{ github.repository }}:main \
+            -t ghcr.io/${{ github.repository }}:sha-${{ github.sha }} . &
+          build_pid=$!
+          uv run basedpyright app --level error &
+          typecheck_pid=$!
+
+          cleanup() {
+            for pid in ${api_pid:-} ${mail_pid:-} ${unit_pid:-} \
+              ${typecheck_pid:-} ${build_pid:-}; do
+              kill -TERM "$pid" 2>/dev/null || true
+            done
+            for pid in ${api_pid:-} ${mail_pid:-} ${unit_pid:-} \
+              ${typecheck_pid:-} ${build_pid:-}; do
+              wait "$pid" 2>/dev/null || true
+            done
+          }
+          trap cleanup EXIT
+
+          uv run alembic upgrade head
+          uv run alembic check
+          .venv/bin/python tests/e2e/fake_postmark.py &
+          mail_pid=$!
+          for _ in {1..100}; do
+            curl --fail --silent http://127.0.0.1:8080/health >/dev/null && break
+            sleep 0.1
+          done
+          curl --fail --silent http://127.0.0.1:8080/health >/dev/null
+
+          COVERAGE_FILE=test-artifacts/coverage/.coverage.e2e \
+            .venv/bin/coverage run --rcfile=.coveragerc \
+            -m fastapi run app/main.py --host 127.0.0.1 --port 58000 &
+          api_pid=$!
+
+          for _ in {1..100}; do
+            curl --fail --silent http://127.0.0.1:58000/health >/dev/null && break
+            sleep 0.1
+          done
+          curl --fail --silent http://127.0.0.1:58000/health >/dev/null
+
+          BCRYPT_ROUNDS=12 uv run coverage run \
+            --data-file=test-artifacts/coverage/.coverage.unit \
+            -m pytest tests/unit -q &
+          unit_pid=$!
+          uv run pytest -m e2e tests/e2e -q --e2e-no-compose
+
+          wait "$unit_pid"
+          unset unit_pid
+          wait "$typecheck_pid"
+          unset typecheck_pid
+          wait "$build_pid"
+          unset build_pid
+
+          kill -TERM "$api_pid" "$mail_pid"
+          wait "$api_pid" "$mail_pid" 2>/dev/null || true
+          unset api_pid mail_pid
+          trap - EXIT
+
+          uv run coverage combine test-artifacts/coverage
+          uv run coverage report --fail-under=90
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -92,11 +149,3 @@ jobs:
         run: |
           docker push ghcr.io/${{ github.repository }}:main
           docker push ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
-
-      - name: Clean up E2E containers
-        if: always()
-        run: >-
-          docker compose
-          -p hack-the-back-e2e
-          -f docker-compose.e2e.yml
-          down --volumes --remove-orphans
