@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel
-from sqlmodel import col, func, select
+from sqlmodel import select
 
 from app.core.db import SessionDep
 from app.models.constants import QuestionLabel
@@ -18,6 +18,7 @@ from app.models.forms import (
 )
 from app.models.meal import Meal
 from app.models.user import AccountUser
+from app.services.check_in_live import check_in_connections, get_check_in_counts
 
 router = APIRouter()
 
@@ -27,7 +28,9 @@ class QRScanRequest(BaseModel):
 
 
 @router.post("")
-def scan_qr(request: QRScanRequest, session: SessionDep) -> dict[str, Any]:
+def scan_qr(
+    request: QRScanRequest, session: SessionDep, background_tasks: BackgroundTasks
+) -> dict[str, Any]:
     try:
         application_id = UUID(request.id)
     except ValueError:
@@ -88,6 +91,7 @@ def scan_qr(request: QRScanRequest, session: SessionDep) -> dict[str, Any]:
     session.add(hacker_applicant)
     session.commit()
     session.refresh(hacker_applicant)
+    background_tasks.add_task(check_in_connections.broadcast)
 
     answers_statement = (
         select(FormAnswer, FormQuestion)
@@ -131,19 +135,7 @@ def scan_qr(request: QRScanRequest, session: SessionDep) -> dict[str, Any]:
             }
         )
 
-    scanned_count = session.exec(
-        select(func.count(HackathonApplicant.application_id)).where(
-            HackathonApplicant.status == StatusEnum.SCANNED_IN
-        )
-    ).one()
-
-    walkin_count = session.exec(
-        select(func.count(HackathonApplicant.application_id)).where(
-            col(HackathonApplicant.status).in_(
-                [StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED]
-            )
-        )
-    ).one()
+    counts = get_check_in_counts(session)
 
     response_body = {
         "id": str(application_id),
@@ -158,6 +150,5 @@ def scan_qr(request: QRScanRequest, session: SessionDep) -> dict[str, Any]:
     return {
         "message": message,
         "body": response_body,
-        "scannedCount": scanned_count,
-        "walkinCount": walkin_count,
+        **counts,
     }

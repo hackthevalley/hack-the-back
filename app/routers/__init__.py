@@ -10,6 +10,7 @@ from app.routers.forms import router as forms
 from app.routers.meal import router as meal
 from app.routers.schedule import router as schedule
 from app.routers.volunteer import router as volunteer
+from app.routers.volunteer.live import router as volunteer_live
 from app.dependencies.auth import get_current_user
 
 router = APIRouter()
@@ -51,4 +52,7 @@ router.include_router(
     prefix="/volunteer",
     tags=["volunteer"],
     dependencies=[Depends(is_volunteer)],
+)
+router.include_router(
+    volunteer_live, prefix="/volunteer/check-ins", tags=["volunteer"]
 )

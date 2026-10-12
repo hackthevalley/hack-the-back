@@ -1,3 +1,30 @@
+import json
+
+from websockets.sync.client import connect
+
+
+def test_live_check_in_counts(client, active_hacker, volunteer_headers):
+    socket_url = str(client.base_url).replace("http", "ws", 1).rstrip("/")
+    token = volunteer_headers["Authorization"].removeprefix("Bearer ")
+
+    with connect(f"{socket_url}/api/volunteer/check-ins/live") as websocket:
+        websocket.send(json.dumps({"token": token}))
+        initial = json.loads(websocket.recv(timeout=5))
+
+        walk_in = client.post(
+            "/api/volunteer/forms/walk-ins",
+            json={"email": active_hacker["email"]},
+            headers=volunteer_headers,
+        )
+        assert walk_in.status_code == 200, walk_in.text
+
+        updated = json.loads(websocket.recv(timeout=5))
+        assert updated == {
+            "scannedCount": initial["scannedCount"],
+            "walkinCount": initial["walkinCount"] + 1,
+        }
+
+
 def test_admin_meal_and_volunteer_food_workflow(
     client, active_hacker, admin_headers, volunteer_headers
 ):
