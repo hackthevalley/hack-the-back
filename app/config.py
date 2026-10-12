@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     ACTIVATION_EMAIL_COOLDOWN_MINUTES: int = 120
     LOGIN_MAX_FAILED_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_MINUTES: int = 15
+    BCRYPT_ROUNDS: int = Field(default=12, ge=4, le=31)
 
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE_MB: int = 5

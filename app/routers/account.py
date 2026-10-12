@@ -117,7 +117,8 @@ def signup(
     user: UserCreate, session: SessionDep, background_tasks: BackgroundTasks
 ) -> dict[str, str]:
     hashed_password = bcrypt.hashpw(
-        user.password.encode("utf-8"), bcrypt.gensalt()
+        user.password.encode("utf-8"),
+        bcrypt.gensalt(rounds=SecurityConfig.BCRYPT_ROUNDS),
     ).decode("utf-8")
     statement = select(AccountUser).where(AccountUser.email == user.email)
     selected_user = session.exec(statement).first()
@@ -228,7 +229,8 @@ def reset_password(user: UserUpdate, session: SessionDep) -> bool:
         raise _invalid_login()
 
     selected_user.password = bcrypt.hashpw(
-        user.password.encode("utf-8"), bcrypt.gensalt()
+        user.password.encode("utf-8"),
+        bcrypt.gensalt(rounds=SecurityConfig.BCRYPT_ROUNDS),
     ).decode("utf-8")
     selected_user.token_version += 1
     selected_user.failed_login_attempts = 0

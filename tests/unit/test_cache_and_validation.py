@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from pydantic import ValidationError
 
 from app.cache import SimpleCache
+from app.config import Settings
 from app import validators
 
 
@@ -25,6 +27,13 @@ def test_cache_lifecycle_and_expiry():
     assert "old" not in cache._cache
     cache.clear()
     assert cache._cache == {}
+
+
+def test_bcrypt_rounds_keep_secure_default_and_allow_fast_e2e_cost():
+    assert Settings(_env_file=None).BCRYPT_ROUNDS == 12
+    assert Settings(_env_file=None, BCRYPT_ROUNDS=4).BCRYPT_ROUNDS == 4
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, BCRYPT_ROUNDS=3)
 
 
 @pytest.mark.parametrize(
