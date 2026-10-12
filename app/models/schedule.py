@@ -1,12 +1,22 @@
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 from typing import ClassVar
 
+from sqlalchemy import String
 from sqlmodel import Column, DateTime, Field, SQLModel
 
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class ScheduleEventType(str, Enum):
+    GENERAL = "general"
+    WORKSHOP = "workshop"
+    CEREMONY = "ceremony"
+    FOOD = "food"
+    ACTIVITY = "activity"
 
 
 class ScheduleEvent(SQLModel, table=True):
@@ -16,6 +26,11 @@ class ScheduleEvent(SQLModel, table=True):
     title: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=1000)
     location: str | None = Field(default=None, max_length=160)
+    event_type: ScheduleEventType = Field(
+        default=ScheduleEventType.GENERAL,
+        sa_column=Column(String(32), nullable=False),
+    )
+    is_important: bool = Field(default=False, nullable=False)
     starts_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True)
     )

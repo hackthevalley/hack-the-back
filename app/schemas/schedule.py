@@ -3,11 +3,15 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.models.schedule import ScheduleEventType
+
 
 class ScheduleEventFields(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=1000)
     location: str | None = Field(default=None, max_length=160)
+    event_type: ScheduleEventType = ScheduleEventType.GENERAL
+    is_important: bool = False
     starts_at: datetime
     ends_at: datetime
 

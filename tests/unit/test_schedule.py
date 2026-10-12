@@ -9,7 +9,7 @@ from sqlmodel import Session, create_engine
 
 from app.config import AppConfig
 from app.models.forms import StatusEnum
-from app.models.schedule import ScheduleEvent, utc_now
+from app.models.schedule import ScheduleEvent, ScheduleEventType, utc_now
 from app.routers.admin.schedule import (
     create_event,
     delete_event,
@@ -24,6 +24,7 @@ from app.schemas.schedule import ScheduleEventCreate, ScheduleEventUpdate
 
 def test_schedule_event_accepts_configured_event_window():
     validate_event_window(AppConfig.EVENT_START_DATE, AppConfig.EVENT_END_DATE)
+    validate_event_window(AppConfig.EVENT_START_DATE, AppConfig.EVENT_START_DATE)
 
 
 @pytest.mark.parametrize(
@@ -37,7 +38,10 @@ def test_schedule_event_accepts_configured_event_window():
             AppConfig.EVENT_END_DATE - timedelta(minutes=30),
             AppConfig.EVENT_END_DATE + timedelta(minutes=1),
         ),
-        (AppConfig.EVENT_START_DATE, AppConfig.EVENT_START_DATE),
+        (
+            AppConfig.EVENT_START_DATE + timedelta(minutes=30),
+            AppConfig.EVENT_START_DATE,
+        ),
     ],
 )
 def test_schedule_event_rejects_invalid_windows(starts_at, ends_at):
@@ -67,12 +71,22 @@ def test_schedule_schema_cleans_text_and_rejects_blank_title():
     assert payload.title == "Opening ceremony"
     assert payload.description is None
     assert payload.location is None
+    assert payload.event_type == ScheduleEventType.GENERAL
+    assert payload.is_important is False
 
     with pytest.raises(ValidationError, match="Title cannot be blank"):
         ScheduleEventCreate(
             title="   ",
             starts_at=AppConfig.EVENT_START_DATE,
             ends_at=AppConfig.EVENT_START_DATE + timedelta(hours=1),
+        )
+
+    with pytest.raises(ValidationError, match="event_type"):
+        ScheduleEventCreate(
+            title="Unknown event",
+            event_type="unknown",  # type: ignore[arg-type]
+            starts_at=AppConfig.EVENT_START_DATE,
+            ends_at=AppConfig.EVENT_START_DATE,
         )
 
 
@@ -88,6 +102,8 @@ def test_schedule_crud_and_public_schedule():
                 title="Workshop",
                 description="Build something",
                 location="Room 101",
+                event_type=ScheduleEventType.WORKSHOP,
+                is_important=True,
                 starts_at=start,
                 ends_at=end,
             ),
@@ -95,6 +111,8 @@ def test_schedule_crud_and_public_schedule():
         )
 
         assert created.id is not None
+        assert created.event_type == ScheduleEventType.WORKSHOP
+        assert created.is_important is True
         assert [event.id for event in list_events(session)] == [created.id]
 
         public_schedule = get_schedule(session)
@@ -124,6 +142,8 @@ def test_schedule_crud_and_public_schedule():
                 title="Updated workshop",
                 description=None,
                 location="Room 202",
+                event_type=ScheduleEventType.ACTIVITY,
+                is_important=False,
                 starts_at=start + timedelta(minutes=30),
                 ends_at=end + timedelta(minutes=30),
             ),
@@ -131,6 +151,8 @@ def test_schedule_crud_and_public_schedule():
         )
         assert updated.title == "Updated workshop"
         assert updated.location == "Room 202"
+        assert updated.event_type == ScheduleEventType.ACTIVITY
+        assert updated.is_important is False
         assert updated.updated_at >= original_updated_at
 
         response = delete_event(created.id, session)

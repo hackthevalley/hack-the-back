@@ -26,10 +26,10 @@ def validate_event_window(starts_at: datetime, ends_at: datetime) -> None:
     ends_at = ends_at.astimezone(timezone.utc)
     event_start = AppConfig.EVENT_START_DATE.astimezone(timezone.utc)
     event_end = AppConfig.EVENT_END_DATE.astimezone(timezone.utc)
-    if starts_at >= ends_at:
+    if starts_at > ends_at:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Event end time must be after its start time",
+            detail="Event end time cannot be before its start time",
         )
     if starts_at < event_start or ends_at > event_end:
         raise HTTPException(
