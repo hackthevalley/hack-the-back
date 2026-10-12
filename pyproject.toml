@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.18.5",
     "bcrypt>=5.0.0",
+    "coverage>=7.10",
     "fastapi[standard]>=0.139.2",
     "google-auth>=2.56.1",
     "httpx>=0.28.1",
@@ -40,6 +41,5 @@ reportCallIssue = false
 [dependency-groups]
 dev = [
     "basedpyright>=1.39.9",
-    "coverage>=7.10",
     "pytest>=8.4",
 ]

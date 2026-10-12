@@ -1,4 +1,4 @@
-FROM python:3.14.6-slim-bookworm AS runtime
+FROM python:3.14.6-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/htb/.venv/bin:$PATH"
@@ -27,10 +27,3 @@ COPY ./templates /htb/templates
 COPY ./images /htb/images
 
 EXPOSE 8000
-
-FROM runtime AS e2e
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen
-
-FROM runtime AS production

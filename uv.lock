@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [[package]]
@@ -593,6 +593,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
     { name = "bcrypt" },
+    { name = "coverage" },
     { name = "fastapi", extra = ["standard"] },
     { name = "google-auth" },
     { name = "httpx" },
@@ -611,7 +612,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright" },
-    { name = "coverage" },
     { name = "pytest" },
 ]
 
@@ -619,6 +619,7 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.5" },
     { name = "bcrypt", specifier = ">=5.0.0" },
+    { name = "coverage", specifier = ">=7.10" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.139.2" },
     { name = "google-auth", specifier = ">=2.56.1" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -637,7 +638,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "basedpyright", specifier = ">=1.39.9" },
-    { name = "coverage", specifier = ">=7.10" },
     { name = "pytest", specifier = ">=8.4" },
 ]
 
