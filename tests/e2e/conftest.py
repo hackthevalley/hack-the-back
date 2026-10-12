@@ -78,6 +78,14 @@ def _wait_for_api():
     raise RuntimeError(f"E2E API did not become ready at {API_URL}")
 
 
+def _format_db_value(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "t" if value else "f"
+    return str(value)
+
+
 def db_query(sql: str) -> list[str]:
     with psycopg2.connect(DATABASE_URL) as connection:
         with connection.cursor() as cursor:
@@ -85,10 +93,7 @@ def db_query(sql: str) -> list[str]:
             if cursor.description is None:
                 return []
             return [
-                "|".join(
-                    "t" if value is True else "f" if value is False else str(value)
-                    for value in row
-                )
+                "|".join(_format_db_value(value) for value in row)
                 for row in cursor.fetchall()
             ]
 

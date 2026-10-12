@@ -24,6 +24,19 @@ def _wait_for_mail_count(email: str, expected: int):
     raise AssertionError(f"Expected {expected} messages for {email}, got {len(messages)}")
 
 
+def _wait_for_activation_sent_at(email: str) -> list[str]:
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        sent_at = db_query(
+            "SELECT last_activation_email_sent::text FROM account_user "
+            f"WHERE email = '{email}'"
+        )
+        if sent_at and sent_at[0]:
+            return sent_at
+        time.sleep(0.05)
+    raise AssertionError(f"Activation email timestamp was not recorded for {email}")
+
+
 def test_signup_activation_login_refresh_and_me(client, unique_email):
     signup = client.post(
         "/api/account/users",
@@ -252,11 +265,7 @@ def test_inactive_account_resends_are_generic_and_throttled(client, unique_email
     }
     first_signup = client.post("/api/account/users", json=payload)
     assert first_signup.status_code == 202
-    first_sent_at = db_query(
-        "SELECT last_activation_email_sent::text FROM account_user "
-        f"WHERE email = '{unique_email}'"
-    )
-    assert len(first_sent_at) == 1
+    first_sent_at = _wait_for_activation_sent_at(unique_email)
 
     duplicate_signup = client.post("/api/account/users", json=payload)
     inactive_login = client.post(
