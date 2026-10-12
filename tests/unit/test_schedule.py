@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -7,6 +8,7 @@ from pydantic import ValidationError
 from sqlmodel import Session, create_engine
 
 from app.config import AppConfig
+from app.models.forms import StatusEnum
 from app.models.schedule import ScheduleEvent, utc_now
 from app.routers.admin.schedule import (
     create_event,
@@ -16,7 +18,7 @@ from app.routers.admin.schedule import (
     update_event,
     validate_event_window,
 )
-from app.routers.schedule import get_schedule
+from app.routers.schedule import get_confirmed_schedule, get_schedule
 from app.schemas.schedule import ScheduleEventCreate, ScheduleEventUpdate
 
 
@@ -100,6 +102,21 @@ def test_schedule_crud_and_public_schedule():
         assert public_schedule.event_end_at == AppConfig.EVENT_END_DATE
         assert [event.id for event in public_schedule.events] == [created.id]
 
+        for allowed_status in (
+            StatusEnum.ACCEPTED_INVITE,
+            StatusEnum.SCANNED_IN,
+            StatusEnum.WALK_IN_SUBMITTED,
+        ):
+            confirmed_user = SimpleNamespace(
+                application=SimpleNamespace(
+                    hacker_applicant=SimpleNamespace(status=allowed_status)
+                )
+            )
+            confirmed_schedule = get_confirmed_schedule(
+                session, confirmed_user  # type: ignore[arg-type]
+            )
+            assert [event.id for event in confirmed_schedule.events] == [created.id]
+
         original_updated_at = created.updated_at
         updated = update_event(
             created.id,
@@ -137,6 +154,19 @@ def test_schedule_model_uses_utc_timestamps():
 
     assert event.created_at >= before
     assert event.updated_at >= before
+
+
+def test_confirmed_schedule_rejects_ineligible_status():
+    user = SimpleNamespace(
+        application=SimpleNamespace(
+            hacker_applicant=SimpleNamespace(status=StatusEnum.UNDER_REVIEW)
+        )
+    )
+
+    with pytest.raises(HTTPException) as error:
+        get_confirmed_schedule(None, user)  # type: ignore[arg-type]
+
+    assert error.value.status_code == 403
 
 
 def test_schedule_get_event_returns_existing_event():
