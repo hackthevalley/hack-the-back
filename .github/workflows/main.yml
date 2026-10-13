@@ -36,21 +36,7 @@ jobs:
       APPLICATION_END_DATE: "2099-01-01T00:00:00+00:00"
       RSVP_DUE_DATE: "2099-01-01"
       UPLOAD_DIR: /tmp/hack-the-back-e2e-uploads
-
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_DB: hack_the_back_e2e
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d hack_the_back_e2e"
-          --health-interval 1s
-          --health-timeout 3s
-          --health-retries 30
+      PUBLISH_IMAGE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
     steps:
       - name: Check out repository
@@ -65,6 +51,14 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build image and run tests
         run: |
           set -euo pipefail
@@ -72,30 +66,50 @@ jobs:
           rm -f test-artifacts/coverage/.coverage.e2e \
             test-artifacts/coverage/.coverage.unit
 
-          docker build \
-            --label org.opencontainers.image.revision=${{ github.sha }} \
-            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
-            -t hack-the-back-e2e-api:ci \
-            -t ghcr.io/${{ github.repository }}:main \
-            -t ghcr.io/${{ github.repository }}:sha-${{ github.sha }} . &
+          if [[ "$PUBLISH_IMAGE" == "true" ]]; then
+            docker buildx build --push \
+              --label org.opencontainers.image.revision=${{ github.sha }} \
+              --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+              --tag ghcr.io/${{ github.repository }}:sha-${{ github.sha }} . &
+          else
+            docker build \
+              --label org.opencontainers.image.revision=${{ github.sha }} \
+              --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+              --tag hack-the-back-e2e-api:ci . &
+          fi
           build_pid=$!
           uv run basedpyright app --level error &
           typecheck_pid=$!
 
           cleanup() {
             for pid in ${api_pid:-} ${mail_pid:-} ${unit_pid:-} \
-              ${typecheck_pid:-} ${build_pid:-}; do
+              ${migration_check_pid:-} ${typecheck_pid:-} ${build_pid:-}; do
               kill -TERM "$pid" 2>/dev/null || true
             done
             for pid in ${api_pid:-} ${mail_pid:-} ${unit_pid:-} \
-              ${typecheck_pid:-} ${build_pid:-}; do
+              ${migration_check_pid:-} ${typecheck_pid:-} ${build_pid:-}; do
               wait "$pid" 2>/dev/null || true
             done
+            docker stop hack-the-back-ci-db >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
+          docker run --detach --rm --name hack-the-back-ci-db \
+            --publish 5432:5432 \
+            --env POSTGRES_DB=hack_the_back_e2e \
+            --env POSTGRES_USER=postgres \
+            --env POSTGRES_PASSWORD=postgres postgres:17 >/dev/null
+          for _ in {1..100}; do
+            docker exec hack-the-back-ci-db \
+              pg_isready -U postgres -d hack_the_back_e2e >/dev/null && break
+            sleep 0.1
+          done
+          docker exec hack-the-back-ci-db \
+            pg_isready -U postgres -d hack_the_back_e2e >/dev/null
+
           uv run alembic upgrade head
-          uv run alembic check
+          uv run alembic check &
+          migration_check_pid=$!
           .venv/bin/python tests/e2e/fake_postmark.py &
           mail_pid=$!
           for _ in {1..100}; do
@@ -123,29 +137,25 @@ jobs:
 
           wait "$unit_pid"
           unset unit_pid
+          wait "$migration_check_pid"
+          unset migration_check_pid
           wait "$typecheck_pid"
           unset typecheck_pid
-          wait "$build_pid"
-          unset build_pid
 
           kill -TERM "$api_pid" "$mail_pid"
           wait "$api_pid" "$mail_pid" 2>/dev/null || true
           unset api_pid mail_pid
-          trap - EXIT
 
           uv run coverage combine test-artifacts/coverage
           uv run coverage report --fail-under=90
 
-      - name: Log in to GitHub Container Registry
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          wait "$build_pid"
+          unset build_pid
+          if [[ "$PUBLISH_IMAGE" == "true" ]]; then
+            docker buildx imagetools create \
+              --tag ghcr.io/${{ github.repository }}:main \
+              ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          fi
 
-      - name: Publish tested production image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          docker push ghcr.io/${{ github.repository }}:main
-          docker push ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          docker stop hack-the-back-ci-db >/dev/null
+          trap - EXIT
