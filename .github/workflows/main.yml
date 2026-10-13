@@ -68,6 +68,8 @@ jobs:
 
           if [[ "$PUBLISH_IMAGE" == "true" ]]; then
             docker buildx build --push \
+              --cache-from type=registry,ref=ghcr.io/${{ github.repository }}:main \
+              --cache-to type=inline \
               --label org.opencontainers.image.revision=${{ github.sha }} \
               --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
               --tag ghcr.io/${{ github.repository }}:sha-${{ github.sha }} . &
