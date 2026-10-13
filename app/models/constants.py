@@ -85,6 +85,7 @@ class EmailSubject:
     ACTIVATION = "Account Activation"
     CONFIRMATION = "Application Submitted"
     PASSWORD_RESET = "Account Password Reset"
+    HACKER_PACKAGE = "Hack the Valley 11 Hacker Package"
 
     @staticmethod
     def rsvp(event_name: str) -> str:
@@ -94,6 +95,38 @@ class EmailSubject:
 class EmailMessage:
 
     CONFIRMATION = "You have successfully submitted your application"
+
+    @staticmethod
+    def hacker_package_text(links: dict[str, str]) -> str:
+        return f"""Hack the Valley 11 Hacker Package
+
+Welcome to Hack the Valley 11!
+
+Thank you for confirming your attendance. We’re excited to see you October 16–18, 2026 at the Sam Ibrahim Building, University of Toronto Scarborough.
+
+Hacker Package:
+{links["hacker_package_link"]}
+
+Discord:
+{links["discord_link"]}
+
+Devpost:
+{links["devpost_link"]}
+
+If you are under 18, please have a parent or guardian complete the Minor Hacker Waiver and email it to hello@hackthevalley.io:
+https://raw.githubusercontent.com/hackthevalley/internal-resources/main/functions/static/htv11-hacker-liability-waiver.pdf
+
+Women in Tech Summit — Saturday, October 17th, 2–5 PM:
+{links["wits_signup_link"]}
+
+WITS Lightning Talk Signup:
+{links["wits_lightning_talk_signup_link"]}
+
+Registration begins Friday at 5 PM. Please bring valid ID and your QR code. Hacking begins Friday at 10 PM.
+
+See you soon!
+Hack the Valley Team"""
+
     @staticmethod
     def password_reset_text(url: str) -> str:
         return f"Go to this link to reset your password: {url}"

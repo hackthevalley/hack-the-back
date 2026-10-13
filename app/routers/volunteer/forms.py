@@ -10,7 +10,7 @@ from app.models.user import AccountUser
 from app.schemas.forms import WalkInRequest
 from app.services.applications import create_application
 from app.services.check_in_live import check_in_connections
-from app.services.email import send_rsvp_safely
+from app.services.email import send_hacker_package_safely, send_rsvp_safely
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -55,7 +55,10 @@ def mark_walkin(
         send_email = False
     elif current_status == StatusEnum.APPLIED:
         user.application.hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
-        message = f"User {user.email} marked as WALK_IN_SUBMITTED - RSVP email sent"
+        message = (
+            f"User {user.email} marked as WALK_IN_SUBMITTED - acceptance and "
+            "hacker package emails sent"
+        )
         send_email = True
     elif current_status in {StatusEnum.WALK_IN, StatusEnum.WALK_IN_SUBMITTED}:
         message = f"User {user.email} is already marked as {current_status.value}"
@@ -77,6 +80,7 @@ def mark_walkin(
         background_tasks.add_task(
             send_rsvp_safely, user.email, user.full_name, application_id, user.first_name
         )
+        background_tasks.add_task(send_hacker_package_safely, user.email)
 
     return {
         "message": message,

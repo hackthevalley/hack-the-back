@@ -35,6 +35,11 @@ jobs:
       APPLICATION_START_DATE: "2020-01-01T00:00:00+00:00"
       APPLICATION_END_DATE: "2099-01-01T00:00:00+00:00"
       RSVP_DUE_DATE: "2099-01-01"
+      HACKER_PACKAGE_DISCORD_LINK: https://example.com/discord
+      HACKER_PACKAGE_DEVPOST_LINK: https://example.com/devpost
+      HACKER_PACKAGE_LINK: https://example.com/package
+      HACKER_PACKAGE_WITS_SIGNUP_LINK: https://example.com/wits
+      HACKER_PACKAGE_WITS_LIGHTNING_TALK_SIGNUP_LINK: https://example.com/talk
       UPLOAD_DIR: /tmp/hack-the-back-e2e-uploads
       PUBLISH_IMAGE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 

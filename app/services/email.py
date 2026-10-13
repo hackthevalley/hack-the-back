@@ -177,6 +177,32 @@ def send_rsvp_safely(
         logger.exception("RSVP for application %s could not be sent", application_id)
 
 
+def send_hacker_package(user_email: str) -> None:
+    links = {
+        "discord_link": AppConfig.HACKER_PACKAGE_DISCORD_LINK,
+        "devpost_link": AppConfig.HACKER_PACKAGE_DEVPOST_LINK,
+        "hacker_package_link": AppConfig.HACKER_PACKAGE_LINK,
+        "wits_signup_link": AppConfig.HACKER_PACKAGE_WITS_SIGNUP_LINK,
+        "wits_lightning_talk_signup_link": AppConfig.HACKER_PACKAGE_WITS_LIGHTNING_TALK_SIGNUP_LINK,
+    }
+    if missing := [name for name, value in links.items() if not value]:
+        raise ValueError(f"Missing hacker package configuration: {', '.join(missing)}")
+    send_email(
+        EmailTemplate.HACKER_PACKAGE,
+        user_email,
+        EmailSubject.HACKER_PACKAGE,
+        EmailMessage.hacker_package_text(links),
+        links,
+    )
+
+
+def send_hacker_package_safely(user_email: str) -> None:
+    try:
+        send_hacker_package(user_email)
+    except Exception:
+        logger.exception("Hacker package for %s could not be sent", user_email)
+
+
 def create_qr_code(application_id: str):
     qr = qrcode.QRCode(
         version=3,

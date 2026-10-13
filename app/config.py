@@ -67,6 +67,11 @@ class Settings(BaseSettings):
         "2026-09-01T00:00:00-04:00"
     )
     RSVP_DUE_DATE: date = date(2026, 10, 9)
+    HACKER_PACKAGE_DISCORD_LINK: str = ""
+    HACKER_PACKAGE_DEVPOST_LINK: str = ""
+    HACKER_PACKAGE_LINK: str = ""
+    HACKER_PACKAGE_WITS_SIGNUP_LINK: str = ""
+    HACKER_PACKAGE_WITS_LIGHTNING_TALK_SIGNUP_LINK: str = ""
     APPLE_TEAM_IDENTIFIER: str | None = None
     APPLE_PASS_TYPE_IDENTIFIER: str | None = None
     APPLE_WALLET_KEY_PASSWORD: str | None = None

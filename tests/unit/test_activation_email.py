@@ -237,6 +237,46 @@ def test_background_email_helpers_contain_failures(monkeypatch):
     assert email_service.send_rsvp_safely("email", "name", "application") is None
 
 
+def test_hacker_package_email_uses_event_links(monkeypatch):
+    sent = []
+    links = {
+        "HACKER_PACKAGE_DISCORD_LINK": "https://example.com/discord",
+        "HACKER_PACKAGE_DEVPOST_LINK": "https://example.com/devpost",
+        "HACKER_PACKAGE_LINK": "https://example.com/package",
+        "HACKER_PACKAGE_WITS_SIGNUP_LINK": "https://example.com/wits",
+        "HACKER_PACKAGE_WITS_LIGHTNING_TALK_SIGNUP_LINK": "https://example.com/talk",
+    }
+    for name, value in links.items():
+        monkeypatch.setattr(AppConfig, name, value)
+    monkeypatch.setattr(
+        email_service, "send_email", lambda *args, **kwargs: sent.append((args, kwargs))
+    )
+
+    email_service.send_hacker_package_safely("hacker@example.com")
+
+    args, kwargs = sent[0]
+    assert args[0] == "templates/hacker_package.html"
+    assert args[1] == "hacker@example.com"
+    assert args[2] == "Hack the Valley 11 Hacker Package"
+    assert args[4] == {
+        "discord_link": "https://example.com/discord",
+        "devpost_link": "https://example.com/devpost",
+        "hacker_package_link": "https://example.com/package",
+        "wits_signup_link": "https://example.com/wits",
+        "wits_lightning_talk_signup_link": "https://example.com/talk",
+    }
+    assert "Registration begins Friday at 5 PM" in args[3]
+    assert "https://example.com/package" in args[3]
+    assert kwargs == {}
+
+
+def test_hacker_package_email_requires_all_links(monkeypatch):
+    monkeypatch.setattr(AppConfig, "HACKER_PACKAGE_DISCORD_LINK", "")
+
+    with pytest.raises(ValueError, match="discord_link"):
+        email_service.send_hacker_package("hacker@example.com")
+
+
 def test_background_activation_uses_fresh_session(monkeypatch):
     calls = []
 

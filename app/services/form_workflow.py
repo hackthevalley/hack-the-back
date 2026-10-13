@@ -23,7 +23,11 @@ from app.models.forms import (
 from app.models.user import AccountUser
 from app.schemas.forms import FormAnswerUpdate
 from app.services.applications import create_application, is_valid_submission_time
-from app.services.email import send_email_safely, send_rsvp_safely
+from app.services.email import (
+    send_email_safely,
+    send_hacker_package_safely,
+    send_rsvp_safely,
+)
 from app.validators import validate_form_answer
 
 logger = logging.getLogger(__name__)
@@ -217,6 +221,7 @@ def submit_application(
             str(application.application_id),
             user.first_name,
         )
+        schedule(send_hacker_package_safely, user.email)
     else:
         schedule(
             send_email_safely,
