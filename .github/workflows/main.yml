@@ -38,6 +38,21 @@ jobs:
       UPLOAD_DIR: /tmp/hack-the-back-e2e-uploads
       PUBLISH_IMAGE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: hack_the_back_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hack_the_back_e2e"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -92,28 +107,8 @@ jobs:
               ${migration_check_pid:-} ${typecheck_pid:-} ${build_pid:-}; do
               wait "$pid" 2>/dev/null || true
             done
-            docker stop hack-the-back-ci-db >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
-
-          docker run --detach --rm --name hack-the-back-ci-db \
-            --publish 5432:5432 \
-            --env POSTGRES_DB=hack_the_back_e2e \
-            --env POSTGRES_USER=postgres \
-            --env POSTGRES_PASSWORD=postgres postgres:17 >/dev/null
-          postgres_ready=false
-          for _ in {1..300}; do
-            if docker exec hack-the-back-ci-db \
-              pg_isready -U postgres -d hack_the_back_e2e >/dev/null; then
-              postgres_ready=true
-              break
-            fi
-            sleep 0.1
-          done
-          if [[ "$postgres_ready" != "true" ]]; then
-            docker logs hack-the-back-ci-db
-            exit 1
-          fi
 
           uv run alembic upgrade head
           uv run alembic check &
@@ -165,5 +160,4 @@ jobs:
               ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
           fi
 
-          docker stop hack-the-back-ci-db >/dev/null
           trap - EXIT
