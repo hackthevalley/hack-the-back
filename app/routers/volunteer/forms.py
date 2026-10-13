@@ -53,7 +53,7 @@ def mark_walkin(
         user.application.hacker_applicant.status = StatusEnum.WALK_IN
         message = f"User {user.email} marked as WALK_IN - they can now complete their application"
         send_email = False
-    elif current_status == StatusEnum.APPLIED:
+    elif current_status in {StatusEnum.APPLIED, StatusEnum.REJECTED}:
         user.application.hacker_applicant.status = StatusEnum.WALK_IN_SUBMITTED
         message = (
             f"User {user.email} marked as WALK_IN_SUBMITTED - acceptance and "
