@@ -101,13 +101,19 @@ jobs:
             --env POSTGRES_DB=hack_the_back_e2e \
             --env POSTGRES_USER=postgres \
             --env POSTGRES_PASSWORD=postgres postgres:17 >/dev/null
-          for _ in {1..100}; do
-            docker exec hack-the-back-ci-db \
-              pg_isready -U postgres -d hack_the_back_e2e >/dev/null && break
+          postgres_ready=false
+          for _ in {1..300}; do
+            if docker exec hack-the-back-ci-db \
+              pg_isready -U postgres -d hack_the_back_e2e >/dev/null; then
+              postgres_ready=true
+              break
+            fi
             sleep 0.1
           done
-          docker exec hack-the-back-ci-db \
-            pg_isready -U postgres -d hack_the_back_e2e >/dev/null
+          if [[ "$postgres_ready" != "true" ]]; then
+            docker logs hack-the-back-ci-db
+            exit 1
+          fi
 
           uv run alembic upgrade head
           uv run alembic check &
