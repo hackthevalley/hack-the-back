@@ -9,7 +9,6 @@ from app.models.forms import StatusEnum
 from app.models.user import AccountUser
 from app.schemas.forms import WalkInRequest
 from app.services.applications import create_application
-from app.services.check_in_live import check_in_connections
 from app.services.email import send_hacker_package_safely, send_rsvp_safely
 
 router = APIRouter()
@@ -74,7 +73,6 @@ def mark_walkin(
     session.add(user.application.hacker_applicant)
     session.commit()
     session.refresh(user.application.hacker_applicant)
-    background_tasks.add_task(check_in_connections.broadcast)
 
     if send_email:
         background_tasks.add_task(

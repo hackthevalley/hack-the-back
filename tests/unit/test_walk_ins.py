@@ -46,7 +46,7 @@ def test_rejected_applicant_can_walk_in():
     assert response["old_status"] == "REJECTED"
     assert response["new_status"] == "WALK_IN_SUBMITTED"
     assert response["rsvp_sent"] is True
-    assert [task.func for task in background_tasks.tasks[1:]] == [
+    assert [task.func for task in background_tasks.tasks] == [
         send_rsvp_safely,
         send_hacker_package_safely,
     ]

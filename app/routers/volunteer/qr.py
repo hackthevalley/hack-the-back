@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import select
 
@@ -18,7 +18,7 @@ from app.models.forms import (
 )
 from app.models.meal import Meal
 from app.models.user import AccountUser
-from app.services.check_in_live import check_in_connections, get_check_in_counts
+from app.services.check_ins import get_check_in_counts
 
 router = APIRouter()
 
@@ -33,9 +33,7 @@ def read_check_in_counts(session: SessionDep) -> dict[str, int]:
 
 
 @router.post("")
-def scan_qr(
-    request: QRScanRequest, session: SessionDep, background_tasks: BackgroundTasks
-) -> dict[str, Any]:
+def scan_qr(request: QRScanRequest, session: SessionDep) -> dict[str, Any]:
     try:
         application_id = UUID(request.id)
     except ValueError:
@@ -96,7 +94,6 @@ def scan_qr(
     session.add(hacker_applicant)
     session.commit()
     session.refresh(hacker_applicant)
-    background_tasks.add_task(check_in_connections.broadcast)
 
     answers_statement = (
         select(FormAnswer, FormQuestion)

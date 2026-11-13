@@ -1,35 +1,25 @@
-import json
+def test_check_in_counts(client, active_hacker, volunteer_headers):
+    endpoint = "/api/volunteer/check-ins/counts"
+    assert client.get(endpoint).status_code == 401
+    assert client.get(endpoint, headers=active_hacker["headers"]).status_code == 403
 
-from websockets.sync.client import connect
-
-
-def test_live_check_in_counts(client, active_hacker, volunteer_headers):
-    socket_url = str(client.base_url).replace("http", "ws", 1).rstrip("/")
-    token = volunteer_headers["Authorization"].removeprefix("Bearer ")
-    counts = client.get(
-        "/api/volunteer/check-ins/counts", headers=volunteer_headers
-    )
+    counts = client.get(endpoint, headers=volunteer_headers)
     assert counts.status_code == 200, counts.text
+    initial = counts.json()
 
-    with connect(f"{socket_url}/api/volunteer/check-ins/live") as websocket:
-        websocket.send(json.dumps({"token": token}))
-        initial = json.loads(websocket.recv(timeout=5))
+    walk_in = client.post(
+        "/api/volunteer/forms/walk-ins",
+        json={"email": active_hacker["email"]},
+        headers=volunteer_headers,
+    )
+    assert walk_in.status_code == 200, walk_in.text
 
-        walk_in = client.post(
-            "/api/volunteer/forms/walk-ins",
-            json={"email": active_hacker["email"]},
-            headers=volunteer_headers,
-        )
-        assert walk_in.status_code == 200, walk_in.text
-
-        updated = json.loads(websocket.recv(timeout=5))
-        assert updated == {
-            "scannedCount": initial["scannedCount"],
-            "walkinCount": initial["walkinCount"] + 1,
-        }
-        assert client.get(
-            "/api/volunteer/check-ins/counts", headers=volunteer_headers
-        ).json() == updated
+    updated = client.get(endpoint, headers=volunteer_headers)
+    assert updated.status_code == 200, updated.text
+    assert updated.json() == {
+        "scannedCount": initial["scannedCount"],
+        "walkinCount": initial["walkinCount"] + 1,
+    }
 
 
 def test_admin_meal_and_volunteer_food_workflow(
